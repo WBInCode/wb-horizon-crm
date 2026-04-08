@@ -3,6 +3,37 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
 
+export async function GET() {
+  try {
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    if (user.role !== "CLIENT") {
+      return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
+    }
+
+    const client = await prisma.client.findFirst({
+      where: { ownerId: user.id },
+    })
+
+    if (!client) {
+      return NextResponse.json({ error: "Brak przypisanej firmy" }, { status: 404 })
+    }
+
+    const products = await prisma.product.findMany({
+      where: { clientId: client.id, isActive: true },
+      orderBy: { createdAt: "desc" },
+    })
+
+    return NextResponse.json(products)
+  } catch (error) {
+    console.error(error)
+    return NextResponse.json({ error: "Server error" }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser()
@@ -16,43 +47,34 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
-    // Verify client owns this client record
     const client = await prisma.client.findFirst({
-      where: { id: body.clientId, ownerId: user.id },
+      where: { ownerId: user.id },
     })
 
     if (!client) {
-      return NextResponse.json({ error: "Brak dostępu do tej firmy" }, { status: 403 })
+      return NextResponse.json({ error: "Brak przypisanej firmy" }, { status: 403 })
     }
 
-    const newCase = await prisma.case.create({
+    const product = await prisma.product.create({
       data: {
-        title: body.title,
-        serviceName: body.serviceName || null,
-        clientId: body.clientId,
-        status: "DRAFT",
-      },
-    })
-
-    await prisma.caseMessage.create({
-      data: {
-        caseId: newCase.id,
-        content: `Klient dodał produkt/usługę: ${body.title}`,
-        type: "SYSTEM_LOG",
-        visibilityScope: "ALL",
+        name: body.name,
+        description: body.description || null,
+        surveySchema: body.surveySchema || null,
+        requiredFiles: body.requiredFiles || null,
+        clientId: client.id,
       },
     })
 
     await auditLog({
       action: "CREATE",
-      entityType: "CASE",
-      entityId: newCase.id,
-      entityLabel: newCase.title,
+      entityType: "PRODUCT",
+      entityId: product.id,
+      entityLabel: product.name,
       userId: user.id,
-      metadata: { clientId: body.clientId, source: "client-panel" },
+      metadata: { clientId: client.id },
     })
 
-    return NextResponse.json(newCase, { status: 201 })
+    return NextResponse.json(product, { status: 201 })
   } catch (error) {
     console.error(error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })

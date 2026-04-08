@@ -181,6 +181,7 @@ model Client {
   
   contacts     ContactPerson[]
   cases        Case[]
+  products     Product[]
 }
 
 model ContactPerson {
@@ -197,6 +198,23 @@ model ContactPerson {
   // Relacje
   clientId  String
   client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+model Product {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?  @db.Text
+  surveySchema    Json?    // Tablica pytań ankiety: [{ question: string, type: "text"|"number"|"select", options?: string[] }]
+  requiredFiles   Json?    // Tablica wymaganych dokumentów: [{ name: string, description?: string }]
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relacje
+  clientId        String
+  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  cases           Case[]
 }
 
 model Case {
@@ -219,6 +237,9 @@ model Case {
   // Relacje
   clientId       String
   client         Client     @relation(fields: [clientId], references: [id])
+  
+  productId      String?
+  product        Product?   @relation(fields: [productId], references: [id])
   
   salesId        String?
   salesperson    User?      @relation("CaseSalesperson", fields: [salesId], references: [id])

@@ -123,6 +123,7 @@ export async function POST(request: NextRequest) {
         title: body.title,
         serviceName: body.serviceName,
         clientId: body.clientId,
+        productId: body.productId || null,
         salesId: body.salesId || user.id,
         caretakerId: caretakerId,
         directorId: body.directorId,
