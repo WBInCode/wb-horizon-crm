@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
+import { del } from "@vercel/blob"
 import { auditLog } from "@/lib/audit"
 
 export async function PATCH(
@@ -106,6 +107,15 @@ export async function DELETE(
     const file = await prisma.caseFile.findUnique({ where: { id: fileId } })
     if (file && file.uploadedById !== user.id && !["CARETAKER", "DIRECTOR", "ADMIN"].includes(user.role)) {
       return NextResponse.json({ error: "Brak uprawnień do usunięcia pliku" }, { status: 403 })
+    }
+
+    // Usuń blob z Vercel Blob (jeśli URL jest blob URL)
+    if (file?.filePath && file.filePath.includes("blob.vercel-storage.com")) {
+      try {
+        await del(file.filePath)
+      } catch (e) {
+        console.error("Blob delete error:", e)
+      }
     }
     
     await prisma.caseFile.delete({
