@@ -203,12 +203,12 @@ export function SurveyTab({ caseData, onUpdate }: Props) {
                 <Select value={newField.type} onValueChange={(v: any) => setNewField({ ...newField, type: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="text">Tekst</SelectItem>
-                    <SelectItem value="textarea">Textarea</SelectItem>
-                    <SelectItem value="select">Select</SelectItem>
-                    <SelectItem value="checkbox">Checkbox</SelectItem>
-                    <SelectItem value="date">Data</SelectItem>
-                    <SelectItem value="file">Plik</SelectItem>
+                    <SelectItem value="text" label="Tekst">Tekst</SelectItem>
+                    <SelectItem value="textarea" label="Textarea">Textarea</SelectItem>
+                    <SelectItem value="select" label="Select">Select</SelectItem>
+                    <SelectItem value="checkbox" label="Checkbox">Checkbox</SelectItem>
+                    <SelectItem value="date" label="Data">Data</SelectItem>
+                    <SelectItem value="file" label="Plik">Plik</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

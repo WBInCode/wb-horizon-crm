@@ -164,7 +164,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             {Object.entries(statusLabels).map(([key, label]) => (
-              <SelectItem key={key} value={key}>{label}</SelectItem>
+              <SelectItem key={key} value={key} label={label}>{label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -235,7 +235,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
                   <Select value={editForm.assignedSalesId} onValueChange={(v) => upd("assignedSalesId", v)}>
                     <SelectTrigger><SelectValue placeholder="Wybierz" /></SelectTrigger>
                     <SelectContent>
-                      {salespersons.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                      {salespersons.map((u) => <SelectItem key={u.id} value={u.id} label={u.name}>{u.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
