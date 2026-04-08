@@ -203,7 +203,7 @@ export function SummaryTab({ caseData, onUpdate }: Props) {
                   <div>
                     <label className="text-xs text-gray-500">Handlowiec</label>
                     <Select value={assignSales} onValueChange={(v) => { setAssignSales(v); handleAssignmentChange("salesId", v) }}>
-                      <SelectTrigger className="mt-1"><SelectValue placeholder="Wybierz" /></SelectTrigger>
+                      <SelectTrigger className="mt-1"><SelectValue placeholder="Wybierz">{salespersons.find((u) => u.id === assignSales)?.name}</SelectValue></SelectTrigger>
                       <SelectContent>
                         {salespersons.map((u) => <SelectItem key={u.id} value={u.id} label={u.name}>{u.name}</SelectItem>)}
                       </SelectContent>
@@ -212,7 +212,7 @@ export function SummaryTab({ caseData, onUpdate }: Props) {
                   <div>
                     <label className="text-xs text-gray-500">Opiekun</label>
                     <Select value={assignCaretaker} onValueChange={(v) => { setAssignCaretaker(v); handleAssignmentChange("caretakerId", v) }}>
-                      <SelectTrigger className="mt-1"><SelectValue placeholder="Wybierz" /></SelectTrigger>
+                      <SelectTrigger className="mt-1"><SelectValue placeholder="Wybierz">{caretakers.find((u) => u.id === assignCaretaker)?.name}</SelectValue></SelectTrigger>
                       <SelectContent>
                         {caretakers.map((u) => <SelectItem key={u.id} value={u.id} label={u.name}>{u.name}</SelectItem>)}
                       </SelectContent>
@@ -221,7 +221,7 @@ export function SummaryTab({ caseData, onUpdate }: Props) {
                   <div>
                     <label className="text-xs text-gray-500">Dyrektor</label>
                     <Select value={assignDirector} onValueChange={(v) => { setAssignDirector(v); handleAssignmentChange("directorId", v) }}>
-                      <SelectTrigger className="mt-1"><SelectValue placeholder="Wybierz" /></SelectTrigger>
+                      <SelectTrigger className="mt-1"><SelectValue placeholder="Wybierz">{directors.find((u) => u.id === assignDirector)?.name}</SelectValue></SelectTrigger>
                       <SelectContent>
                         {directors.map((u) => <SelectItem key={u.id} value={u.id} label={u.name}>{u.name}</SelectItem>)}
                       </SelectContent>

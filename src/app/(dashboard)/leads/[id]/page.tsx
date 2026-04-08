@@ -233,7 +233,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
                 <div>
                   <label className="text-sm font-medium">Handlowiec</label>
                   <Select value={editForm.assignedSalesId} onValueChange={(v) => upd("assignedSalesId", v)}>
-                    <SelectTrigger><SelectValue placeholder="Wybierz" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Wybierz">{salespersons.find((u) => u.id === editForm.assignedSalesId)?.name}</SelectValue></SelectTrigger>
                     <SelectContent>
                       {salespersons.map((u) => <SelectItem key={u.id} value={u.id} label={u.name}>{u.name}</SelectItem>)}
                     </SelectContent>
