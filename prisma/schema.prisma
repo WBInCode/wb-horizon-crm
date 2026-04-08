@@ -1,13 +1,384 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
 }
+
+// ==================== ENUMS ====================
+
+enum Role {
+  ADMIN
+  DIRECTOR
+  CARETAKER
+  SALESPERSON
+  CALL_CENTER
+  CLIENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum LeadStatus {
+  NEW
+  TO_CONTACT
+  IN_CONTACT
+  MEETING_SCHEDULED
+  AFTER_MEETING
+  QUALIFIED
+  NOT_QUALIFIED
+  TRANSFERRED
+  CLOSED
+}
+
+enum CaseStatus {
+  DRAFT
+  IN_PREPARATION
+  WAITING_CLIENT_DATA
+  WAITING_FILES
+  CARETAKER_REVIEW
+  DIRECTOR_REVIEW
+  TO_FIX
+  ACCEPTED
+  DELIVERED
+  CLOSED
+  CANCELLED
+}
+
+enum FileStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  MISSING
+}
+
+enum ChecklistItemStatus {
+  PENDING
+  COMPLETED
+}
+
+enum MessageType {
+  CHAT
+  CARETAKER_NOTE
+  DIRECTOR_NOTE
+  CLIENT_NOTE
+  SYSTEM_LOG
+}
+
+enum VisibilityScope {
+  ALL
+  INTERNAL
+  CLIENT
+}
+
+enum QuoteStatus {
+  DRAFT
+  CONSULTATION
+  CARETAKER_REVIEW
+  DIRECTOR_REVIEW
+  SENT
+  ACCEPTED
+  REJECTED
+  TO_FIX
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  RETURNED
+}
+
+enum ApprovalTargetType {
+  CASE
+  FILE
+  QUOTE
+  CHECKLIST_ITEM
+}
+
+// ==================== MODELE ====================
+
+model User {
+  id        String     @id @default(cuid())
+  email     String     @unique
+  password  String
+  name      String
+  role      Role       @default(SALESPERSON)
+  status    UserStatus @default(ACTIVE)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Relacje
+  leadsAssigned    Lead[]        @relation("SalespersonLeads")
+  clientsOwned     Client[]      @relation("ClientOwner")
+  
+  casesAsSales     Case[]        @relation("CaseSalesperson")
+  casesAsCaretaker Case[]        @relation("CaseCaretaker")
+  casesAsDirector  Case[]        @relation("CaseDirector")
+  
+  filesUploaded    CaseFile[]    @relation("FileUploader")
+  messagesWritten  CaseMessage[] @relation("MessageAuthor")
+  checklistUpdates CaseChecklistItem[] @relation("ChecklistUpdater")
+  checklistAssigned CaseChecklistItem[] @relation("ChecklistAssigned")
+  
+  approvals        Approval[]    @relation("ApprovalApprover")
+  surveysUpdated   CaseSurvey[]  @relation("SurveyUpdater")
+  notifications    Notification[]
+  auditLogs        AuditLog[]    @relation("AuditLogs")
+}
+
+model Lead {
+  id              String     @id @default(cuid())
+  companyName     String
+  nip             String?
+  industry        String?
+  website         String?
+  source          String?
+  contactPerson   String
+  position        String?
+  phone           String
+  email           String?
+  isDecisionMaker Boolean    @default(false)
+  meetingDate     DateTime?
+  status          LeadStatus @default(NEW)
+  notes           String?    @db.Text
+  needs           String?    @db.Text
+  
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  // Relacje
+  assignedSalesId String?
+  assignedSales   User?      @relation("SalespersonLeads", fields: [assignedSalesId], references: [id])
+  
+  convertedToClient   Client? @relation("LeadToClient")
+  convertedToClientId String? @unique
+}
+
+model Client {
+  id           String   @id @default(cuid())
+  companyName  String
+  nip          String?
+  industry     String?
+  website      String?
+  description  String?  @db.Text
+  priorities   String?  @db.Text
+  notes        String?  @db.Text
+  requirements String?  @db.Text
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relacje
+  ownerId      String?
+  owner        User?    @relation("ClientOwner", fields: [ownerId], references: [id])
+  
+  fromLead     Lead?    @relation("LeadToClient", fields: [fromLeadId], references: [id])
+  fromLeadId   String?  @unique
+  
+  contacts     ContactPerson[]
+  cases        Case[]
+}
+
+model ContactPerson {
+  id        String   @id @default(cuid())
+  name      String
+  position  String?
+  phone     String?
+  email     String?
+  isMain    Boolean  @default(false)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacje
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+model Case {
+  id             String     @id @default(cuid())
+  title          String
+  serviceName    String?
+  status         CaseStatus @default(DRAFT)
+  commercialData Json?
+  
+  // Dane ankiety (uproszczone MVP)
+  surveyNeeds    String?    @db.Text
+  surveyBudget   Float?
+  surveyDeadline DateTime?
+  surveyClientNotes  String? @db.Text
+  surveySalesNotes   String? @db.Text
+  
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  // Relacje
+  clientId       String
+  client         Client     @relation(fields: [clientId], references: [id])
+  
+  salesId        String?
+  salesperson    User?      @relation("CaseSalesperson", fields: [salesId], references: [id])
+  
+  caretakerId    String?
+  caretaker      User?      @relation("CaseCaretaker", fields: [caretakerId], references: [id])
+  
+  directorId     String?
+  director       User?      @relation("CaseDirector", fields: [directorId], references: [id])
+  
+  files          CaseFile[]
+  checklist      CaseChecklistItem[]
+  messages       CaseMessage[]
+  surveys        CaseSurvey[]
+  quotes         Quote[]
+  approvals      Approval[]
+}
+
+model CaseFile {
+  id            String     @id @default(cuid())
+  fileName      String
+  fileType      String?
+  filePath      String
+  fileSize      Int?
+  status        FileStatus @default(PENDING)
+  version       Int        @default(1)
+  comment       String?    @db.Text
+  
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  // Relacje
+  caseId        String
+  case          Case       @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  
+  uploadedById  String
+  uploadedBy    User       @relation("FileUploader", fields: [uploadedById], references: [id])
+}
+
+model CaseChecklistItem {
+  id          String              @id @default(cuid())
+  label       String
+  itemType    String?
+  isRequired  Boolean             @default(false)
+  isCritical  Boolean             @default(false)
+  isBlocking  Boolean             @default(false)
+  status      ChecklistItemStatus @default(PENDING)
+  
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  // Relacje
+  caseId      String
+  case        Case                @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  
+  assignedToId String?
+  assignedTo   User?              @relation("ChecklistAssigned", fields: [assignedToId], references: [id])
+  
+  updatedById  String?
+  updatedBy    User?              @relation("ChecklistUpdater", fields: [updatedById], references: [id])
+}
+
+model CaseMessage {
+  id              String          @id @default(cuid())
+  content         String          @db.Text
+  type            MessageType     @default(CHAT)
+  visibilityScope VisibilityScope @default(ALL)
+  
+  createdAt       DateTime        @default(now())
+
+  // Relacje
+  caseId          String
+  case            Case            @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  
+  authorId        String?
+  author          User?           @relation("MessageAuthor", fields: [authorId], references: [id])
+}
+
+model CaseSurvey {
+  id          String   @id @default(cuid())
+  schemaJson  Json?
+  answersJson Json?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacje
+  caseId      String
+  case        Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  
+  updatedById String?
+  updatedBy   User?    @relation("SurveyUpdater", fields: [updatedById], references: [id])
+}
+
+model Quote {
+  id          String      @id @default(cuid())
+  scope       String?     @db.Text
+  price       Float?
+  variants    Json?
+  notes       String?     @db.Text
+  status      QuoteStatus @default(DRAFT)
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relacje
+  caseId      String
+  case        Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}
+
+model Approval {
+  id          String              @id @default(cuid())
+  targetType  ApprovalTargetType
+  targetId    String
+  status      ApprovalStatus      @default(PENDING)
+  comment     String?             @db.Text
+  
+  createdAt   DateTime            @default(now())
+
+  // Relacje
+  caseId      String
+  case        Case                @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  
+  approvedById String
+  approvedBy   User               @relation("ApprovalApprover", fields: [approvedById], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      String?
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean  @default(false)
+  
+  createdAt DateTime @default(now())
+
+  // Relacje
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String   // CREATE, UPDATE, DELETE, CONVERT, LOGIN, STATUS_CHANGE, ROLE_CHANGE, REASSIGN
+  entityType  String   // CASE, LEAD, CLIENT, USER, FILE, QUOTE, APPROVAL, CHECKLIST, CONTACT, SURVEY, MESSAGE
+  entityId    String?
+  entityLabel String?  // Czytelna nazwa (np. tytuł sprawy, nazwa firmy)
+  changes     Json?    // { field: { old: val, new: val } }
+  metadata    Json?    // Dowolne dodatkowe dane
+  ipAddress   String?
+  
+  createdAt   DateTime @default(now())
+  
+  // Relacje
+  userId      String?
+  user        User?    @relation("AuditLogs", fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
