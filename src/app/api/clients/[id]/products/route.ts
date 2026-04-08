@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ clientId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser()
@@ -12,10 +12,10 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { clientId } = await params
+    const { id } = await params
 
     const products = await prisma.product.findMany({
-      where: { clientId, isActive: true },
+      where: { clientId: id, isActive: true },
       orderBy: { createdAt: "desc" },
     })
 
