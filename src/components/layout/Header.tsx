@@ -12,6 +12,8 @@ const roleLabels: Record<string, string> = {
   DIRECTOR: "Dyrektor",
   CARETAKER: "Opiekun",
   SALESPERSON: "Handlowiec",
+  CALL_CENTER: "Call Center",
+  CLIENT: "Klient",
 }
 
 export function Header() {
