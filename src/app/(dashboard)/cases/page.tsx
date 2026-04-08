@@ -126,7 +126,7 @@ export default function CasesPage() {
         </Select>
         <Select value={caretakerFilter} onValueChange={(v: string | null) => setCaretakerFilter(v ?? "")}>
           <SelectTrigger className="w-[170px]">
-            <SelectValue placeholder="Opiekun" />
+            <SelectValue placeholder="Opiekun">{caretakers.find((u) => u.id === caretakerFilter)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {caretakers.map((u) => (
@@ -136,7 +136,7 @@ export default function CasesPage() {
         </Select>
         <Select value={salesFilter} onValueChange={(v: string | null) => setSalesFilter(v ?? "")}>
           <SelectTrigger className="w-[170px]">
-            <SelectValue placeholder="Handlowiec" />
+            <SelectValue placeholder="Handlowiec">{salespersons.find((u) => u.id === salesFilter)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {salespersons.map((u) => (
@@ -146,7 +146,7 @@ export default function CasesPage() {
         </Select>
         <Select value={directorFilter} onValueChange={(v: string | null) => setDirectorFilter(v ?? "")}>
           <SelectTrigger className="w-[170px]">
-            <SelectValue placeholder="Dyrektor" />
+            <SelectValue placeholder="Dyrektor">{directors.find((u) => u.id === directorFilter)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {directors.map((u) => (

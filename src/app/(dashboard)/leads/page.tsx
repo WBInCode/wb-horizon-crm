@@ -110,7 +110,7 @@ export default function LeadsPage() {
         </Select>
         <Select value={salesFilter} onValueChange={(v: string | null) => setSalesFilter(v ?? "")}>
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Handlowiec" />
+            <SelectValue placeholder="Handlowiec">{salespersons.find((u) => u.id === salesFilter)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {salespersons.map((u) => (
