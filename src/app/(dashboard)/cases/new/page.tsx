@@ -93,11 +93,13 @@ export default function NewCasePage() {
                 onValueChange={(val: string | null) => setForm({ ...form, clientId: val ?? "" })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Wybierz klienta" />
+                  <SelectValue placeholder="Wybierz klienta">
+                    {clients.find((c) => c.id === form.clientId)?.companyName}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.id} label={client.companyName}>
+                    <SelectItem key={client.id} value={client.id}>
                       {client.companyName}
                     </SelectItem>
                   ))}
