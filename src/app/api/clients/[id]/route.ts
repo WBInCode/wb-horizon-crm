@@ -19,6 +19,7 @@ export async function GET(
       where: { id },
       include: {
         contacts: true,
+        owner: { select: { id: true, name: true, email: true, role: true } },
         cases: {
           include: {
             salesperson: { select: { name: true } },
@@ -77,6 +78,7 @@ export async function PUT(
         priorities: body.priorities,
         notes: body.notes,
         requirements: body.requirements,
+        ...(body.ownerId !== undefined && { ownerId: body.ownerId || null }),
       }
     })
 

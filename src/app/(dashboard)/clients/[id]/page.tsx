@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowLeft, Plus, Pencil, Save, X, UserPlus } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ArrowLeft, Plus, Pencil, Save, X, UserPlus, Trash2 } from "lucide-react"
 
 const caseStatusLabels: Record<string, string> = {
   DRAFT: "Robocza",
@@ -35,10 +36,18 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const [saving, setSaving] = useState(false)
   const [showContactModal, setShowContactModal] = useState(false)
   const [contactForm, setContactForm] = useState({ name: "", position: "", phone: "", email: "", isMain: false })
+  const [clientUsers, setClientUsers] = useState<any[]>([])
 
   useEffect(() => {
     params.then((p) => setClientId(p.id))
   }, [params])
+
+  useEffect(() => {
+    fetch("/api/admin/users")
+      .then((res) => res.json())
+      .then((data) => setClientUsers(Array.isArray(data) ? data.filter((u: any) => u.role === "CLIENT") : []))
+      .catch(() => setClientUsers([]))
+  }, [])
 
   const fetchClient = async () => {
     if (!clientId) return
@@ -65,6 +74,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       priorities: client.priorities || "",
       requirements: client.requirements || "",
       notes: client.notes || "",
+      ownerId: client.ownerId || "",
     })
     setEditing(true)
   }
@@ -101,6 +111,18 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         setContactForm({ name: "", position: "", phone: "", email: "", isMain: false })
         fetchClient()
       }
+    } catch (error) {
+      console.error("Błąd:", error)
+    }
+  }
+
+  const handleDeleteContact = async (contactId: string) => {
+    if (!confirm("Czy na pewno usunąć tę osobę kontaktową?")) return
+    try {
+      const res = await fetch(`/api/clients/${clientId}/contacts/${contactId}`, {
+        method: "DELETE",
+      })
+      if (res.ok) fetchClient()
     } catch (error) {
       console.error("Błąd:", error)
     }
@@ -154,6 +176,29 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 <div><label className="text-sm font-medium">NIP</label><Input value={editForm.nip} onChange={(e) => setEditForm({ ...editForm, nip: e.target.value })} /></div>
                 <div><label className="text-sm font-medium">Branża</label><Input value={editForm.industry} onChange={(e) => setEditForm({ ...editForm, industry: e.target.value })} /></div>
                 <div><label className="text-sm font-medium">WWW</label><Input value={editForm.website} onChange={(e) => setEditForm({ ...editForm, website: e.target.value })} /></div>
+                <div>
+                  <label className="text-sm font-medium">Przypisane konto klienta</label>
+                  <Select
+                    value={editForm.ownerId || "none"}
+                    onValueChange={(val: string | null) => setEditForm({ ...editForm, ownerId: val === "none" ? "" : (val ?? "") })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Brak przypisanego konta">
+                        {editForm.ownerId
+                          ? clientUsers.find((u) => u.id === editForm.ownerId)?.name || editForm.ownerId
+                          : "Brak przypisanego konta"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— Brak —</SelectItem>
+                      {clientUsers.map((u) => (
+                        <SelectItem key={u.id} value={u.id} label={`${u.name} (${u.email})`}>
+                          {u.name} ({u.email})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             ) : (
               <>
@@ -161,6 +206,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 <p><strong>NIP:</strong> {client.nip || "-"}</p>
                 <p><strong>Branża:</strong> {client.industry || "-"}</p>
                 <p><strong>WWW:</strong> {client.website || "-"}</p>
+                <p><strong>Konto klienta:</strong> {client.owner ? `${client.owner.name} (${client.owner.email})` : <span className="text-orange-500">Nie przypisano</span>}</p>
               </>
             )}
           </CardContent>
@@ -182,12 +228,23 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             ) : (
               <div className="space-y-3">
                 {client.contacts.map((contact: any) => (
-                  <div key={contact.id} className="border-b pb-2">
-                    <p className="font-medium">
-                      {contact.name} {contact.isMain && <Badge>Główny</Badge>}
-                    </p>
-                    <p className="text-sm text-gray-600">{contact.position}</p>
-                    <p className="text-sm">{contact.phone} {contact.email && `| ${contact.email}`}</p>
+                  <div key={contact.id} className="border-b pb-2 flex items-start justify-between">
+                    <div>
+                      <p className="font-medium">
+                        {contact.name} {contact.isMain && <Badge>Główny</Badge>}
+                      </p>
+                      <p className="text-sm text-gray-600">{contact.position}</p>
+                      <p className="text-sm">{contact.phone} {contact.email && `| ${contact.email}`}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteContact(contact.id)}
+                      title="Usuń kontakt"
+                      className="text-red-500 hover:text-red-700 shrink-0"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 ))}
               </div>
