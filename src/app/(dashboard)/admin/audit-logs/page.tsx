@@ -155,9 +155,9 @@ export default function AuditLogsPage() {
               <Select value={actionFilter} onValueChange={(v: string | null) => setActionFilter(v ?? "")}>
                 <SelectTrigger><SelectValue placeholder="Wszystkie" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Wszystkie</SelectItem>
+                  <SelectItem value="all" label="Wszystkie">Wszystkie</SelectItem>
                   {Object.entries(actionLabels).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                    <SelectItem key={key} value={key} label={label}>{label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -167,9 +167,9 @@ export default function AuditLogsPage() {
               <Select value={entityFilter} onValueChange={(v: string | null) => setEntityFilter(v ?? "")}>
                 <SelectTrigger><SelectValue placeholder="Wszystkie" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Wszystkie</SelectItem>
+                  <SelectItem value="all" label="Wszystkie">Wszystkie</SelectItem>
                   {Object.entries(entityLabels).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                    <SelectItem key={key} value={key} label={label}>{label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
