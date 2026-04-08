@@ -21,7 +21,7 @@ export default withAuth(
     }
 
     // Admin/staff trying to access client panel
-    if (role && role !== "CLIENT" && pathname.startsWith("/client")) {
+    if (role && role !== "CLIENT" && (pathname === "/client" || pathname.startsWith("/client/"))) {
       return NextResponse.redirect(new URL("/dashboard", req.url))
     }
 
