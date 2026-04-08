@@ -27,6 +27,7 @@ export type AuditEntityType =
   | "CONTACT"
   | "SURVEY"
   | "MESSAGE"
+  | "PRODUCT"
 
 interface AuditLogParams {
   action: AuditAction
