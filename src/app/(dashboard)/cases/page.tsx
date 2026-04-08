@@ -120,7 +120,7 @@ export default function CasesPage() {
           </SelectTrigger>
           <SelectContent>
             {Object.entries(statusLabels).map(([key, label]) => (
-              <SelectItem key={key} value={key}>{label}</SelectItem>
+              <SelectItem key={key} value={key} label={label}>{label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -130,7 +130,7 @@ export default function CasesPage() {
           </SelectTrigger>
           <SelectContent>
             {caretakers.map((u) => (
-              <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+              <SelectItem key={u.id} value={u.id} label={u.name}>{u.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -140,7 +140,7 @@ export default function CasesPage() {
           </SelectTrigger>
           <SelectContent>
             {salespersons.map((u) => (
-              <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+              <SelectItem key={u.id} value={u.id} label={u.name}>{u.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -150,7 +150,7 @@ export default function CasesPage() {
           </SelectTrigger>
           <SelectContent>
             {directors.map((u) => (
-              <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+              <SelectItem key={u.id} value={u.id} label={u.name}>{u.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>

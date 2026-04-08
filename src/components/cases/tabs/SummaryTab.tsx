@@ -205,7 +205,7 @@ export function SummaryTab({ caseData, onUpdate }: Props) {
                     <Select value={assignSales} onValueChange={(v) => { setAssignSales(v); handleAssignmentChange("salesId", v) }}>
                       <SelectTrigger className="mt-1"><SelectValue placeholder="Wybierz" /></SelectTrigger>
                       <SelectContent>
-                        {salespersons.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                        {salespersons.map((u) => <SelectItem key={u.id} value={u.id} label={u.name}>{u.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -214,7 +214,7 @@ export function SummaryTab({ caseData, onUpdate }: Props) {
                     <Select value={assignCaretaker} onValueChange={(v) => { setAssignCaretaker(v); handleAssignmentChange("caretakerId", v) }}>
                       <SelectTrigger className="mt-1"><SelectValue placeholder="Wybierz" /></SelectTrigger>
                       <SelectContent>
-                        {caretakers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                        {caretakers.map((u) => <SelectItem key={u.id} value={u.id} label={u.name}>{u.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -223,7 +223,7 @@ export function SummaryTab({ caseData, onUpdate }: Props) {
                     <Select value={assignDirector} onValueChange={(v) => { setAssignDirector(v); handleAssignmentChange("directorId", v) }}>
                       <SelectTrigger className="mt-1"><SelectValue placeholder="Wybierz" /></SelectTrigger>
                       <SelectContent>
-                        {directors.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                        {directors.map((u) => <SelectItem key={u.id} value={u.id} label={u.name}>{u.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>

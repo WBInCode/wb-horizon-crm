@@ -145,7 +145,7 @@ export default function AdminPage() {
                       </SelectTrigger>
                       <SelectContent>
                         {Object.entries(roleLabels).map(([key, label]) => (
-                          <SelectItem key={key} value={key}>{label}</SelectItem>
+                          <SelectItem key={key} value={key} label={label}>{label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -160,7 +160,7 @@ export default function AdminPage() {
                       </SelectTrigger>
                       <SelectContent>
                         {Object.entries(statusLabels).map(([key, label]) => (
-                          <SelectItem key={key} value={key}>{label}</SelectItem>
+                          <SelectItem key={key} value={key} label={label}>{label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -255,7 +255,7 @@ export default function AdminPage() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(roleLabels).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                    <SelectItem key={key} value={key} label={label}>{label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
