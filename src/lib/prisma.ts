@@ -1,19 +1,15 @@
 ﻿import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
-import { neonConfig, Pool } from '@neondatabase/serverless'
-import ws from 'ws'
+import { Pool, neonConfig } from '@neondatabase/serverless'
 
-// Neon serverless requires WebSocket for non-edge environments
-if (typeof globalThis.WebSocket === 'undefined') {
-  neonConfig.webSocketConstructor = ws
-}
+// Vercel Node.js 20+ has native WebSocket — no 'ws' needed
+neonConfig.useSecureWebSocket = true
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-const connectionString = process.env.DATABASE_URL!
-const pool = new Pool({ connectionString })
+const pool = new Pool({ connectionString: process.env.DATABASE_URL! })
 const adapter = new PrismaPg(pool)
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter })
 
