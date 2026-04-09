@@ -48,25 +48,26 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
 
+    const data: Record<string, unknown> = {}
+    if (body.companyName !== undefined) data.companyName = body.companyName
+    if (body.nip !== undefined) data.nip = body.nip
+    if (body.industry !== undefined) data.industry = body.industry
+    if (body.website !== undefined) data.website = body.website
+    if (body.source !== undefined) data.source = body.source
+    if (body.contactPerson !== undefined) data.contactPerson = body.contactPerson
+    if (body.position !== undefined) data.position = body.position
+    if (body.phone !== undefined) data.phone = body.phone
+    if (body.email !== undefined) data.email = body.email
+    if (body.isDecisionMaker !== undefined) data.isDecisionMaker = body.isDecisionMaker
+    if (body.meetingDate !== undefined) data.meetingDate = body.meetingDate ? new Date(body.meetingDate) : null
+    if (body.status !== undefined) data.status = body.status
+    if (body.notes !== undefined) data.notes = body.notes
+    if (body.needs !== undefined) data.needs = body.needs
+    if (body.assignedSalesId !== undefined) data.assignedSalesId = body.assignedSalesId
+
     const lead = await prisma.lead.update({
       where: { id },
-      data: {
-        companyName: body.companyName,
-        nip: body.nip,
-        industry: body.industry,
-        website: body.website,
-        source: body.source,
-        contactPerson: body.contactPerson,
-        position: body.position,
-        phone: body.phone,
-        email: body.email,
-        isDecisionMaker: body.isDecisionMaker,
-        meetingDate: body.meetingDate ? new Date(body.meetingDate) : null,
-        status: body.status,
-        notes: body.notes,
-        needs: body.needs,
-        assignedSalesId: body.assignedSalesId,
-      }
+      data,
     })
 
     await auditLog({

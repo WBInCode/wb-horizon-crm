@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
         meetingDate: body.meetingDate ? new Date(body.meetingDate) : null,
         notes: body.notes,
         needs: body.needs,
+        status: body.status || undefined,
         assignedSalesId: body.assignedSalesId || user.id,
       }
     })
