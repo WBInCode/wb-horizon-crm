@@ -124,17 +124,22 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     }
   }
 
-  const handleConvert = async () => {
-    if (!confirm("Czy na pewno chcesz przekształcić lead w klienta?")) return
-    try {
-      const res = await fetch(`/api/leads/${leadId}/convert`, { method: "POST" })
-      if (res.ok) {
-        const client = await res.json()
-        router.push(`/clients/${client.id}`)
-      }
-    } catch (error) {
-      console.error("Błąd konwersji:", error)
-    }
+  const handleConvert = () => {
+    const params = new URLSearchParams({
+      fromLeadId: leadId,
+      companyName: lead.companyName || "",
+      nip: lead.nip || "",
+      industry: lead.industry || "",
+      website: lead.website || "",
+      contactPerson: lead.contactPerson || "",
+      position: lead.position || "",
+      phone: lead.phone || "",
+      email: lead.email || "",
+      needs: lead.needs || "",
+      notes: lead.notes || "",
+      source: lead.source || "",
+    })
+    router.push(`/clients/new?${params.toString()}`)
   }
 
   if (loading) return <div className="p-6">Ładowanie...</div>
