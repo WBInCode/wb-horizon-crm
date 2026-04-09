@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { Fragment, useEffect, useState, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -233,9 +233,8 @@ export default function AuditLogsPage() {
                   </TableCell>
                 </TableRow>
               ) : logs.map((log) => (
-                <>
+                <Fragment key={log.id}>
                   <TableRow
-                    key={log.id}
                     className="cursor-pointer hover:bg-gray-50"
                     onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)}
                   >
@@ -297,7 +296,7 @@ export default function AuditLogsPage() {
                       </TableCell>
                     </TableRow>
                   )}
-                </>
+                </Fragment>
               ))}
             </TableBody>
           </Table>

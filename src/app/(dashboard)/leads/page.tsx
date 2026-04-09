@@ -11,7 +11,6 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Search, X } from "lucide-react"
-import { CreateLeadModal } from "@/components/leads/CreateLeadModal"
 
 const statusColors: Record<string, string> = {
   NEW: "bg-blue-100 text-blue-800",
@@ -45,7 +44,7 @@ export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState("")
   const [salesFilter, setSalesFilter] = useState("")
   const [users, setUsers] = useState<any[]>([])
-  const [showCreateModal, setShowCreateModal] = useState(false)
+
 
   useEffect(() => {
     fetch("/api/admin/users")
@@ -82,7 +81,7 @@ export default function LeadsPage() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Leady</h1>
-        <Button onClick={() => setShowCreateModal(true)}>
+        <Button onClick={() => router.push("/leads/new")}>
           <Plus className="w-4 h-4 mr-2" />
           Nowy lead
         </Button>
@@ -175,15 +174,6 @@ export default function LeadsPage() {
           </TableBody>
         </Table>
       </div>
-
-      <CreateLeadModal 
-        open={showCreateModal} 
-        onClose={() => setShowCreateModal(false)}
-        onSuccess={() => {
-          setShowCreateModal(false)
-          fetchLeads()
-        }}
-      />
     </div>
   )
 }

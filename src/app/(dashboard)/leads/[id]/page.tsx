@@ -25,6 +25,17 @@ const statusLabels: Record<string, string> = {
   CLOSED: "Zamknięty",
 }
 
+const sourceOptions = [
+  "Cold call",
+  "Strona www",
+  "Polecenie",
+  "Social media",
+  "Targi/Konferencja",
+  "Email marketing",
+  "Reklama",
+  "Inne",
+]
+
 export default function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const [lead, setLead] = useState<any>(null)
@@ -105,7 +116,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       await fetch(`/api/leads/${leadId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...lead, status: newStatus })
+        body: JSON.stringify({ status: newStatus })
       })
       setLead({ ...lead, status: newStatus })
     } catch (error) {
@@ -161,7 +172,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           </>
         )}
         <Select value={lead.status} onValueChange={handleStatusChange}>
-          <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-[200px]"><SelectValue>{statusLabels[lead.status]}</SelectValue></SelectTrigger>
           <SelectContent>
             {Object.entries(statusLabels).map(([key, label]) => (
               <SelectItem key={key} value={key} label={label}>{label}</SelectItem>
@@ -181,15 +192,23 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           <CardContent className="space-y-2">
             {editing ? (
               <div className="space-y-3">
-                <div><label className="text-sm font-medium">Nazwa</label><Input value={editForm.companyName} onChange={(e) => upd("companyName", e.target.value)} /></div>
-                <div><label className="text-sm font-medium">NIP</label><Input value={editForm.nip} onChange={(e) => upd("nip", e.target.value)} /></div>
+                <div><label className="text-sm font-medium">Nazwa firmy</label><Input value={editForm.companyName} onChange={(e) => upd("companyName", e.target.value)} /></div>
+                <div><label className="text-sm font-medium">NIP</label><Input value={editForm.nip} onChange={(e) => upd("nip", e.target.value.replace(/\D/g, "").slice(0, 10))} maxLength={10} /></div>
                 <div><label className="text-sm font-medium">Branża</label><Input value={editForm.industry} onChange={(e) => upd("industry", e.target.value)} /></div>
                 <div><label className="text-sm font-medium">WWW</label><Input value={editForm.website} onChange={(e) => upd("website", e.target.value)} /></div>
-                <div><label className="text-sm font-medium">Źródło</label><Input value={editForm.source} onChange={(e) => upd("source", e.target.value)} /></div>
+                <div>
+                  <label className="text-sm font-medium">Źródło</label>
+                  <Select value={editForm.source} onValueChange={(v) => upd("source", v)}>
+                    <SelectTrigger><SelectValue placeholder="Wybierz źródło">{editForm.source || undefined}</SelectValue></SelectTrigger>
+                    <SelectContent>
+                      {sourceOptions.map((s) => <SelectItem key={s} value={s} label={s}>{s}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             ) : (
               <>
-                <p><strong>Nazwa:</strong> {lead.companyName}</p>
+                <p><strong>Nazwa firmy:</strong> {lead.companyName}</p>
                 <p><strong>NIP:</strong> {lead.nip || "-"}</p>
                 <p><strong>Branża:</strong> {lead.industry || "-"}</p>
                 <p><strong>WWW:</strong> {lead.website || "-"}</p>
@@ -206,7 +225,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
               <div className="space-y-3">
                 <div><label className="text-sm font-medium">Imię i nazwisko</label><Input value={editForm.contactPerson} onChange={(e) => upd("contactPerson", e.target.value)} /></div>
                 <div><label className="text-sm font-medium">Stanowisko</label><Input value={editForm.position} onChange={(e) => upd("position", e.target.value)} /></div>
-                <div><label className="text-sm font-medium">Telefon</label><Input value={editForm.phone} onChange={(e) => upd("phone", e.target.value)} /></div>
+                <div><label className="text-sm font-medium">Telefon</label><Input value={editForm.phone} onChange={(e) => upd("phone", e.target.value.replace(/[^\d+\s-]/g, "").slice(0, 15))} maxLength={15} /></div>
                 <div><label className="text-sm font-medium">Email</label><Input value={editForm.email} onChange={(e) => upd("email", e.target.value)} /></div>
                 <label className="flex items-center gap-2">
                   <Checkbox checked={editForm.isDecisionMaker} onCheckedChange={(v) => upd("isDecisionMaker", v === true)} />
