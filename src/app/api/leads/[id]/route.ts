@@ -64,6 +64,7 @@ export async function PUT(
     if (body.notes !== undefined) data.notes = body.notes
     if (body.needs !== undefined) data.needs = body.needs
     if (body.assignedSalesId !== undefined) data.assignedSalesId = body.assignedSalesId
+    if (body.convertedToClientId !== undefined) data.convertedToClientId = body.convertedToClientId
 
     const lead = await prisma.lead.update({
       where: { id },

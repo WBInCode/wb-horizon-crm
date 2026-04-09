@@ -74,6 +74,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       priorities: client.priorities || "",
       requirements: client.requirements || "",
       notes: client.notes || "",
+      interestedProducts: client.interestedProducts || "",
+      keyFindings: client.keyFindings || "",
       ownerId: client.ownerId || "",
     })
     setEditing(true)
@@ -253,6 +255,28 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         </Card>
 
         {/* Sekcja B: Współpraca */}
+        <Card>
+          <CardHeader><CardTitle>Zainteresowane produkty / usługi</CardTitle></CardHeader>
+          <CardContent>
+            {editing ? (
+              <Textarea value={editForm.interestedProducts} onChange={(e) => setEditForm({ ...editForm, interestedProducts: e.target.value })} placeholder="Jakie produkty lub usługi interesują klienta..." rows={3} />
+            ) : (
+              <p className="whitespace-pre-wrap">{client.interestedProducts || "-"}</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Najważniejsze ustalenia</CardTitle></CardHeader>
+          <CardContent>
+            {editing ? (
+              <Textarea value={editForm.keyFindings} onChange={(e) => setEditForm({ ...editForm, keyFindings: e.target.value })} placeholder="Kluczowe ustalenia z rozmów, spotkań..." rows={3} />
+            ) : (
+              <p className="whitespace-pre-wrap">{client.keyFindings || "-"}</p>
+            )}
+          </CardContent>
+        </Card>
+
         <Card className="col-span-2">
           <CardHeader><CardTitle>Podsumowanie współpracy</CardTitle></CardHeader>
           <CardContent className="space-y-2">

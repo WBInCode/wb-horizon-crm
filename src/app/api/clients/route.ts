@@ -76,6 +76,9 @@ export async function POST(request: NextRequest) {
         priorities: body.priorities,
         notes: body.notes,
         requirements: body.requirements,
+        interestedProducts: body.interestedProducts,
+        keyFindings: body.keyFindings,
+        fromLeadId: body.fromLeadId || undefined,
         ownerId: user.id,
       }
     })

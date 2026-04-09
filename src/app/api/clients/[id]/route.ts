@@ -78,6 +78,8 @@ export async function PUT(
         priorities: body.priorities,
         notes: body.notes,
         requirements: body.requirements,
+        interestedProducts: body.interestedProducts,
+        keyFindings: body.keyFindings,
         ...(body.ownerId !== undefined && { ownerId: body.ownerId || null }),
       }
     })
