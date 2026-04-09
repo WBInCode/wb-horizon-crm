@@ -36,6 +36,20 @@ const sourceOptions = [
   "Inne",
 ]
 
+const priorityLabels: Record<string, string> = {
+  LOW: "Niski",
+  MEDIUM: "Średni",
+  HIGH: "Wysoki",
+  CRITICAL: "Krytyczny",
+}
+
+const PRIORITY_CONFIG: Record<string, { label: string; className: string }> = {
+  LOW: { label: "Niski", className: "border-gray-300 text-gray-600 bg-gray-50" },
+  MEDIUM: { label: "Średni", className: "border-blue-300 text-blue-700 bg-blue-50" },
+  HIGH: { label: "Wysoki", className: "border-orange-300 text-orange-700 bg-orange-50" },
+  CRITICAL: { label: "Krytyczny", className: "border-red-300 text-red-700 bg-red-50" },
+}
+
 export default function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const [lead, setLead] = useState<any>(null)
@@ -88,6 +102,9 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       assignedSalesId: lead.assignedSalesId || "",
       needs: lead.needs || "",
       notes: lead.notes || "",
+      priority: lead.priority || "",
+      nextStep: lead.nextStep || "",
+      nextStepDate: lead.nextStepDate?.split("T")[0] || "",
     })
     setEditing(true)
   }
@@ -158,6 +175,11 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           <h1 className="text-2xl font-bold">{lead.companyName}</h1>
           <div className="flex items-center gap-2 mt-1">
             <Badge>{statusLabels[lead.status]}</Badge>
+            {lead.priority && PRIORITY_CONFIG[lead.priority] && (
+              <Badge variant="outline" className={PRIORITY_CONFIG[lead.priority].className}>
+                {PRIORITY_CONFIG[lead.priority].label}
+              </Badge>
+            )}
             {lead.source && <span className="text-sm text-gray-500">Źródło: {lead.source}</span>}
           </div>
         </div>
@@ -186,7 +208,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         </Select>
         {lead.status !== "TRANSFERRED" && (
           <Button variant="outline" onClick={handleConvert}>
-            <UserPlus className="w-4 h-4 mr-2" /> Konwertuj na klienta
+            <UserPlus className="w-4 h-4 mr-2" /> Utwórz kontrahenta
           </Button>
         )}
       </div>
@@ -267,11 +289,25 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
                   <label className="text-sm font-medium">Termin spotkania</label>
                   <Input type="date" value={editForm.meetingDate} onChange={(e) => upd("meetingDate", e.target.value)} />
                 </div>
+                <div>
+                  <label className="text-sm font-medium">Priorytet</label>
+                  <Select value={editForm.priority} onValueChange={(v: string | null) => upd("priority", v ?? "")}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Wybierz priorytet">{editForm.priority ? priorityLabels[editForm.priority] : undefined}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(priorityLabels).map(([key, label]) => (
+                        <SelectItem key={key} value={key} label={label}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             ) : (
               <>
                 <p><strong>Handlowiec:</strong> {lead.assignedSales?.name || "-"}</p>
                 <p><strong>Termin spotkania:</strong> {lead.meetingDate ? new Date(lead.meetingDate).toLocaleDateString("pl-PL") : "-"}</p>
+                <p><strong>Priorytet:</strong> {lead.priority ? (PRIORITY_CONFIG[lead.priority]?.label || lead.priority) : "-"}</p>
               </>
             )}
           </CardContent>
@@ -281,9 +317,33 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           <CardHeader><CardTitle>Potrzeby</CardTitle></CardHeader>
           <CardContent>
             {editing ? (
-              <Textarea value={editForm.needs} onChange={(e) => upd("needs", e.target.value)} placeholder="Opisz potrzeby klienta..." rows={4} />
+              <Textarea value={editForm.needs} onChange={(e) => upd("needs", e.target.value)} placeholder="Opisz potrzeby kontrahenta..." rows={4} />
             ) : (
               <p className="whitespace-pre-wrap">{lead.needs || "Brak informacji"}</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Follow-up</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {editing ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium">Następny krok</label>
+                  <Textarea value={editForm.nextStep} onChange={(e) => upd("nextStep", e.target.value)} placeholder="Opisz następny krok / follow-up..." rows={3} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Data follow-up</label>
+                  <Input type="date" value={editForm.nextStepDate} onChange={(e) => upd("nextStepDate", e.target.value)} />
+                </div>
+              </div>
+            ) : (
+              <>
+                <p><strong>Następny krok:</strong></p>
+                <p className="whitespace-pre-wrap">{lead.nextStep || "Brak"}</p>
+                <p><strong>Data follow-up:</strong> {lead.nextStepDate ? new Date(lead.nextStepDate).toLocaleDateString("pl-PL") : "-"}</p>
+              </>
             )}
           </CardContent>
         </Card>

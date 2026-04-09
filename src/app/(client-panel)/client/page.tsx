@@ -67,7 +67,7 @@ export default async function ClientDashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-gray-500">
-              Wszystkie sprawy
+              Wszystkie sprzedaże
             </CardTitle>
             <Briefcase className="w-4 h-4 text-gray-400" />
           </CardHeader>
@@ -79,7 +79,7 @@ export default async function ClientDashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-gray-500">
-              Aktywne sprawy
+              Aktywne sprzedaże
             </CardTitle>
             <Briefcase className="w-4 h-4 text-blue-400" />
           </CardHeader>
@@ -115,11 +115,11 @@ export default async function ClientDashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Ostatnie sprawy</CardTitle>
+          <CardTitle>Ostatnie sprzedaże</CardTitle>
         </CardHeader>
         <CardContent>
           {cases.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">Brak spraw</p>
+            <p className="text-gray-500 text-center py-4">Brak sprzedaży</p>
           ) : (
             <div className="space-y-3">
               {cases.slice(0, 5).map((c) => (

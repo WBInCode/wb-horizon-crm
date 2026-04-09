@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Buduj filtr spraw wg roli
+    // Buduj filtr sprzedaży wg roli
     const caseFilter: Record<string, unknown> = {}
     if (user.role === "SALESPERSON") {
       caseFilter.salesId = user.id
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       newLeads = await prisma.lead.count({ where: leadFilter })
     }
 
-    // Sprawy wymagające akcji
+    // Sprzedaże wymagające akcji
     const pendingCases = await prisma.case.findMany({
       where: {
         ...caseFilter,
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       take: 5
     })
 
-    // Sprawy do akceptacji (tylko dla CARETAKER/DIRECTOR/ADMIN)
+    // Sprzedaże do akceptacji (tylko dla CARETAKER/DIRECTOR/ADMIN)
     let casesForApproval: any[] = []
     if (["CARETAKER", "DIRECTOR", "ADMIN"].includes(user.role)) {
       const approvalFilter: Record<string, unknown> = { ...caseFilter }
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Sprawy z brakami
+    // Sprzedaże z brakami
     const casesWithMissing = await prisma.case.findMany({
       where: {
         ...caseFilter,

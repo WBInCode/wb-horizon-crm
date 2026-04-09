@@ -109,12 +109,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Tylko SALESPERSON/ADMIN/DIRECTOR mogą tworzyć sprawy
+    // Tylko SALESPERSON/ADMIN/DIRECTOR mogą tworzyć sprzedaże
     if (!["SALESPERSON", "ADMIN", "DIRECTOR"].includes(user.role)) {
       return NextResponse.json({ error: "Brak uprawnień" }, { status: 403 })
     }
 
     const body = await request.json()
+
+    // Walidacja: kontrahent musi być min. w etapie QUOTATION
+    const client = await prisma.client.findUnique({
+      where: { id: body.clientId },
+      select: { stage: true, companyName: true },
+    })
+    if (!client) {
+      return NextResponse.json({ error: "Nie znaleziono kontrahenta" }, { status: 404 })
+    }
+    const stageOrder = ["LEAD", "PROSPECT", "QUOTATION", "SALE", "CLIENT", "INACTIVE"]
+    const clientStageIndex = stageOrder.indexOf(client.stage)
+    const minStageIndex = stageOrder.indexOf("QUOTATION")
+    if (client.stage === "INACTIVE" || clientStageIndex < minStageIndex) {
+      return NextResponse.json(
+        { error: `Kontrahent "${client.companyName}" musi być min. w etapie "Wycena" aby utworzyć sprzedaż. Aktualny etap: "${client.stage}"` },
+        { status: 400 }
+      )
+    }
 
     const caretakerId = await findCaretakerWithLeastCases()
 
@@ -134,7 +152,7 @@ export async function POST(request: NextRequest) {
     await prisma.caseMessage.create({
       data: {
         caseId: newCase.id,
-        content: "Sprawa została utworzona",
+        content: "Sprzedaż została utworzona",
         type: "SYSTEM_LOG",
         visibilityScope: "ALL"
       }
@@ -143,6 +161,14 @@ export async function POST(request: NextRequest) {
     // Powiadomienie dla opiekuna
     if (caretakerId) {
       await notifyCaseAssigned(caretakerId, newCase.id, newCase.title)
+    }
+
+    // Auto-przejście kontrahenta na etap SALE (jeśli był w QUOTATION)
+    if (client.stage === "QUOTATION") {
+      await prisma.client.update({
+        where: { id: body.clientId },
+        data: { stage: "SALE" },
+      })
     }
 
     await auditLog({

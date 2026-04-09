@@ -52,7 +52,7 @@ export default function NewClientPage() {
 
       if (!res.ok) {
         const err = await res.json()
-        alert(err.error || "Błąd tworzenia klienta")
+        alert(err.error || "Błąd tworzenia kontrahenta")
         return
       }
 
@@ -96,7 +96,7 @@ export default function NewClientPage() {
         </Button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold">
-            {fromLeadId ? "Konwertuj lead na klienta" : "Nowy klient"}
+            {fromLeadId ? "Konwertuj lead na kontrahenta" : "Nowy kontrahent"}
           </h1>
           {fromLeadId && (
             <p className="text-sm text-gray-500">Dane zostały wstępnie wypełnione z leada. Uzupełnij brakujące informacje.</p>
@@ -104,7 +104,7 @@ export default function NewClientPage() {
         </div>
         <Button onClick={handleSubmit} disabled={loading || !form.companyName}>
           <Save className="w-4 h-4 mr-2" />
-          {loading ? "Tworzenie..." : "Utwórz klienta"}
+          {loading ? "Tworzenie..." : "Utwórz kontrahenta"}
         </Button>
         <Button variant="outline" onClick={() => router.back()}>
           Anuluj
@@ -169,7 +169,7 @@ export default function NewClientPage() {
             <Textarea
               value={form.interestedProducts}
               onChange={(e) => upd("interestedProducts", e.target.value)}
-              placeholder="Jakie produkty lub usługi interesują klienta..."
+              placeholder="Jakie produkty lub usługi interesują kontrahenta..."
               rows={4}
             />
           </CardContent>
@@ -194,7 +194,7 @@ export default function NewClientPage() {
           <CardContent className="space-y-3">
             <div>
               <label className="text-sm font-medium">Opis</label>
-              <Textarea value={form.description} onChange={(e) => upd("description", e.target.value)} placeholder="Krótki opis klienta..." rows={3} />
+              <Textarea value={form.description} onChange={(e) => upd("description", e.target.value)} placeholder="Krótki opis kontrahenta..." rows={3} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>

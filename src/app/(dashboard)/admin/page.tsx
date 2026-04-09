@@ -127,7 +127,7 @@ export default function AdminPage() {
                 <TableHead>Email</TableHead>
                 <TableHead>Rola</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Aktywne sprawy</TableHead>
+                <TableHead>Aktywne sprzedaże</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -189,7 +189,7 @@ export default function AdminPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Opiekun</TableHead>
-                    <TableHead>Aktywne sprawy</TableHead>
+                    <TableHead>Aktywne sprzedaże</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>

@@ -97,10 +97,10 @@ export default function CasesPage() {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Sprawy</h1>
+        <h1 className="text-2xl font-bold">Sprzedaże</h1>
         <Button onClick={() => router.push("/cases/new")}>
           <Plus className="w-4 h-4 mr-2" />
-          Nowa sprawa
+          Nowa sprzedaż
         </Button>
       </div>
 
@@ -170,7 +170,7 @@ export default function CasesPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Tytuł</TableHead>
-              <TableHead>Klient</TableHead>
+              <TableHead>Kontrahent</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Handlowiec</TableHead>
               <TableHead>Opiekun</TableHead>
@@ -184,7 +184,7 @@ export default function CasesPage() {
               </TableRow>
             ) : cases.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">Brak spraw</TableCell>
+                <TableCell colSpan={6} className="text-center py-8">Brak sprzedaży</TableCell>
               </TableRow>
             ) : (
               cases.map((c) => (

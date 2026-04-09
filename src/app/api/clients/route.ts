@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const search = searchParams.get("search")
+    const stage = searchParams.get("stage")
 
     const where: Record<string, unknown> = {}
     if (search) {
@@ -19,6 +20,9 @@ export async function GET(request: NextRequest) {
         { companyName: { contains: search, mode: "insensitive" } },
         { nip: { contains: search, mode: "insensitive" } },
       ]
+    }
+    if (stage) {
+      where.stage = stage
     }
 
     // Ograniczenia wg roli
@@ -32,7 +36,7 @@ export async function GET(request: NextRequest) {
     } else if (user.role === "CARETAKER") {
       where.cases = { some: { caretakerId: user.id } }
     } else if (user.role === "CALL_CENTER") {
-      // Call center nie ma dostępu do klientów
+      // Call center nie ma dostępu do kontrahentów
       return NextResponse.json([])
     }
 
@@ -59,7 +63,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Tylko SALESPERSON/ADMIN/DIRECTOR mogą tworzyć klientów
+    // Tylko SALESPERSON/ADMIN/DIRECTOR mogą tworzyć kontrahentów
     if (!["SALESPERSON", "ADMIN", "DIRECTOR"].includes(user.role)) {
       return NextResponse.json({ error: "Brak uprawnień" }, { status: 403 })
     }
@@ -80,6 +84,7 @@ export async function POST(request: NextRequest) {
         keyFindings: body.keyFindings,
         fromLeadId: body.fromLeadId || undefined,
         ownerId: user.id,
+        stage: body.stage || "LEAD",
       }
     })
 

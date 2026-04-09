@@ -33,6 +33,13 @@ const sourceOptions = [
   "Inne",
 ]
 
+const priorityLabels: Record<string, string> = {
+  LOW: "Niski",
+  MEDIUM: "Średni",
+  HIGH: "Wysoki",
+  CRITICAL: "Krytyczny",
+}
+
 export default function NewLeadPage() {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
@@ -54,6 +61,9 @@ export default function NewLeadPage() {
     meetingDate: "",
     needs: "",
     notes: "",
+    priority: "",
+    nextStep: "",
+    nextStepDate: "",
   })
 
   useEffect(() => {
@@ -80,6 +90,9 @@ export default function NewLeadPage() {
           ...form,
           assignedSalesId: form.assignedSalesId || undefined,
           meetingDate: form.meetingDate || undefined,
+          nextStepDate: form.nextStepDate || undefined,
+          priority: form.priority || undefined,
+          nextStep: form.nextStep || undefined,
         }),
       })
       if (res.ok) {
@@ -208,6 +221,33 @@ export default function NewLeadPage() {
             <div>
               <label className="text-sm font-medium">Termin spotkania</label>
               <Input type="date" value={form.meetingDate} onChange={(e) => upd("meetingDate", e.target.value)} />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Priorytet</label>
+              <Select value={form.priority} onValueChange={(v: string | null) => upd("priority", v ?? "")}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Wybierz priorytet">{form.priority ? priorityLabels[form.priority] : undefined}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(priorityLabels).map(([key, label]) => (
+                    <SelectItem key={key} value={key} label={label}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Follow-up</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <label className="text-sm font-medium">Następny krok</label>
+              <Textarea value={form.nextStep} onChange={(e) => upd("nextStep", e.target.value)} placeholder="Opisz następny krok / follow-up..." rows={3} />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Data follow-up</label>
+              <Input type="date" value={form.nextStepDate} onChange={(e) => upd("nextStepDate", e.target.value)} />
             </div>
           </CardContent>
         </Card>

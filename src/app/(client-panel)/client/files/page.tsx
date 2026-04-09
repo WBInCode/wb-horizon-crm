@@ -63,7 +63,7 @@ export default async function ClientFilesPage() {
               <thead>
                 <tr className="border-b text-left text-sm text-gray-500">
                   <th className="p-4">Nazwa pliku</th>
-                  <th className="p-4">Sprawa</th>
+                  <th className="p-4">Sprzedaż</th>
                   <th className="p-4">Dodany przez</th>
                   <th className="p-4">Data</th>
                   <th className="p-4">Status</th>

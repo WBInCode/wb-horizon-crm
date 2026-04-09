@@ -15,7 +15,7 @@ export async function GET(
 
     const { id } = await params
 
-    // Sprawdź dostęp do sprawy
+    // Sprawdź dostęp do sprzedaży
     const hasAccess = await canAccessCase(user.id, user.role, id)
     if (!hasAccess) {
       return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })

@@ -3,6 +3,25 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessClient } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
 
+// Dozwolone przejścia etapów kontrahenta
+const ALLOWED_STAGE_TRANSITIONS: Record<string, string[]> = {
+  LEAD: ["PROSPECT", "INACTIVE"],
+  PROSPECT: ["QUOTATION", "INACTIVE"],
+  QUOTATION: ["SALE", "INACTIVE"],
+  SALE: ["CLIENT", "INACTIVE"],
+  CLIENT: ["INACTIVE"],
+  INACTIVE: ["LEAD", "PROSPECT", "QUOTATION", "SALE", "CLIENT"],
+}
+
+const STAGE_LABELS: Record<string, string> = {
+  LEAD: "Pozysk",
+  PROSPECT: "Kwalifikowany",
+  QUOTATION: "Wycena",
+  SALE: "Sprzedaż",
+  CLIENT: "Klient",
+  INACTIVE: "Nieaktywny",
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -67,6 +86,24 @@ export async function PUT(
 
     const body = await request.json()
 
+    // Walidacja przejścia etapu kontrahenta
+    if (body.stage) {
+      const currentClient = await prisma.client.findUnique({
+        where: { id },
+        select: { stage: true },
+      })
+      if (!currentClient) {
+        return NextResponse.json({ error: "Nie znaleziono kontrahenta" }, { status: 404 })
+      }
+      const allowed = ALLOWED_STAGE_TRANSITIONS[currentClient.stage] || []
+      if (body.stage !== currentClient.stage && !allowed.includes(body.stage)) {
+        return NextResponse.json(
+          { error: `Niedozwolone przejście z etapu "${STAGE_LABELS[currentClient.stage]}" na "${STAGE_LABELS[body.stage]}"` },
+          { status: 400 }
+        )
+      }
+    }
+
     const client = await prisma.client.update({
       where: { id },
       data: {
@@ -81,6 +118,7 @@ export async function PUT(
         interestedProducts: body.interestedProducts,
         keyFindings: body.keyFindings,
         ...(body.ownerId !== undefined && { ownerId: body.ownerId || null }),
+        ...(body.stage && { stage: body.stage }),
       }
     })
 

@@ -3,14 +3,14 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
-import { LayoutDashboard, Users, Building2, Briefcase, Shield, ScrollText } from "lucide-react"
+import { LayoutDashboard, Users, Building2, ShoppingCart, Shield, ScrollText } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const menuItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Leady", href: "/leads", icon: Users },
-  { label: "Klienci", href: "/clients", icon: Building2 },
-  { label: "Sprawy", href: "/cases", icon: Briefcase },
+  { label: "Kontrahenci", href: "/clients", icon: Building2 },
+  { label: "Sprzedaże", href: "/cases", icon: ShoppingCart },
 ]
 
 const adminItem = { label: "Admin", href: "/admin", icon: Shield }

@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, Plus, Pencil, Save, X, UserPlus, Trash2 } from "lucide-react"
+import { toast } from "sonner"
 
 const caseStatusLabels: Record<string, string> = {
   DRAFT: "Robocza",
@@ -24,6 +25,24 @@ const caseStatusLabels: Record<string, string> = {
   DELIVERED: "Przekazana",
   CLOSED: "Zamknięta",
   CANCELLED: "Anulowana",
+}
+
+const STAGE_CONFIG: Record<string, { label: string; className: string }> = {
+  LEAD: { label: "Pozysk", className: "border-blue-300 text-blue-700 bg-blue-50" },
+  PROSPECT: { label: "Kwalifikowany", className: "border-purple-300 text-purple-700 bg-purple-50" },
+  QUOTATION: { label: "Wycena", className: "border-yellow-400 text-yellow-800 bg-yellow-50" },
+  SALE: { label: "Sprzedaż", className: "border-orange-300 text-orange-700 bg-orange-50" },
+  CLIENT: { label: "Klient", className: "border-green-300 text-green-700 bg-green-50" },
+  INACTIVE: { label: "Nieaktywny", className: "border-gray-300 text-gray-500 bg-gray-50" },
+}
+
+const ALLOWED_TRANSITIONS: Record<string, string[]> = {
+  LEAD: ["PROSPECT", "INACTIVE"],
+  PROSPECT: ["QUOTATION", "INACTIVE"],
+  QUOTATION: ["SALE", "INACTIVE"],
+  SALE: ["CLIENT", "INACTIVE"],
+  CLIENT: ["INACTIVE"],
+  INACTIVE: ["LEAD", "PROSPECT", "QUOTATION", "SALE", "CLIENT"],
 }
 
 export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -131,10 +150,33 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   }
 
   if (loading) return <div className="p-6">Ładowanie...</div>
-  if (!client) return <div className="p-6">Nie znaleziono klienta</div>
+  if (!client) return <div className="p-6">Nie znaleziono kontrahenta</div>
 
   const activeCases = client.cases?.filter((c: any) => c.status !== "CLOSED" && c.status !== "CANCELLED") || []
   const closedCases = client.cases?.filter((c: any) => c.status === "CLOSED" || c.status === "CANCELLED") || []
+
+  const currentStage = client.stage || "LEAD"
+  const stageConfig = STAGE_CONFIG[currentStage] || STAGE_CONFIG.LEAD
+  const allowedNext = ALLOWED_TRANSITIONS[currentStage] || []
+
+  const handleStageChange = async (newStage: string) => {
+    try {
+      const res = await fetch(`/api/clients/${clientId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stage: newStage }),
+      })
+      if (res.ok) {
+        toast.success(`Etap zmieniony na "${STAGE_CONFIG[newStage]?.label}"`)
+        fetchClient()
+      } else {
+        const err = await res.json()
+        toast.error(err.error || "Błąd zmiany etapu")
+      }
+    } catch {
+      toast.error("Błąd połączenia z serwerem")
+    }
+  }
 
   return (
     <div className="p-6">
@@ -143,9 +185,28 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold">{client.companyName}</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold">{client.companyName}</h1>
+            <Badge variant="outline" className={stageConfig.className}>
+              {stageConfig.label}
+            </Badge>
+          </div>
           {client.nip && <p className="text-gray-500">NIP: {client.nip}</p>}
         </div>
+        {allowedNext.length > 0 && (
+          <Select onValueChange={(val: string | null) => { if (val) handleStageChange(val) }}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Zmień etap" />
+            </SelectTrigger>
+            <SelectContent>
+              {allowedNext.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {STAGE_CONFIG[s]?.label || s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         {!editing && (
           <Button variant="outline" onClick={startEdit}>
             <Pencil className="w-4 h-4 mr-2" /> Edytuj
@@ -163,7 +224,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         )}
         <Button onClick={() => router.push(`/cases/new?clientId=${client.id}`)}>
           <Plus className="w-4 h-4 mr-2" />
-          Nowa sprawa
+          Nowa sprzedaż
         </Button>
       </div>
 
@@ -259,7 +320,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           <CardHeader><CardTitle>Zainteresowane produkty / usługi</CardTitle></CardHeader>
           <CardContent>
             {editing ? (
-              <Textarea value={editForm.interestedProducts} onChange={(e) => setEditForm({ ...editForm, interestedProducts: e.target.value })} placeholder="Jakie produkty lub usługi interesują klienta..." rows={3} />
+              <Textarea value={editForm.interestedProducts} onChange={(e) => setEditForm({ ...editForm, interestedProducts: e.target.value })} placeholder="Jakie produkty lub usługi interesują kontrahenta..." rows={3} />
             ) : (
               <p className="whitespace-pre-wrap">{client.interestedProducts || "-"}</p>
             )}
@@ -298,15 +359,15 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           </CardContent>
         </Card>
 
-        {/* Sekcja C: Sprawy */}
+        {/* Sekcja C: Sprzedaże */}
         <Card className="col-span-2">
           <CardHeader>
-            <CardTitle>Powiązane sprawy ({client.cases?.length || 0})</CardTitle>
+            <CardTitle>Powiązane sprzedaże ({client.cases?.length || 0})</CardTitle>
           </CardHeader>
           <CardContent>
             <h4 className="font-medium mb-2">Aktywne ({activeCases.length})</h4>
             {activeCases.length === 0 ? (
-              <p className="text-gray-500 mb-4">Brak aktywnych spraw</p>
+              <p className="text-gray-500 mb-4">Brak aktywnych sprzedaży</p>
             ) : (
               <div className="space-y-2 mb-4">
                 {activeCases.map((c: any) => (
@@ -322,7 +383,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             )}
             <h4 className="font-medium mb-2">Zamknięte ({closedCases.length})</h4>
             {closedCases.length === 0 ? (
-              <p className="text-gray-500">Brak zamkniętych spraw</p>
+              <p className="text-gray-500">Brak zamkniętych sprzedaży</p>
             ) : (
               <div className="space-y-2">
                 {closedCases.map((c: any) => (

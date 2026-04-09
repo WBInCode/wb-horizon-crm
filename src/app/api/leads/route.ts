@@ -14,11 +14,13 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
     const salesId = searchParams.get("salesId")
     const search = searchParams.get("search")
+    const priority = searchParams.get("priority")
 
     const where: Record<string, unknown> = {}
     
     if (status) where.status = status
     if (salesId) where.assignedSalesId = salesId
+    if (priority) where.priority = priority
     if (search) {
       where.companyName = { contains: search, mode: "insensitive" }
     }
@@ -78,6 +80,9 @@ export async function POST(request: NextRequest) {
         meetingDate: body.meetingDate ? new Date(body.meetingDate) : null,
         notes: body.notes,
         needs: body.needs,
+        nextStep: body.nextStep || null,
+        nextStepDate: body.nextStepDate ? new Date(body.nextStepDate) : null,
+        priority: body.priority || null,
         status: body.status || undefined,
         assignedSalesId: body.assignedSalesId || user.id,
       }

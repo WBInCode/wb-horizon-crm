@@ -41,7 +41,7 @@ export default async function ClientChecklistPage() {
       {cases.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center text-gray-500">
-            Brak spraw.
+            Brak sprzedaży.
           </CardContent>
         </Card>
       ) : (

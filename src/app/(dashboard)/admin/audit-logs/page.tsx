@@ -40,9 +40,9 @@ const actionColors: Record<string, string> = {
 }
 
 const entityLabels: Record<string, string> = {
-  CASE: "Sprawa",
+  CASE: "Sprzedaż",
   LEAD: "Lead",
-  CLIENT: "Klient",
+  CLIENT: "Kontrahent",
   USER: "Użytkownik",
   FILE: "Plik",
   QUOTE: "Wycena",

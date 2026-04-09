@@ -94,7 +94,7 @@ export default function ClientMessagesPage() {
       {cases.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center text-gray-500">
-            Brak spraw do komunikacji.
+            Brak sprzedaży do komunikacji.
           </CardContent>
         </Card>
       ) : (
@@ -102,7 +102,7 @@ export default function ClientMessagesPage() {
           {/* Case list */}
           <Card className="lg:col-span-1">
             <CardHeader>
-              <CardTitle className="text-sm">Sprawy</CardTitle>
+              <CardTitle className="text-sm">Sprzedaże</CardTitle>
             </CardHeader>
             <CardContent className="p-2">
               {cases.map((c: any) => (
@@ -128,7 +128,7 @@ export default function ClientMessagesPage() {
           <Card className="lg:col-span-3 flex flex-col" style={{ height: "70vh" }}>
             <CardHeader className="border-b">
               <CardTitle className="text-sm">
-                {cases.find((c: any) => c.id === selectedCaseId)?.title || "Wybierz sprawę"}
+                {cases.find((c: any) => c.id === selectedCaseId)?.title || "Wybierz sprzedaż"}
               </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 overflow-auto p-4 space-y-3">

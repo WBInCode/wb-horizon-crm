@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Users, Briefcase, Clock, AlertCircle, Calendar } from "lucide-react"
+import { Users, ShoppingCart, Clock, AlertCircle, Calendar } from "lucide-react"
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -49,10 +49,10 @@ export default function DashboardPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <Briefcase className="w-8 h-8 text-green-600" />
+              <ShoppingCart className="w-8 h-8 text-green-600" />
               <div>
                 <p className="text-2xl font-bold">{data?.pendingCases?.length || 0}</p>
-                <p className="text-gray-500">Aktywne sprawy</p>
+                <p className="text-gray-500">Aktywne sprzedaże</p>
               </div>
             </div>
           </CardContent>
@@ -84,14 +84,14 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-6">
-        {/* Sprawy wymagające akcji */}
+        {/* Sprzedaże wymagające akcji */}
         <Card>
           <CardHeader>
-            <CardTitle>Sprawy wymagające akcji</CardTitle>
+            <CardTitle>Sprzedaże wymagające akcji</CardTitle>
           </CardHeader>
           <CardContent>
             {data?.pendingCases?.length === 0 ? (
-              <p className="text-gray-500">Brak spraw</p>
+              <p className="text-gray-500">Brak sprzedaży</p>
             ) : (
               <div className="space-y-2">
                 {data?.pendingCases?.map((c: any) => (
@@ -109,14 +109,14 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Sprawy do akceptacji */}
+        {/* Sprzedaże do akceptacji */}
         <Card>
           <CardHeader>
             <CardTitle>Do akceptacji</CardTitle>
           </CardHeader>
           <CardContent>
             {data?.casesForApproval?.length === 0 ? (
-              <p className="text-gray-500">Brak spraw</p>
+              <p className="text-gray-500">Brak sprzedaży</p>
             ) : (
               <div className="space-y-2">
                 {data?.casesForApproval?.map((c: any) => (
@@ -134,14 +134,14 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Sprawy z brakami */}
+        {/* Sprzedaże z brakami */}
         <Card>
           <CardHeader>
-            <CardTitle>Sprawy z brakami</CardTitle>
+            <CardTitle>Sprzedaże z brakami</CardTitle>
           </CardHeader>
           <CardContent>
             {data?.casesWithMissing?.length === 0 ? (
-              <p className="text-gray-500">Brak spraw z brakami</p>
+              <p className="text-gray-500">Brak sprzedaży z brakami</p>
             ) : (
               <div className="space-y-2">
                 {data?.casesWithMissing?.map((c: any) => (

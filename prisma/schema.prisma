@@ -99,6 +99,22 @@ enum ApprovalTargetType {
   CHECKLIST_ITEM
 }
 
+enum ContractorStage {
+  LEAD        // Pozysk — aktywny lead
+  PROSPECT    // Kwalifikowany — po spotkaniu, w ocenie
+  QUOTATION   // Wycena — przygotowywanie oferty
+  SALE        // Sprzedaż — aktywna sprzedaż
+  CLIENT      // Klient — zrealizowana sprzedaż
+  INACTIVE    // Nieaktywny
+}
+
+enum LeadPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
 // ==================== MODELE ====================
 
 model User {
@@ -146,6 +162,9 @@ model Lead {
   status          LeadStatus @default(NEW)
   notes           String?    @db.Text
   needs           String?    @db.Text
+  nextStep        String?    @db.Text
+  nextStepDate    DateTime?
+  priority        LeadPriority?
   
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
@@ -170,6 +189,7 @@ model Client {
   requirements String?  @db.Text
   interestedProducts String? @db.Text
   keyFindings  String?  @db.Text
+  stage        ContractorStage @default(LEAD)
   
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -206,6 +226,7 @@ model Product {
   id              String   @id @default(cuid())
   name            String
   description     String?  @db.Text
+  category        String?  // "Produkt" | "Usługa"
   surveySchema    Json?    // Tablica pytań ankiety: [{ question: string, type: "text"|"number"|"select", options?: string[] }]
   requiredFiles   Json?    // Tablica wymaganych dokumentów: [{ name: string, description?: string }]
   isActive        Boolean  @default(true)

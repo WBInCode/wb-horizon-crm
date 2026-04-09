@@ -65,6 +65,9 @@ export async function PUT(
     if (body.needs !== undefined) data.needs = body.needs
     if (body.assignedSalesId !== undefined) data.assignedSalesId = body.assignedSalesId
     if (body.convertedToClientId !== undefined) data.convertedToClientId = body.convertedToClientId
+    if (body.nextStep !== undefined) data.nextStep = body.nextStep
+    if (body.nextStepDate !== undefined) data.nextStepDate = body.nextStepDate ? new Date(body.nextStepDate) : null
+    if (body.priority !== undefined) data.priority = body.priority || null
 
     const lead = await prisma.lead.update({
       where: { id },

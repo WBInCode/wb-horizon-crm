@@ -44,7 +44,7 @@ export default async function ClientCasesPage() {
   if (!client) {
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-bold mb-4">Moje sprawy</h1>
+        <h1 className="text-2xl font-bold mb-4">Moje sprzedaże</h1>
         <p className="text-gray-500">Brak przypisanej firmy.</p>
       </div>
     )
@@ -62,12 +62,12 @@ export default async function ClientCasesPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Moje sprawy</h1>
+      <h1 className="text-2xl font-bold">Moje sprzedaże</h1>
 
       {cases.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center text-gray-500">
-            Nie masz jeszcze żadnych spraw.
+            Nie masz jeszcze żadnych sprzedaży.
           </CardContent>
         </Card>
       ) : (

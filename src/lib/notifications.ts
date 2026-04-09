@@ -30,8 +30,8 @@ export async function notifyCaseAssigned(caretakerId: string, caseId: string, ca
   return createNotification(
     caretakerId,
     "CASE_ASSIGNED",
-    "Nowa sprawa przydzielona",
-    `Przydzielono Ci sprawę: ${caseTitle}`,
+    "Nowa sprzedaż przydzielona",
+    `Przydzielono Ci sprzedaż: ${caseTitle}`,
     `/cases/${caseId}`
   )
 }
@@ -50,8 +50,8 @@ export async function notifyCaseForApproval(directorId: string, caseId: string, 
   return createNotification(
     directorId,
     "CASE_FOR_APPROVAL",
-    "Sprawa do zatwierdzenia",
-    `Sprawa "${caseTitle}" oczekuje na Twoją akceptację`,
+    "Sprzedaż do zatwierdzenia",
+    `Sprzedaż "${caseTitle}" oczekuje na Twoją akceptację`,
     `/cases/${caseId}`
   )
 }
@@ -60,8 +60,8 @@ export async function notifyCaseReturned(caretakerId: string, caseId: string, ca
   return createNotification(
     caretakerId,
     "CASE_RETURNED",
-    "Sprawa do poprawy",
-    `Sprawa "${caseTitle}" została zwrócona do poprawy`,
+    "Sprzedaż do poprawy",
+    `Sprzedaż "${caseTitle}" została zwrócona do poprawy`,
     `/cases/${caseId}`
   )
 }
@@ -71,7 +71,7 @@ export async function notifyCaretakerChanged(userId: string, caseId: string, new
     userId,
     "CARETAKER_CHANGED",
     "Zmiana opiekuna",
-    `Opiekun sprawy został zmieniony na: ${newCaretakerName}`,
+    `Opiekun sprzedaży został zmieniony na: ${newCaretakerName}`,
     `/cases/${caseId}`
   )
 }

@@ -15,7 +15,7 @@ export async function GET(
 
     const { id } = await params
 
-    // Sprawdź dostęp do sprawy
+    // Sprawdź dostęp do sprzedaży
     const hasAccess = await canAccessCase(user.id, user.role, id)
     if (!hasAccess) {
       return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
@@ -59,7 +59,7 @@ export async function POST(
 
     const { id } = await params
 
-    // Sprawdź dostęp do sprawy
+    // Sprawdź dostęp do sprzedaży
     const hasAccess = await canAccessCase(user.id, user.role, id)
     if (!hasAccess) {
       return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
@@ -92,7 +92,7 @@ export async function POST(
       data: { updatedAt: new Date() }
     })
 
-    // Powiadom uczestników sprawy o nowej wiadomości
+    // Powiadom uczestników sprzedaży o nowej wiadomości
     if (messageType === "CHAT") {
       const caseData = await prisma.case.findUnique({
         where: { id },

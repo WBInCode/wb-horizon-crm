@@ -188,7 +188,7 @@ export function SummaryTab({ caseData, onUpdate }: Props) {
         {/* Left column - info */}
         <div className="space-y-4">
           <Card>
-            <CardHeader><CardTitle>Klient</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Kontrahent</CardTitle></CardHeader>
             <CardContent>
               <p className="font-medium">{caseData.client?.companyName}</p>
               <p className="text-sm text-gray-500">{caseData.client?.industry}</p>
@@ -252,7 +252,7 @@ export function SummaryTab({ caseData, onUpdate }: Props) {
               <CardContent className="space-y-2">
                 <Button className="w-full" onClick={handleApproveCase}>
                   <Check className="w-4 h-4 mr-2" />
-                  {role === "CARETAKER" ? "Akceptuj (przekaż do dyrektora)" : "Akceptuj sprawę"}
+                  {role === "CARETAKER" ? "Akceptuj (przekaż do dyrektora)" : "Akceptuj sprzedaż"}
                 </Button>
                 <Button variant="outline" className="w-full" onClick={handleReturnCase}>
                   <RotateCcw className="w-4 h-4 mr-2" />

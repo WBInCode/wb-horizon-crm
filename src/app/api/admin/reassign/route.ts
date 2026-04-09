@@ -4,7 +4,7 @@ import { requireRole } from "@/lib/auth"
 import { notifyCaseAssigned, notifyCaretakerChanged } from "@/lib/notifications"
 import { auditLog } from "@/lib/audit"
 
-// PUT /api/admin/reassign - zmiana opiekuna sprawy
+// PUT /api/admin/reassign - zmiana opiekuna sprzedaży
 export async function PUT(req: NextRequest) {
   const currentUser = await requireRole(["ADMIN", "DIRECTOR"])
   if (!currentUser) {

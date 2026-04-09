@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
 
-// GET /api/cases/[id]/survey - pobierz ankietę sprawy
+// GET /api/cases/[id]/survey - pobierz ankietę sprzedaży
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

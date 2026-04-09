@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
 import {
   LayoutDashboard,
-  Briefcase,
+  ShoppingCart,
   FileText,
   CheckSquare,
   MessageSquare,
@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils"
 
 const clientMenuItems = [
   { label: "Podsumowanie", href: "/client", icon: LayoutDashboard },
-  { label: "Moje sprawy", href: "/client/cases", icon: Briefcase },
+  { label: "Moje sprzedaże", href: "/client/cases", icon: ShoppingCart },
   { label: "Pliki", href: "/client/files", icon: FileText },
   { label: "Checklista", href: "/client/checklist", icon: CheckSquare },
   { label: "Ankiety", href: "/client/surveys", icon: ClipboardList },

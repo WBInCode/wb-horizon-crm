@@ -36,6 +36,20 @@ const statusLabels: Record<string, string> = {
   CLOSED: "Zamknięty",
 }
 
+const PRIORITY_CONFIG: Record<string, { label: string; className: string }> = {
+  LOW: { label: "Niski", className: "border-gray-300 text-gray-600 bg-gray-50" },
+  MEDIUM: { label: "Średni", className: "border-blue-300 text-blue-700 bg-blue-50" },
+  HIGH: { label: "Wysoki", className: "border-orange-300 text-orange-700 bg-orange-50" },
+  CRITICAL: { label: "Krytyczny", className: "border-red-300 text-red-700 bg-red-50" },
+}
+
+const priorityLabels: Record<string, string> = {
+  LOW: "Niski",
+  MEDIUM: "Średni",
+  HIGH: "Wysoki",
+  CRITICAL: "Krytyczny",
+}
+
 export default function LeadsPage() {
   const router = useRouter()
   const [leads, setLeads] = useState<any[]>([])
@@ -43,6 +57,7 @@ export default function LeadsPage() {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [salesFilter, setSalesFilter] = useState("")
+  const [priorityFilter, setPriorityFilter] = useState("")
   const [users, setUsers] = useState<any[]>([])
 
 
@@ -59,6 +74,7 @@ export default function LeadsPage() {
       if (search) params.set("search", search)
       if (statusFilter) params.set("status", statusFilter)
       if (salesFilter) params.set("salesId", salesFilter)
+      if (priorityFilter) params.set("priority", priorityFilter)
       
       const res = await fetch(`/api/leads?${params}`)
       const data = await res.json()
@@ -72,10 +88,10 @@ export default function LeadsPage() {
 
   useEffect(() => {
     fetchLeads()
-  }, [search, statusFilter, salesFilter])
+  }, [search, statusFilter, salesFilter, priorityFilter])
 
   const salespersons = users.filter((u) => u.role === "SALESPERSON" || u.role === "ADMIN")
-  const hasActiveFilters = statusFilter || salesFilter
+  const hasActiveFilters = statusFilter || salesFilter || priorityFilter
 
   return (
     <div className="p-6">
@@ -117,8 +133,18 @@ export default function LeadsPage() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={priorityFilter} onValueChange={(v: string | null) => setPriorityFilter(v ?? "")}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Priorytet">{priorityFilter ? priorityLabels[priorityFilter] : undefined}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(priorityLabels).map(([key, label]) => (
+              <SelectItem key={key} value={key} label={label}>{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={() => { setStatusFilter(""); setSalesFilter("") }}>
+          <Button variant="ghost" size="sm" onClick={() => { setStatusFilter(""); setSalesFilter(""); setPriorityFilter("") }}>
             <X className="w-4 h-4 mr-1" /> Wyczyść
           </Button>
         )}
@@ -132,20 +158,22 @@ export default function LeadsPage() {
               <TableHead>Osoba kontaktowa</TableHead>
               <TableHead>Telefon</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Priorytet</TableHead>
               <TableHead>Handlowiec</TableHead>
+              <TableHead>Follow-up</TableHead>
               <TableHead>Data utworzenia</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
+                <TableCell colSpan={8} className="text-center py-8">
                   Ładowanie...
                 </TableCell>
               </TableRow>
             ) : leads.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
+                <TableCell colSpan={8} className="text-center py-8">
                   Brak leadów
                 </TableCell>
               </TableRow>
@@ -164,7 +192,17 @@ export default function LeadsPage() {
                       {statusLabels[lead.status]}
                     </Badge>
                   </TableCell>
+                  <TableCell>
+                    {lead.priority && PRIORITY_CONFIG[lead.priority] ? (
+                      <Badge variant="outline" className={PRIORITY_CONFIG[lead.priority].className}>
+                        {PRIORITY_CONFIG[lead.priority].label}
+                      </Badge>
+                    ) : "-"}
+                  </TableCell>
                   <TableCell>{lead.assignedSales?.name || "-"}</TableCell>
+                  <TableCell>
+                    {lead.nextStepDate ? new Date(lead.nextStepDate).toLocaleDateString("pl-PL") : "-"}
+                  </TableCell>
                   <TableCell>
                     {new Date(lead.createdAt).toLocaleDateString("pl-PL")}
                   </TableCell>

@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, ArrowRight, Check, Upload, FileText, ClipboardList, Package, Building2 } from "lucide-react"
+import { ArrowLeft, ArrowRight, Check, Upload, FileText, ClipboardList, Package, Building2, AlertTriangle } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 
 interface SurveyQuestion {
   question: string
@@ -29,12 +30,23 @@ interface Product {
 }
 
 const STEPS = [
-  { id: 1, label: "Klient", icon: Building2 },
+  { id: 1, label: "Kontrahent", icon: Building2 },
   { id: 2, label: "Produkt", icon: Package },
   { id: 3, label: "Ankieta", icon: ClipboardList },
   { id: 4, label: "Pliki", icon: FileText },
   { id: 5, label: "Podsumowanie", icon: Check },
 ]
+
+const STAGE_CONFIG: Record<string, { label: string; className: string }> = {
+  LEAD: { label: "Pozysk", className: "border-blue-300 text-blue-700 bg-blue-50" },
+  PROSPECT: { label: "Kwalifikowany", className: "border-purple-300 text-purple-700 bg-purple-50" },
+  QUOTATION: { label: "Wycena", className: "border-yellow-400 text-yellow-800 bg-yellow-50" },
+  SALE: { label: "Sprzedaż", className: "border-orange-300 text-orange-700 bg-orange-50" },
+  CLIENT: { label: "Klient", className: "border-green-300 text-green-700 bg-green-50" },
+  INACTIVE: { label: "Nieaktywny", className: "border-gray-300 text-gray-500 bg-gray-50" },
+}
+
+const MIN_STAGE_FOR_SALE = ["QUOTATION", "SALE", "CLIENT"]
 
 export default function NewCasePage() {
   const router = useRouter()
@@ -95,7 +107,11 @@ export default function NewCasePage() {
 
   const canProceed = () => {
     switch (step) {
-      case 1: return !!form.clientId
+      case 1: {
+        if (!form.clientId) return false
+        const clientStage = selectedClient?.stage || "LEAD"
+        return MIN_STAGE_FOR_SALE.includes(clientStage)
+      }
       case 2: return !!form.productId
       case 3: return true // survey is optional
       case 4: return true // files can be added later
@@ -112,7 +128,7 @@ export default function NewCasePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: form.title || selectedProduct?.name || "Nowa sprawa",
+          title: form.title || selectedProduct?.name || "Nowa sprzedaż",
           clientId: form.clientId,
           productId: form.productId,
         }),
@@ -120,7 +136,7 @@ export default function NewCasePage() {
 
       if (!res.ok) {
         const err = await res.json()
-        alert(err.error || "Błąd tworzenia sprawy")
+        alert(err.error || "Błąd tworzenia sprzedaży")
         return
       }
 
@@ -196,7 +212,7 @@ export default function NewCasePage() {
       {step === 1 && (
         <Card>
           <CardHeader>
-            <CardTitle>Wybierz klienta</CardTitle>
+            <CardTitle>Wybierz kontrahenta</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <Select
@@ -204,7 +220,7 @@ export default function NewCasePage() {
               onValueChange={(val: string | null) => setForm({ ...form, clientId: val ?? "" })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Wybierz klienta">{selectedClient?.companyName}</SelectValue>
+                <SelectValue placeholder="Wybierz kontrahenta">{selectedClient?.companyName}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {clients.map((c) => (
@@ -218,6 +234,21 @@ export default function NewCasePage() {
               <div className="text-sm text-gray-500">
                 {selectedClient.nip && <p>NIP: {selectedClient.nip}</p>}
                 {selectedClient.industry && <p>Branża: {selectedClient.industry}</p>}
+                <div className="flex items-center gap-2 mt-2">
+                  <span>Etap:</span>
+                  <Badge variant="outline" className={STAGE_CONFIG[selectedClient.stage]?.className}>
+                    {STAGE_CONFIG[selectedClient.stage]?.label || selectedClient.stage}
+                  </Badge>
+                </div>
+                {!MIN_STAGE_FOR_SALE.includes(selectedClient.stage || "LEAD") && (
+                  <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg flex items-start gap-2">
+                    <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-orange-800">Nie można utworzyć sprzedaży</p>
+                      <p className="text-orange-700">Kontrahent musi być min. w etapie &quot;Wycena&quot; aby utworzyć sprzedaż. Aktualny etap: &quot;{STAGE_CONFIG[selectedClient.stage]?.label || selectedClient.stage}&quot;.</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
@@ -228,13 +259,13 @@ export default function NewCasePage() {
       {step === 2 && (
         <Card>
           <CardHeader>
-            <CardTitle>Wybierz produkt klienta</CardTitle>
+            <CardTitle>Wybierz produkt kontrahenta</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {loading ? (
               <p className="text-gray-500">Ładowanie produktów...</p>
             ) : products.length === 0 ? (
-              <p className="text-gray-500">Ten klient nie ma jeszcze zdefiniowanych produktów.</p>
+              <p className="text-gray-500">Ten kontrahent nie ma jeszcze zdefiniowanych produktów.</p>
             ) : (
               <div className="grid gap-3">
                 {products.map((p) => (
@@ -268,7 +299,7 @@ export default function NewCasePage() {
             )}
 
             <div>
-              <Label htmlFor="title">Tytuł sprawy</Label>
+              <Label htmlFor="title">Tytuł sprzedaży</Label>
               <Input
                 id="title"
                 value={form.title}
@@ -390,7 +421,7 @@ export default function NewCasePage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <p className="text-gray-500">Klient</p>
+                <p className="text-gray-500">Kontrahent</p>
                 <p className="font-medium">{selectedClient?.companyName}</p>
               </div>
               <div>
@@ -398,7 +429,7 @@ export default function NewCasePage() {
                 <p className="font-medium">{selectedProduct?.name}</p>
               </div>
               <div className="col-span-2">
-                <p className="text-gray-500">Tytuł sprawy</p>
+                <p className="text-gray-500">Tytuł sprzedaży</p>
                 <p className="font-medium">{form.title || selectedProduct?.name || "—"}</p>
               </div>
             </div>

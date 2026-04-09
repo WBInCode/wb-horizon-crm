@@ -16,7 +16,7 @@ export async function GET(
 
     const { id } = await params
 
-    // Sprawdź dostęp do sprawy
+    // Sprawdź dostęp do sprzedaży
     const hasAccess = await canAccessCase(user.id, user.role, id)
     if (!hasAccess) {
       return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
@@ -140,15 +140,15 @@ export async function PUT(
         }
       })
 
-      // Powiadomienie: sprawa do akceptacji dyrektora  
+      // Powiadomienie: sprzedaż do akceptacji dyrektora  
       if (body.status === "DIRECTOR_REVIEW" && updated.directorId) {
         await notifyCaseForApproval(updated.directorId, id, updated.title)
       }
-      // Powiadomienie: sprawa do kontroli opiekuna
+      // Powiadomienie: sprzedaż do kontroli opiekuna
       if (body.status === "CARETAKER_REVIEW" && updated.caretakerId) {
         await notifyCaseForApproval(updated.caretakerId, id, updated.title)
       }
-      // Powiadomienie: sprawa do poprawy
+      // Powiadomienie: sprzedaż do poprawy
       if (body.status === "TO_FIX" && updated.caretakerId) {
         await notifyCaseReturned(updated.caretakerId, id, updated.title)
       }

@@ -48,7 +48,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
   }, [id])
 
   if (loading) return <div className="p-6">Ładowanie...</div>
-  if (!caseData) return <div className="p-6">Nie znaleziono sprawy</div>
+  if (!caseData) return <div className="p-6">Nie znaleziono sprzedaży</div>
 
   return (
     <div className="p-6">
