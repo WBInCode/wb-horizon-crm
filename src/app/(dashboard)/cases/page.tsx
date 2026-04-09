@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Plus, Search, X } from "lucide-react"
+import { StageBadge, DetailedStatusBadge, STAGE_LABELS, DETAILED_LABELS } from "@/components/ui/status-badge"
 
 const statusColors: Record<string, string> = {
   DRAFT: "bg-gray-100 text-gray-800",
@@ -47,6 +48,8 @@ export default function CasesPage() {
   const [caretakerFilter, setCaretakerFilter] = useState("")
   const [salesFilter, setSalesFilter] = useState("")
   const [directorFilter, setDirectorFilter] = useState("")
+  const [stageFilter, setStageFilter] = useState("")
+  const [detailedStatusFilter, setDetailedStatusFilter] = useState("")
   const [hasMissing, setHasMissing] = useState(false)
   const [users, setUsers] = useState<any[]>([])
 
@@ -65,6 +68,8 @@ export default function CasesPage() {
       if (caretakerFilter) params.set("caretakerId", caretakerFilter)
       if (salesFilter) params.set("salesId", salesFilter)
       if (directorFilter) params.set("directorId", directorFilter)
+      if (stageFilter) params.set("processStage", stageFilter)
+      if (detailedStatusFilter) params.set("detailedStatus", detailedStatusFilter)
       if (hasMissing) params.set("hasMissing", "true")
       
       const res = await fetch(`/api/cases?${params}`)
@@ -79,18 +84,20 @@ export default function CasesPage() {
 
   useEffect(() => {
     fetchCases()
-  }, [search, statusFilter, caretakerFilter, salesFilter, directorFilter, hasMissing])
+  }, [search, statusFilter, caretakerFilter, salesFilter, directorFilter, stageFilter, detailedStatusFilter, hasMissing])
 
   const caretakers = users.filter((u) => u.role === "CARETAKER")
   const salespersons = users.filter((u) => u.role === "SALESPERSON" || u.role === "ADMIN")
   const directors = users.filter((u) => u.role === "DIRECTOR")
-  const hasActiveFilters = statusFilter || caretakerFilter || salesFilter || directorFilter || hasMissing
+  const hasActiveFilters = statusFilter || caretakerFilter || salesFilter || directorFilter || stageFilter || detailedStatusFilter || hasMissing
 
   const clearFilters = () => {
     setStatusFilter("")
     setCaretakerFilter("")
     setSalesFilter("")
     setDirectorFilter("")
+    setStageFilter("")
+    setDetailedStatusFilter("")
     setHasMissing(false)
   }
 
@@ -154,6 +161,26 @@ export default function CasesPage() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={stageFilter} onValueChange={(v: string | null) => setStageFilter(v ?? "")}>
+          <SelectTrigger className="w-[170px]">
+            <SelectValue placeholder="Etap">{stageFilter ? STAGE_LABELS[stageFilter] : undefined}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(STAGE_LABELS).map(([key, label]) => (
+              <SelectItem key={key} value={key} label={label}>{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={detailedStatusFilter} onValueChange={(v: string | null) => setDetailedStatusFilter(v ?? "")}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Status szczeg.">{detailedStatusFilter ? DETAILED_LABELS[detailedStatusFilter] : undefined}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(DETAILED_LABELS).map(([key, label]) => (
+              <SelectItem key={key} value={key} label={label}>{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <label className="flex items-center gap-2 px-3 border rounded-md cursor-pointer">
           <Checkbox checked={hasMissing} onCheckedChange={(v) => setHasMissing(v === true)} />
           <span className="text-sm">Z brakami</span>
@@ -171,6 +198,8 @@ export default function CasesPage() {
             <TableRow>
               <TableHead>Tytuł</TableHead>
               <TableHead>Kontrahent</TableHead>
+              <TableHead>Etap</TableHead>
+              <TableHead>Status szczeg.</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Handlowiec</TableHead>
               <TableHead>Opiekun</TableHead>
@@ -180,11 +209,11 @@ export default function CasesPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">Ładowanie...</TableCell>
+                <TableCell colSpan={8} className="text-center py-8">Ładowanie...</TableCell>
               </TableRow>
             ) : cases.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">Brak sprzedaży</TableCell>
+                <TableCell colSpan={8} className="text-center py-8">Brak sprzedaży</TableCell>
               </TableRow>
             ) : (
               cases.map((c) => (
@@ -195,6 +224,12 @@ export default function CasesPage() {
                 >
                   <TableCell className="font-medium">{c.title}</TableCell>
                   <TableCell>{c.client?.companyName}</TableCell>
+                  <TableCell>
+                    <StageBadge stage={c.processStage || "NEW"} />
+                  </TableCell>
+                  <TableCell>
+                    {c.detailedStatus ? <DetailedStatusBadge status={c.detailedStatus} /> : "—"}
+                  </TableCell>
                   <TableCell>
                     <Badge className={statusColors[c.status]}>
                       {statusLabels[c.status]}

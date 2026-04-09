@@ -111,6 +111,32 @@ export async function PUT(
       delete body.status
     }
 
+    // Walidacja processStage / detailedStatus
+    if (body.processStage || body.detailedStatus) {
+      if (!["ADMIN", "DIRECTOR", "CARETAKER"].includes(user.role)) {
+        delete body.processStage
+        delete body.detailedStatus
+      } else {
+        const ALLOWED_STATUS_PER_STAGE: Record<string, string[]> = {
+          NEW: ["WAITING_SURVEY", "WAITING_FILES"],
+          DATA_COLLECTION: ["WAITING_SURVEY", "WAITING_FILES", "FORMAL_DEFICIENCIES"],
+          DOCUMENTS: ["WAITING_FILES", "FORMAL_DEFICIENCIES", "TO_FIX"],
+          VERIFICATION: ["FORMAL_DEFICIENCIES", "CARETAKER_APPROVAL"],
+          APPROVAL: ["CARETAKER_APPROVAL", "DIRECTOR_APPROVAL", "TO_FIX"],
+          EXECUTION: ["READY_TO_START", "IN_PROGRESS"],
+          CLOSED: ["COMPLETED"],
+        }
+        const stage = body.processStage || oldCase?.processStage || "NEW"
+        const status = body.detailedStatus || oldCase?.detailedStatus
+        if (status && ALLOWED_STATUS_PER_STAGE[stage] && !ALLOWED_STATUS_PER_STAGE[stage].includes(status)) {
+          return NextResponse.json(
+            { error: `Status "${status}" nie jest dozwolony dla etapu "${stage}"` },
+            { status: 400 }
+          )
+        }
+      }
+    }
+
     const updated = await prisma.case.update({
       where: { id },
       data: {
@@ -125,6 +151,8 @@ export async function PUT(
         surveyDeadline: body.surveyDeadline ? new Date(body.surveyDeadline) : null,
         surveyClientNotes: body.surveyClientNotes,
         surveySalesNotes: body.surveySalesNotes,
+        processStage: body.processStage,
+        detailedStatus: body.detailedStatus,
       }
     })
 
@@ -188,7 +216,7 @@ export async function PUT(
     const changes = oldCase ? diffChanges(
       oldCase as unknown as Record<string, unknown>,
       body,
-      ["title", "serviceName", "status", "salesId", "caretakerId", "directorId"]
+      ["title", "serviceName", "status", "processStage", "detailedStatus", "salesId", "caretakerId", "directorId"]
     ) : null
 
     await auditLog({

@@ -3,32 +3,36 @@
 import { use, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft } from "lucide-react"
+import { toast } from "sonner"
 import { SurveyTab } from "@/components/cases/tabs/SurveyTab"
 import { SummaryTab } from "@/components/cases/tabs/SummaryTab"
 import { FilesTab } from "@/components/cases/tabs/FilesTab"
 import { ChecklistTab } from "@/components/cases/tabs/ChecklistTab"
+import SaleContextHeader from "@/components/cases/SaleContextHeader"
+import AssignmentsBlock from "@/components/cases/AssignmentsBlock"
+import { STAGE_LABELS, DETAILED_LABELS } from "@/components/ui/status-badge"
 
-const statusLabels: Record<string, string> = {
-  DRAFT: "Robocza",
-  IN_PREPARATION: "W przygotowaniu",
-  WAITING_CLIENT_DATA: "Oczekuje na dane",
-  WAITING_FILES: "Oczekuje na pliki",
-  CARETAKER_REVIEW: "Kontrola opiekuna",
-  DIRECTOR_REVIEW: "Kontrola dyrektora",
-  TO_FIX: "Do poprawy",
-  ACCEPTED: "Zaakceptowana",
-  DELIVERED: "Przekazana",
-  CLOSED: "Zamknięta",
-  CANCELLED: "Anulowana",
+const ALLOWED_STATUS_PER_STAGE: Record<string, string[]> = {
+  NEW: ["WAITING_SURVEY", "WAITING_FILES"],
+  DATA_COLLECTION: ["WAITING_SURVEY", "WAITING_FILES", "FORMAL_DEFICIENCIES"],
+  DOCUMENTS: ["WAITING_FILES", "FORMAL_DEFICIENCIES", "TO_FIX"],
+  VERIFICATION: ["FORMAL_DEFICIENCIES", "CARETAKER_APPROVAL"],
+  APPROVAL: ["CARETAKER_APPROVAL", "DIRECTOR_APPROVAL", "TO_FIX"],
+  EXECUTION: ["READY_TO_START", "IN_PROGRESS"],
+  CLOSED: ["COMPLETED"],
 }
+
+const STAGES = Object.keys(STAGE_LABELS)
 
 export default function CaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
   const [caseData, setCaseData] = useState<any>(null)
+  const [users, setUsers] = useState<any[]>([])
+  const [currentUser, setCurrentUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   const fetchCase = async () => {
@@ -43,31 +47,143 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
     }
   }
 
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch("/api/users")
+      if (res.ok) setUsers(await res.json())
+    } catch {}
+  }
+
+  const fetchCurrentUser = async () => {
+    try {
+      const res = await fetch("/api/auth/session")
+      if (res.ok) {
+        const session = await res.json()
+        setCurrentUser(session?.user)
+      }
+    } catch {}
+  }
+
   useEffect(() => {
     fetchCase()
+    fetchUsers()
+    fetchCurrentUser()
   }, [id])
+
+  const canChangeStage = currentUser && ["ADMIN", "DIRECTOR", "CARETAKER"].includes(currentUser.role)
+
+  const handleStageChange = async (newStage: string) => {
+    const allowedStatuses = ALLOWED_STATUS_PER_STAGE[newStage] || []
+    const defaultStatus = allowedStatuses[0]
+    try {
+      const res = await fetch(`/api/cases/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ processStage: newStage, detailedStatus: defaultStatus }),
+      })
+      if (res.ok) {
+        toast.success("Etap zmieniony")
+        fetchCase()
+      } else {
+        const err = await res.json()
+        toast.error(err.error || "Błąd zmiany etapu")
+      }
+    } catch {
+      toast.error("Błąd połączenia")
+    }
+  }
+
+  const handleDetailedStatusChange = async (newStatus: string) => {
+    try {
+      const res = await fetch(`/api/cases/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ detailedStatus: newStatus }),
+      })
+      if (res.ok) {
+        toast.success("Status zmieniony")
+        fetchCase()
+      } else {
+        const err = await res.json()
+        toast.error(err.error || "Błąd zmiany statusu")
+      }
+    } catch {
+      toast.error("Błąd połączenia")
+    }
+  }
 
   if (loading) return <div className="p-6">Ładowanie...</div>
   if (!caseData) return <div className="p-6">Nie znaleziono sprzedaży</div>
 
+  const currentStage = caseData.processStage || "NEW"
+  const allowedStatuses = ALLOWED_STATUS_PER_STAGE[currentStage] || []
+
   return (
-    <div className="p-6">
-      {/* Nagłówek */}
-      <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" onClick={() => router.back()}>
-          <ArrowLeft className="w-4 h-4" />
+    <div className="p-6 space-y-6">
+      {/* Nawigacja */}
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => router.back()}>
+          <ArrowLeft className="w-4 h-4 mr-1" /> Wróć
         </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold">{caseData.title}</h1>
-          <div className="flex items-center gap-2 mt-1">
-            <Badge>{statusLabels[caseData.status] || caseData.status}</Badge>
-            <span className="text-gray-500">|</span>
-            <span className="text-gray-600">{caseData.client?.companyName}</span>
-          </div>
-        </div>
       </div>
 
-      {/* 4 Zakładki zgodnie ze specyfikacją PDF */}
+      {/* Sticky context header */}
+      <SaleContextHeader caseData={caseData} />
+
+      {/* Stage / Status controls */}
+      {canChangeStage && (
+        <div className="flex flex-wrap gap-4 items-end">
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Zmień etap procesu</label>
+            <Select
+              value={currentStage}
+              onValueChange={(v: string | null) => { if (v) handleStageChange(v) }}
+            >
+              <SelectTrigger className="w-52 h-9">
+                <SelectValue>{STAGE_LABELS[currentStage] || currentStage}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {STAGES.map((s) => (
+                  <SelectItem key={s} value={s} label={STAGE_LABELS[s]}>
+                    {STAGE_LABELS[s]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Zmień status szczegółowy</label>
+            <Select
+              value={caseData.detailedStatus || ""}
+              onValueChange={(v: string | null) => { if (v) handleDetailedStatusChange(v) }}
+            >
+              <SelectTrigger className="w-52 h-9">
+                <SelectValue>{DETAILED_LABELS[caseData.detailedStatus] || "—"}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {allowedStatuses.map((s) => (
+                  <SelectItem key={s} value={s} label={DETAILED_LABELS[s]}>
+                    {DETAILED_LABELS[s]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+
+      {/* Assignments */}
+      {currentUser && (
+        <AssignmentsBlock
+          caseId={id}
+          caseData={caseData}
+          users={users}
+          currentUserRole={currentUser.role}
+          onUpdate={fetchCase}
+        />
+      )}
+
+      {/* Tabs */}
       <Tabs defaultValue="survey" className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="survey">Ankieta</TabsTrigger>

@@ -10,6 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { Plus } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import SurveyTemplatesTab from "@/components/admin/SurveyTemplatesTab"
+import ChecklistTemplatesTab from "@/components/admin/ChecklistTemplatesTab"
+import GlobalProductsTab from "@/components/admin/GlobalProductsTab"
+import CooperationTermsTab from "@/components/admin/CooperationTermsTab"
 
 const roleLabels: Record<string, string> = {
   ADMIN: "Administrator",
@@ -109,10 +114,23 @@ export default function AdminPage() {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Panel administracyjny</h1>
-        <Button onClick={() => setShowCreateUser(true)}>
-          <Plus className="w-4 h-4 mr-2" /> Nowy użytkownik
-        </Button>
       </div>
+
+      <Tabs defaultValue="users" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="users">Użytkownicy</TabsTrigger>
+          <TabsTrigger value="surveys">Szablony ankiet</TabsTrigger>
+          <TabsTrigger value="checklists">Szablony checklist</TabsTrigger>
+          <TabsTrigger value="products">Produkty/Usługi</TabsTrigger>
+          <TabsTrigger value="terms">Warunki współpracy</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="users">
+          <div className="flex justify-end mb-4">
+            <Button onClick={() => setShowCreateUser(true)}>
+              <Plus className="w-4 h-4 mr-2" /> Nowy użytkownik
+            </Button>
+          </div>
 
       {/* Zarządzanie użytkownikami */}
       <Card>
@@ -240,6 +258,24 @@ export default function AdminPage() {
           </CardContent>
         </Card>
       </div>
+        </TabsContent>
+
+        <TabsContent value="surveys">
+          <SurveyTemplatesTab />
+        </TabsContent>
+
+        <TabsContent value="checklists">
+          <ChecklistTemplatesTab />
+        </TabsContent>
+
+        <TabsContent value="products">
+          <GlobalProductsTab />
+        </TabsContent>
+
+        <TabsContent value="terms">
+          <CooperationTermsTab />
+        </TabsContent>
+      </Tabs>
 
       {/* Modal tworzenia użytkownika */}
       <Dialog open={showCreateUser} onOpenChange={setShowCreateUser}>

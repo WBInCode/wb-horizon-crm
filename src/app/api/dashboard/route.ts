@@ -114,14 +114,75 @@ export async function GET(request: NextRequest) {
       where: { userId: user.id, isRead: false }
     })
 
+    // Moje sprzedaże (aktywne, przypisane do mnie wg roli)
+    const mySalesFilter: Record<string, unknown> = {
+      status: { notIn: ["CLOSED", "CANCELLED"] },
+    }
+    if (user.role === "SALESPERSON") mySalesFilter.salesId = user.id
+    else if (user.role === "CARETAKER") mySalesFilter.caretakerId = user.id
+    else if (user.role === "CLIENT") mySalesFilter.client = { ownerId: user.id }
+
+    const mySales = await prisma.case.findMany({
+      where: mySalesFilter,
+      include: { client: { select: { companyName: true } } },
+      orderBy: { updatedAt: "desc" },
+      take: 5,
+    })
+
+    // Moje akceptacje
+    let myApprovals: any[] = []
+    if (["CARETAKER", "DIRECTOR", "ADMIN"].includes(user.role)) {
+      const af: Record<string, unknown> = {}
+      if (user.role === "CARETAKER") { af.detailedStatus = "CARETAKER_APPROVAL"; af.caretakerId = user.id }
+      else if (user.role === "DIRECTOR") { af.detailedStatus = "DIRECTOR_APPROVAL"; af.directorId = user.id }
+      else { af.detailedStatus = { in: ["CARETAKER_APPROVAL", "DIRECTOR_APPROVAL"] } }
+      myApprovals = await prisma.case.findMany({
+        where: af,
+        include: { client: { select: { companyName: true } } },
+        take: 5,
+      })
+    }
+
+    // Moje braki
+    const myMissing = await prisma.case.findMany({
+      where: {
+        ...caseFilter,
+        status: { notIn: ["CLOSED", "CANCELLED"] },
+        OR: [
+          { files: { some: { status: "MISSING" } } },
+          { files: { some: { status: "REJECTED" } } },
+          { checklist: { some: { status: "PENDING", isBlocking: true } } },
+        ],
+      },
+      include: {
+        client: { select: { companyName: true } },
+        files: { where: { status: { in: ["MISSING", "REJECTED"] } }, select: { fileName: true, status: true } },
+      },
+      take: 5,
+    })
+
+    const activeCasesCount = await prisma.case.count({
+      where: { ...caseFilter, status: { notIn: ["CLOSED", "CANCELLED"] } },
+    })
+
+    const myExecutionCount = await prisma.case.count({
+      where: { ...caseFilter, processStage: "EXECUTION" },
+    })
+
     return NextResponse.json({
       newLeads,
+      activeCasesCount,
+      myExecutionCount,
       pendingCases,
       casesForApproval,
       casesWithMissing,
       upcomingDeadlines,
       recentActivity,
-      unreadNotifications
+      unreadNotifications,
+      mySales,
+      myApprovals,
+      myMissing,
+      userId: user.id,
     })
   } catch (error) {
     console.error(error)

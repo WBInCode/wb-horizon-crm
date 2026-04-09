@@ -20,6 +20,9 @@ export async function GET(
       include: {
         assignedSales: {
           select: { id: true, name: true, email: true }
+        },
+        convertedToClient: {
+          select: { id: true, companyName: true }
         }
       }
     })

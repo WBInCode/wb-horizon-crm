@@ -221,9 +221,9 @@ Formularz **już zawiera** sekcję "Główna osoba kontaktowa" z polami: imię i
 
 #### 2.1c — Weryfikacja
 
-- [ ] Nie można utworzyć kontrahenta bez podania imienia i min. telefonu lub emaila kontaktu
-- [ ] Pierwszy kontakt automatycznie oznaczony jako główny
-- [ ] Konwersja z Leada nadal działa (pre-fill danych kontaktu)
+- [x] Nie można utworzyć kontrahenta bez podania imienia i min. telefonu lub emaila kontaktu
+- [x] Pierwszy kontakt automatycznie oznaczony jako główny
+- [x] Konwersja z Leada nadal działa (pre-fill danych kontaktu)
 
 ---
 
@@ -332,11 +332,11 @@ src/components/cases/AddProductInlineForm.tsx
 
 #### 2.3d — Weryfikacja
 
-- [ ] Krok 2: widoczny przycisk "Dodaj nowy produkt/usługę"
-- [ ] Krok 2: inline formularz działa bez opuszczania kreatora
-- [ ] Krok 2: nowo dodany produkt pojawia się na liście i można go wybrać
-- [ ] Krok 2: blokada przejścia dalej bez produktu
-- [ ] Krok 5: walidacja kompletności widoczna
+- [x] Krok 2: widoczny przycisk "Dodaj nowy produkt/usługę"
+- [x] Krok 2: inline formularz działa bez opuszczania kreatora
+- [x] Krok 2: nowo dodany produkt pojawia się na liście i można go wybrać
+- [x] Krok 2: blokada przejścia dalej bez produktu
+- [x] Krok 5: walidacja kompletności widoczna
 
 ---
 
@@ -419,13 +419,13 @@ Obecny widok szczegółów klienta zawiera:
 
 #### 3.1e — Weryfikacja
 
-- [ ] Panel wyświetla wszystkie sekcje
-- [ ] Dane pobierane z API i renderowane poprawnie
-- [ ] Sekcja kontaktów: dodawanie, usuwanie, oznaczanie głównego
-- [ ] Sekcja produktów: lista produktów kontrahenta
-- [ ] Sekcja sprzedaży: aktywne i zamknięte
-- [ ] Historia zmian: timeline z filtrowanym audit logiem
-- [ ] Responsywność: układ 2-kolumnowy → 1-kolumna na mobile
+- [x] Panel wyświetla wszystkie sekcje
+- [x] Dane pobierane z API i renderowane poprawnie
+- [x] Sekcja kontaktów: dodawanie, usuwanie, oznaczanie głównego
+- [x] Sekcja produktów: lista produktów kontrahenta
+- [x] Sekcja sprzedaży: aktywne i zamknięte
+- [x] Historia zmian: timeline z filtrowanym audit logiem
+- [x] Responsywność: układ 2-kolumnowy → 1-kolumna na mobile
 
 ---
 
@@ -452,11 +452,11 @@ Obecny widok szczegółów klienta zawiera:
 
 #### 3.2c — Weryfikacja
 
-- [ ] Etap LEAD: nie widać sekcji sprzedaży
-- [ ] Etap QUOTATION: sekcja wycen wyróżniona
-- [ ] Etap SALE: sekcja sprzedaży wyróżniona
-- [ ] Etap CLIENT: wszystkie sekcje widoczne
-- [ ] Zmiana etapu → zmiana widoku bez przeładowania strony
+- [x] Etap LEAD: nie widać sekcji sprzedaży
+- [x] Etap QUOTATION: sekcja wycen wyróżniona
+- [x] Etap SALE: sekcja sprzedaży wyróżniona
+- [x] Etap CLIENT: wszystkie sekcje widoczne
+- [x] Zmiana etapu → zmiana widoku bez przeładowania strony
 
 ---
 
@@ -492,12 +492,12 @@ Lead (data) → Prospect (data) → Wycena (data) → Sprzedaż (data) → Klien
 
 #### 3.3d — Weryfikacja
 
-- [ ] Przyciski szybkich akcji widoczne w nagłówku
-- [ ] Modal dodawania produktu działa inline
-- [ ] Modal dodawania kontaktu działa inline
-- [ ] "Utwórz sprzedaż" przekierowuje z pre-fill
-- [ ] Tabela aktywnych sprzedaży z linkami
-- [ ] Sekcja zamkniętych sprzedaży zwijalna
+- [x] Przyciski szybkich akcji widoczne w nagłówku
+- [x] Modal dodawania produktu działa inline
+- [x] Modal dodawania kontaktu działa inline
+- [x] "Utwórz sprzedaż" przekierowuje z pre-fill
+- [x] Tabela aktywnych sprzedaży z linkami
+- [x] Sekcja zamkniętych sprzedaży zwijalna
 - [ ] Oś ewolucji relacji wyświetla się poprawnie
 
 ---
@@ -536,12 +536,12 @@ Lead (data) → Prospect (data) → Wycena (data) → Sprzedaż (data) → Klien
 
 #### 3.4c — Weryfikacja
 
-- [ ] Sekcja widoczna na panelu kontrahenta
-- [ ] Dodawanie produktu przez modal
-- [ ] Edycja nazwy, opisu, kategorii
+- [x] Sekcja widoczna na panelu kontrahenta
+- [x] Dodawanie produktu przez modal
+- [x] Edycja nazwy, opisu, kategorii
 - [ ] Zarządzanie pytaniami ankiety
-- [ ] Podgląd powiązanych sprzedaży
-- [ ] Dezaktywacja produktu
+- [x] Podgląd powiązanych sprzedaży
+- [x] Dezaktywacja produktu
 
 ---
 
@@ -595,11 +595,11 @@ src/components/cases/SaleContextHeader.tsx
 
 #### 4.1e — Weryfikacja
 
-- [ ] Górny panel widoczny natychmiast po wejściu
-- [ ] Wszystkie dane załadowane i wyświetlone
-- [ ] Link do kontrahenta działa
-- [ ] Braki i akceptacje obliczone poprawnie
-- [ ] Panel nie znika przy scrollowaniu (sticky)
+- [x] Górny panel widoczny natychmiast po wejściu
+- [x] Wszystkie dane załadowane i wyświetlone
+- [x] Link do kontrahenta działa
+- [x] Braki i akceptacje obliczone poprawnie
+- [x] Panel nie znika przy scrollowaniu (sticky)
 
 ---
 
@@ -674,12 +674,12 @@ model Case {
 
 #### 4.2f — Weryfikacja
 
-- [ ] Migracja Prisma: nowe enumy + pola
-- [ ] API: obsługa nowych pól
-- [ ] UI lista: dwie kolumny statusowe
-- [ ] UI szczegóły: dropdown zmiany
-- [ ] Walidacja: nie można ustawić statusu niedozwolonego dla danego etapu
-- [ ] Filtrowanie na liście działa
+- [x] Migracja Prisma: nowe enumy + pola
+- [x] API: obsługa nowych pól
+- [x] UI lista: dwie kolumny statusowe
+- [x] UI szczegóły: dropdown zmiany
+- [x] Walidacja: nie można ustawić statusu niedozwolonego dla danego etapu
+- [x] Filtrowanie na liście działa
 
 ---
 
@@ -724,12 +724,12 @@ src/components/cases/ProcessStepper.tsx
 
 #### 4.3e — Weryfikacja
 
-- [ ] Pasek wyświetla 7 etapów
-- [ ] Aktualny etap wyróżniony
-- [ ] Ukończone etapy zaznaczone
-- [ ] Pod aktualnym etapem: info o blokadach
-- [ ] Kliknięcie na ukończony etap: podgląd co było zrobione
-- [ ] Responsywność: na mobile pasek w pionie
+- [x] Pasek wyświetla 7 etapów
+- [x] Aktualny etap wyróżniony
+- [x] Ukończone etapy zaznaczone
+- [x] Pod aktualnym etapem: info o blokadach
+- [x] Kliknięcie na ukończony etap: podgląd co było zrobione
+- [x] Responsywność: na mobile pasek w pionie
 
 ---
 
@@ -765,11 +765,11 @@ src/components/ui/status-badge.tsx
 
 #### 4.4d — Weryfikacja
 
-- [ ] Badge'e wyświetlane poprawnie na panelu sprzedaży
-- [ ] Badge'e na liście sprzedaży
-- [ ] Kolory i ikony zgodne ze specyfikacją
-- [ ] Braki obliczane automatycznie z danych
-- [ ] Akceptacje odzwierciedlają stan Approval
+- [x] Badge'e wyświetlane poprawnie na panelu sprzedaży
+- [x] Badge'e na liście sprzedaży
+- [x] Kolory i ikony zgodne ze specyfikacją
+- [x] Braki obliczane automatycznie z danych
+- [x] Akceptacje odzwierciedlają stan Approval
 
 ---
 
@@ -814,11 +814,11 @@ src/components/cases/AssignmentsBlock.tsx
 
 #### 4.5e — Weryfikacja
 
-- [ ] Blok widoczny na stronie sprzedaży
-- [ ] Edycja możliwa zgodnie z uprawnieniami roli
-- [ ] Zmiana przypisania zapisywana do API
-- [ ] Audit log: REASSIGN logged
-- [ ] Po zmianie: lista odświeża się
+- [x] Blok widoczny na stronie sprzedaży
+- [x] Edycja możliwa zgodnie z uprawnieniami roli
+- [x] Zmiana przypisania zapisywana do API
+- [x] Audit log: REASSIGN logged
+- [x] Po zmianie: lista odświeża się
 
 ---
 
@@ -878,14 +878,14 @@ src/components/leads/LeadQuickActions.tsx
 
 #### 5.1e — Weryfikacja
 
-- [ ] Blok szybkich akcji widoczny na karcie leada
-- [ ] "Utwórz kontrahenta" działa (redirect + pre-fill)
-- [ ] "Termin spotkania" otwiera modal i zapisuje datę
-- [ ] "Follow-up" otwiera modal i zapisuje tekst + datę
-- [ ] "Zmień handlowca" działający dropdown (z walidacją roli)
-- [ ] "Zmień status" działający dropdown
-- [ ] Akcje niewidoczne gdy warunek niespełniony
-- [ ] Audit log: każda akcja logowana
+- [x] Blok szybkich akcji widoczny na karcie leada
+- [x] "Utwórz kontrahenta" działa (redirect + pre-fill)
+- [x] "Termin spotkania" otwiera modal i zapisuje datę
+- [x] "Follow-up" otwiera modal i zapisuje tekst + datę
+- [x] "Zmień handlowca" działający dropdown (z walidacją roli)
+- [x] "Zmień status" działający dropdown
+- [x] Akcje niewidoczne gdy warunek niespełniony
+- [x] Audit log: każda akcja logowana
 
 ---
 
@@ -963,13 +963,13 @@ src/components/leads/LeadQuickActions.tsx
 
 #### 6.1f — Weryfikacja
 
-- [ ] Kafle klikalne i prowadzą do przefiltrowanych list
-- [ ] Sekcja "Moje sprzedaże" wyświetla dane użytkownika
-- [ ] Sekcja "Moje akceptacje" wyświetla oczekujące
-- [ ] Sekcja "Moje braki" wyświetla braki w sprzedażach użytkownika
-- [ ] Szybkie akcje działają (3 przyciski)
-- [ ] Puste stany z CTA wyświetlane poprawnie
-- [ ] Dashboard reaguje na rolę użytkownika
+- [x] Kafle klikalne i prowadzą do przefiltrowanych list
+- [x] Sekcja "Moje sprzedaże" wyświetla dane użytkownika
+- [x] Sekcja "Moje akceptacje" wyświetla oczekujące
+- [x] Sekcja "Moje braki" wyświetla braki w sprzedażach użytkownika
+- [x] Szybkie akcje działają (3 przyciski)
+- [x] Puste stany z CTA wyświetlane poprawnie
+- [x] Dashboard reaguje na rolę użytkownika
 
 ---
 
@@ -1062,12 +1062,12 @@ src/components/admin/CooperationTermsTab.tsx
 
 #### 6.2f — Weryfikacja
 
-- [ ] Zakładki admina widoczne i nawigacja działa
-- [ ] CRUD szablonów ankiet: dodawanie, edycja, usuwanie pytań
-- [ ] CRUD szablonów checklist: dodawanie, edycja, usuwanie pozycji
-- [ ] CRUD globalnych produktów: z powiązaniem do szablonów
-- [ ] CRUD warunków współpracy
-- [ ] Tylko role ADMIN/DIRECTOR mają dostęp
+- [x] Zakładki admina widoczne i nawigacja działa
+- [x] CRUD szablonów ankiet: dodawanie, edycja, usuwanie pytań
+- [x] CRUD szablonów checklist: dodawanie, edycja, usuwanie pozycji
+- [x] CRUD globalnych produktów: z powiązaniem do szablonów
+- [x] CRUD warunków współpracy
+- [x] Tylko role ADMIN/DIRECTOR mają dostęp
 
 ---
 
@@ -1136,14 +1136,14 @@ Alternatywnie: budować relacje na podstawie `entityType` + `entityId` w query.
 
 #### 6.3f — Weryfikacja
 
-- [ ] Klik na wiersz → przejście do obiektu
-- [ ] Filtr po sprzedaży działa
-- [ ] Filtr po kontrahencie działa
-- [ ] Filtr po użytkowniku działa
-- [ ] Czytelne nazwy zamiast ID
-- [ ] DIRECTOR widzi tylko swoje procesy
-- [ ] CARETAKER widzi tylko swoje procesy
-- [ ] ADMIN widzi wszystko
+- [x] Klik na wiersz → przejście do obiektu
+- [x] Filtr po sprzedaży działa
+- [x] Filtr po kontrahencie działa
+- [x] Filtr po użytkowniku działa
+- [x] Czytelne nazwy zamiast ID
+- [x] DIRECTOR widzi tylko swoje procesy
+- [x] CARETAKER widzi tylko swoje procesy
+- [x] ADMIN widzi wszystko
 
 ---
 

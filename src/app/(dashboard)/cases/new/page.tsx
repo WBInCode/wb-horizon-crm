@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, ArrowRight, Check, Upload, FileText, ClipboardList, Package, Building2, AlertTriangle } from "lucide-react"
+import { ArrowLeft, ArrowRight, Check, Upload, FileText, ClipboardList, Package, Building2, AlertTriangle, Plus, Loader2 } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 
 interface SurveyQuestion {
@@ -64,6 +65,9 @@ export default function NewCasePage() {
   })
   const [surveyAnswers, setSurveyAnswers] = useState<Record<string, string>>({})
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({})
+  const [showAddProduct, setShowAddProduct] = useState(false)
+  const [addingProduct, setAddingProduct] = useState(false)
+  const [newProduct, setNewProduct] = useState({ name: "", description: "", category: "Produkt" })
 
   const selectedClient = clients.find((c) => c.id === form.clientId)
   const selectedProduct = products.find((p) => p.id === form.productId)
@@ -77,17 +81,21 @@ export default function NewCasePage() {
       .catch(() => setClients([]))
   }, [])
 
+  const fetchProducts = (clientId: string) => {
+    setLoading(true)
+    fetch(`/api/clients/${clientId}/products`)
+      .then((res) => res.json())
+      .then((data) => setProducts(Array.isArray(data) ? data : []))
+      .catch(() => setProducts([]))
+      .finally(() => setLoading(false))
+  }
+
   useEffect(() => {
     if (!form.clientId) {
       setProducts([])
       return
     }
-    setLoading(true)
-    fetch(`/api/clients/${form.clientId}/products`)
-      .then((res) => res.json())
-      .then((data) => setProducts(Array.isArray(data) ? data : []))
-      .catch(() => setProducts([]))
-      .finally(() => setLoading(false))
+    fetchProducts(form.clientId)
   }, [form.clientId])
 
   // Reset downstream state when client/product changes
@@ -295,6 +303,100 @@ export default function NewCasePage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Inline Add Product */}
+            {!showAddProduct ? (
+              <Button
+                variant="outline"
+                className="w-full border-dashed"
+                onClick={() => setShowAddProduct(true)}
+              >
+                <Plus className="w-4 h-4 mr-2" /> Dodaj nowy produkt
+              </Button>
+            ) : (
+              <div className="p-4 border border-dashed rounded-lg space-y-3 bg-gray-50">
+                <p className="font-medium text-sm">Nowy produkt</p>
+                <div>
+                  <Label>Nazwa *</Label>
+                  <Input
+                    value={newProduct.name}
+                    onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                    placeholder="Nazwa produktu"
+                  />
+                </div>
+                <div>
+                  <Label>Opis</Label>
+                  <Textarea
+                    value={newProduct.description}
+                    onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
+                    placeholder="Krótki opis produktu..."
+                    rows={2}
+                  />
+                </div>
+                <div>
+                  <Label>Kategoria</Label>
+                  <Select
+                    value={newProduct.category}
+                    onValueChange={(val: string | null) => setNewProduct({ ...newProduct, category: val ?? "Produkt" })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Kategoria">{newProduct.category}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Produkt" label="Produkt">Produkt</SelectItem>
+                      <SelectItem value="Usługa" label="Usługa">Usługa</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    disabled={!newProduct.name.trim() || addingProduct}
+                    onClick={async () => {
+                      setAddingProduct(true)
+                      try {
+                        const res = await fetch(`/api/clients/${form.clientId}/products`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            name: newProduct.name.trim(),
+                            description: newProduct.description || null,
+                            category: newProduct.category,
+                          }),
+                        })
+                        if (!res.ok) {
+                          const err = await res.json()
+                          alert(err.error || "Błąd dodawania produktu")
+                          return
+                        }
+                        const created = await res.json()
+                        fetchProducts(form.clientId)
+                        setForm((prev) => ({ ...prev, productId: created.id, title: created.name }))
+                        setNewProduct({ name: "", description: "", category: "Produkt" })
+                        setShowAddProduct(false)
+                      } catch {
+                        alert("Błąd połączenia z serwerem")
+                      } finally {
+                        setAddingProduct(false)
+                      }
+                    }}
+                  >
+                    {addingProduct ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />}
+                    {addingProduct ? "Dodawanie..." : "Dodaj"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowAddProduct(false)
+                      setNewProduct({ name: "", description: "", category: "Produkt" })
+                    }}
+                  >
+                    Anuluj
+                  </Button>
+                </div>
               </div>
             )}
 

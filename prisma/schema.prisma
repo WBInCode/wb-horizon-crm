@@ -115,6 +115,28 @@ enum LeadPriority {
   CRITICAL
 }
 
+enum SaleProcessStage {
+  NEW              // Nowa sprzedaż
+  DATA_COLLECTION  // Zbieranie danych
+  DOCUMENTS        // Dokumenty
+  VERIFICATION     // Weryfikacja
+  APPROVAL         // Akceptacja
+  EXECUTION        // Realizacja
+  CLOSED           // Zamknięcie
+}
+
+enum SaleDetailedStatus {
+  WAITING_SURVEY       // Czeka na ankietę
+  WAITING_FILES        // Czeka na pliki
+  FORMAL_DEFICIENCIES  // Braki formalne
+  CARETAKER_APPROVAL   // Do akceptacji opiekuna
+  DIRECTOR_APPROVAL    // Do akceptacji dyrektora
+  TO_FIX               // Do poprawy
+  READY_TO_START       // Gotowe do startu
+  IN_PROGRESS          // W realizacji
+  COMPLETED            // Zakończone
+}
+
 // ==================== MODELE ====================
 
 model User {
@@ -144,6 +166,7 @@ model User {
   surveysUpdated   CaseSurvey[]  @relation("SurveyUpdater")
   notifications    Notification[]
   auditLogs        AuditLog[]    @relation("AuditLogs")
+  clientNotesWritten ClientNote[] @relation("ClientNoteAuthor")
 }
 
 model Lead {
@@ -204,6 +227,7 @@ model Client {
   contacts     ContactPerson[]
   cases        Case[]
   products     Product[]
+  clientNotes  ClientNote[]    @relation("ClientNotes")
 }
 
 model ContactPerson {
@@ -245,6 +269,8 @@ model Case {
   title          String
   serviceName    String?
   status         CaseStatus @default(DRAFT)
+  processStage   SaleProcessStage   @default(NEW)
+  detailedStatus SaleDetailedStatus @default(WAITING_SURVEY)
   commercialData Json?
   
   // Dane ankiety (uproszczone MVP)
@@ -424,5 +450,67 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([userId])
   @@index([createdAt])
+}
+
+model ClientNote {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  clientId  String
+  client    Client   @relation("ClientNotes", fields: [clientId], references: [id], onDelete: Cascade)
+
+  authorId  String?
+  author    User?    @relation("ClientNoteAuthor", fields: [authorId], references: [id])
+}
+
+// ==================== ADMIN TEMPLATES ====================
+
+model SurveyTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.Text
+  schema      Json
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  globalProducts GlobalProduct[] @relation("SurveyTemplateProducts")
+}
+
+model ChecklistTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.Text
+  items       Json
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  globalProducts GlobalProduct[] @relation("ChecklistTemplateProducts")
+}
+
+model GlobalProduct {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.Text
+  category    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  surveyTemplateId    String?
+  surveyTemplate      SurveyTemplate?    @relation("SurveyTemplateProducts", fields: [surveyTemplateId], references: [id])
+  checklistTemplateId String?
+  checklistTemplate   ChecklistTemplate? @relation("ChecklistTemplateProducts", fields: [checklistTemplateId], references: [id])
+}
+
+model CooperationTerms {
+  id        String   @id @default(cuid())
+  name      String
+  content   String   @db.Text
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 

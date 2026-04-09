@@ -41,6 +41,15 @@ export default function NewClientPage() {
     e.preventDefault()
     if (!form.companyName) return
 
+    if (contact.name && !contact.phone && !contact.email) {
+      alert("Osoba kontaktowa musi mieć podany telefon lub email")
+      return
+    }
+    if ((contact.phone || contact.email) && !contact.name) {
+      alert("Podaj imię i nazwisko osoby kontaktowej")
+      return
+    }
+
     setLoading(true)
     try {
       // 1. Create client

@@ -11,7 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { 
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
 } from "@/components/ui/select"
-import { ArrowLeft, UserPlus, Save, Pencil, X } from "lucide-react"
+import { ArrowLeft, Save, Pencil, X } from "lucide-react"
+import LeadQuickActions from "@/components/leads/LeadQuickActions"
 
 const statusLabels: Record<string, string> = {
   NEW: "Nowy",
@@ -59,6 +60,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   const [editForm, setEditForm] = useState<any>({})
   const [saving, setSaving] = useState(false)
   const [users, setUsers] = useState<any[]>([])
+  const [currentUserRole, setCurrentUserRole] = useState("")
 
   useEffect(() => {
     params.then((p) => setLeadId(p.id))
@@ -68,6 +70,10 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     fetch("/api/admin/users")
       .then((r) => r.ok ? r.json() : [])
       .then((data) => setUsers(Array.isArray(data) ? data : []))
+      .catch(() => {})
+    fetch("/api/auth/session")
+      .then((r) => r.ok ? r.json() : null)
+      .then((s) => { if (s?.user?.role) setCurrentUserRole(s.user.role) })
       .catch(() => {})
   }, [])
 
@@ -128,37 +134,6 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     }
   }
 
-  const handleStatusChange = async (newStatus: string) => {
-    try {
-      await fetch(`/api/leads/${leadId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus })
-      })
-      setLead({ ...lead, status: newStatus })
-    } catch (error) {
-      console.error("Błąd:", error)
-    }
-  }
-
-  const handleConvert = () => {
-    const params = new URLSearchParams({
-      fromLeadId: leadId,
-      companyName: lead.companyName || "",
-      nip: lead.nip || "",
-      industry: lead.industry || "",
-      website: lead.website || "",
-      contactPerson: lead.contactPerson || "",
-      position: lead.position || "",
-      phone: lead.phone || "",
-      email: lead.email || "",
-      needs: lead.needs || "",
-      notes: lead.notes || "",
-      source: lead.source || "",
-    })
-    router.push(`/clients/new?${params.toString()}`)
-  }
-
   if (loading) return <div className="p-6">Ładowanie...</div>
   if (!lead) return <div className="p-6">Nie znaleziono leada</div>
 
@@ -198,20 +173,20 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
             </Button>
           </>
         )}
-        <Select value={lead.status} onValueChange={handleStatusChange}>
-          <SelectTrigger className="w-[200px]"><SelectValue>{statusLabels[lead.status]}</SelectValue></SelectTrigger>
-          <SelectContent>
-            {Object.entries(statusLabels).map(([key, label]) => (
-              <SelectItem key={key} value={key} label={label}>{label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {lead.status !== "TRANSFERRED" && (
-          <Button variant="outline" onClick={handleConvert}>
-            <UserPlus className="w-4 h-4 mr-2" /> Utwórz kontrahenta
-          </Button>
-        )}
       </div>
+
+      {/* Szybkie akcje */}
+      {leadId && currentUserRole && (
+        <div className="mb-6">
+          <LeadQuickActions
+            lead={lead}
+            leadId={leadId}
+            users={users}
+            currentUserRole={currentUserRole}
+            onUpdate={fetchLead}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-6">
         <Card>

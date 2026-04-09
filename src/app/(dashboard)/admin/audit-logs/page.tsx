@@ -69,6 +69,7 @@ interface AuditLogEntry {
     email: string
     role: string
   } | null
+  entityUrl: string | null
 }
 
 interface Pagination {
@@ -93,6 +94,8 @@ export default function AuditLogsPage() {
   const [search, setSearch] = useState("")
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
+  const [userFilter, setUserFilter] = useState("")
+  const [users, setUsers] = useState<any[]>([])
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
 
   const fetchLogs = useCallback(async (page = 1) => {
@@ -104,6 +107,7 @@ export default function AuditLogsPage() {
       if (search) params.set("search", search)
       if (dateFrom) params.set("dateFrom", dateFrom)
       if (dateTo) params.set("dateTo", dateTo)
+      if (userFilter) params.set("userId", userFilter)
 
       const res = await fetch(`/api/admin/audit-logs?${params}`)
       if (res.ok) {
@@ -116,15 +120,17 @@ export default function AuditLogsPage() {
     } finally {
       setLoading(false)
     }
-  }, [actionFilter, entityFilter, search, dateFrom, dateTo])
+  }, [actionFilter, entityFilter, search, dateFrom, dateTo, userFilter])
 
   useEffect(() => {
     if (sessionStatus === "loading") return
-    if (!session || !["ADMIN", "DIRECTOR"].includes(role)) {
+    if (!session || !["ADMIN", "DIRECTOR", "CARETAKER"].includes(role)) {
       router.push("/dashboard")
       return
     }
     fetchLogs()
+    // Fetch users for filter
+    fetch("/api/admin/users").then((r) => r.ok ? r.json() : []).then((d) => setUsers(Array.isArray(d) ? d : [])).catch(() => {})
   }, [session, sessionStatus, role, router, fetchLogs])
 
   const clearFilters = () => {
@@ -133,9 +139,10 @@ export default function AuditLogsPage() {
     setSearch("")
     setDateFrom("")
     setDateTo("")
+    setUserFilter("")
   }
 
-  const hasFilters = actionFilter || entityFilter || search || dateFrom || dateTo
+  const hasFilters = actionFilter || entityFilter || search || dateFrom || dateTo || userFilter
 
   if (sessionStatus === "loading" || loading) return <div className="p-6">Ładowanie...</div>
 
@@ -194,6 +201,18 @@ export default function AuditLogsPage() {
             <div className="w-36">
               <label className="text-xs font-medium text-gray-500 mb-1 block">Do</label>
               <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            </div>
+            <div className="w-44">
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Użytkownik</label>
+              <Select value={userFilter} onValueChange={(v: string | null) => setUserFilter(v ?? "")}>
+                <SelectTrigger><SelectValue placeholder="Wszyscy">{users.find((u) => u.id === userFilter)?.name || undefined}</SelectValue></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" label="Wszyscy">Wszyscy</SelectItem>
+                  {users.map((u: any) => (
+                    <SelectItem key={u.id} value={u.id} label={u.name}>{u.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <Button onClick={() => fetchLogs()} size="sm">Filtruj</Button>
             {hasFilters && (
@@ -256,9 +275,15 @@ export default function AuditLogsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm">{log.entityLabel || "—"}</div>
-                      {log.entityId && (
-                        <div className="text-xs text-gray-400 font-mono">{log.entityId.slice(0, 12)}...</div>
+                      {log.entityUrl ? (
+                        <div
+                          className="cursor-pointer hover:underline text-blue-600 text-sm"
+                          onClick={(e) => { e.stopPropagation(); router.push(log.entityUrl!) }}
+                        >
+                          {log.entityLabel || log.entityId?.slice(0, 12) || "—"}
+                        </div>
+                      ) : (
+                        <div className="text-sm">{log.entityLabel || "—"}</div>
                       )}
                     </TableCell>
                     <TableCell className="text-xs text-gray-500 font-mono">

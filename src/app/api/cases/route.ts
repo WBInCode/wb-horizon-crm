@@ -49,9 +49,14 @@ export async function GET(request: NextRequest) {
     const hasMissing = searchParams.get("hasMissing")
     const search = searchParams.get("search")
 
+    const processStage = searchParams.get("processStage")
+    const detailedStatus = searchParams.get("detailedStatus")
+
     const where: Record<string, unknown> = {}
     
     if (status) where.status = status
+    if (processStage) where.processStage = processStage
+    if (detailedStatus) where.detailedStatus = detailedStatus
     if (caretakerId) where.caretakerId = caretakerId
     if (salesId) where.salesId = salesId
     if (directorId) where.directorId = directorId
@@ -146,6 +151,8 @@ export async function POST(request: NextRequest) {
         caretakerId: caretakerId,
         directorId: body.directorId,
         status: "DRAFT",
+        processStage: "NEW",
+        detailedStatus: "WAITING_SURVEY",
       }
     })
 
