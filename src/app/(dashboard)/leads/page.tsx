@@ -10,7 +10,10 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Search, X } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Plus, Search, X, Trash2 } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { toast } from "sonner"
 
 const statusColors: Record<string, string> = {
   NEW: "bg-blue-100 text-blue-800",
@@ -60,11 +63,20 @@ export default function LeadsPage() {
   const [priorityFilter, setPriorityFilter] = useState("")
   const [users, setUsers] = useState<any[]>([])
 
+  // Selection
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [showBulkDelete, setShowBulkDelete] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [currentUser, setCurrentUser] = useState<any>(null)
 
   useEffect(() => {
     fetch("/api/admin/users")
       .then((r) => r.ok ? r.json() : [])
       .then((data) => setUsers(Array.isArray(data) ? data : []))
+      .catch(() => {})
+    fetch("/api/auth/session")
+      .then((r) => r.ok ? r.json() : null)
+      .then((session) => setCurrentUser(session?.user))
       .catch(() => {})
   }, [])
 
@@ -79,6 +91,7 @@ export default function LeadsPage() {
       const res = await fetch(`/api/leads?${params}`)
       const data = await res.json()
       setLeads(Array.isArray(data) ? data : [])
+      setSelected(new Set())
     } catch (error) {
       console.error("Błąd pobierania leadów:", error)
     } finally {
@@ -92,6 +105,54 @@ export default function LeadsPage() {
 
   const salespersons = users.filter((u) => u.role === "SALESPERSON" || u.role === "ADMIN")
   const hasActiveFilters = statusFilter || salesFilter || priorityFilter
+  const isAdminOrDirector = currentUser && ["ADMIN", "DIRECTOR"].includes(currentUser.role)
+
+  // Selection helpers
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selected.size === leads.length) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(leads.map((l) => l.id)))
+    }
+  }
+
+  const selectedItems = leads.filter((l) => selected.has(l.id))
+  const deletableLeads = selectedItems.filter((l) => !l.convertedToClientId)
+
+  const handleBulkDelete = async () => {
+    if (deletableLeads.length === 0) return
+    setBulkDeleting(true)
+    try {
+      const res = await fetch("/api/leads/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: deletableLeads.map((l) => l.id) }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        toast.success(data.message)
+        setShowBulkDelete(false)
+        setSelected(new Set())
+        fetchLeads()
+      } else {
+        const err = await res.json()
+        toast.error(err.error || "Błąd usuwania")
+      }
+    } catch {
+      toast.error("Błąd połączenia")
+    } finally {
+      setBulkDeleting(false)
+    }
+  }
 
   return (
     <div className="p-6">
@@ -150,10 +211,45 @@ export default function LeadsPage() {
         )}
       </div>
 
+      {/* Bulk action bar */}
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <span className="text-sm font-medium text-blue-800">
+            Zaznaczono: {selected.size}
+          </span>
+          <div className="flex-1" />
+          {isAdminOrDirector && deletableLeads.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-red-300 text-red-700 hover:bg-red-50"
+              onClick={() => setShowBulkDelete(true)}
+            >
+              <Trash2 className="w-4 h-4 mr-1" />
+              Usuń ({deletableLeads.length})
+            </Button>
+          )}
+          {deletableLeads.length < selected.size && (
+            <span className="text-xs text-gray-500">
+              {selected.size - deletableLeads.length} skonwertowanych — nie można usunąć
+            </span>
+          )}
+          <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+            <X className="w-4 h-4 mr-1" /> Odznacz
+          </Button>
+        </div>
+      )}
+
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={leads.length > 0 && selected.size === leads.length}
+                  onCheckedChange={toggleSelectAll}
+                />
+              </TableHead>
               <TableHead>Firma</TableHead>
               <TableHead>Osoba kontaktowa</TableHead>
               <TableHead>Telefon</TableHead>
@@ -167,13 +263,13 @@ export default function LeadsPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
+                <TableCell colSpan={9} className="text-center py-8">
                   Ładowanie...
                 </TableCell>
               </TableRow>
             ) : leads.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
+                <TableCell colSpan={9} className="text-center py-8">
                   Brak leadów
                 </TableCell>
               </TableRow>
@@ -181,9 +277,15 @@ export default function LeadsPage() {
               leads.map((lead) => (
                 <TableRow 
                   key={lead.id} 
-                  className="cursor-pointer hover:bg-gray-50"
+                  className={`cursor-pointer hover:bg-gray-50 ${selected.has(lead.id) ? "bg-blue-50/50" : ""}`}
                   onClick={() => router.push(`/leads/${lead.id}`)}
                 >
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selected.has(lead.id)}
+                      onCheckedChange={() => toggleSelect(lead.id)}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">{lead.companyName}</TableCell>
                   <TableCell>{lead.contactPerson}</TableCell>
                   <TableCell>{lead.phone}</TableCell>
@@ -212,6 +314,37 @@ export default function LeadsPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Dialog masowego usuwania */}
+      <Dialog open={showBulkDelete} onOpenChange={setShowBulkDelete}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Masowe usuwanie leadów</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            Czy na pewno chcesz <strong className="text-red-600">trwale usunąć</strong>{" "}
+            <strong>{deletableLeads.length}</strong> leadów?
+          </p>
+          <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
+            {deletableLeads.map((l) => (
+              <div key={l.id} className="text-xs text-gray-500 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0" />
+                {l.companyName} — {l.contactPerson}
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-red-500 mt-2">
+            Ta operacja jest nieodwracalna. Leady skonwertowane na kontrahentów nie zostaną usunięte.
+          </p>
+          <div className="flex gap-2 pt-4 justify-end">
+            <Button variant="outline" onClick={() => setShowBulkDelete(false)}>Anuluj</Button>
+            <Button variant="destructive" onClick={handleBulkDelete} disabled={bulkDeleting}>
+              <Trash2 className="w-4 h-4 mr-1" />
+              {bulkDeleting ? "Usuwanie..." : `Usuń (${deletableLeads.length})`}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
