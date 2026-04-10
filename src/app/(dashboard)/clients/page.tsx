@@ -92,16 +92,16 @@ export default function ClientsPage() {
   }
 
   const selectedItems = clients.filter((c) => selected.has(c.id))
-  const archivableClients = selectedItems.filter((c) => c.stage === "INACTIVE")
+  const nonInactiveClients = selectedItems.filter((c) => c.stage !== "INACTIVE")
 
   const handleBulkArchive = async () => {
-    if (archivableClients.length === 0) return
+    if (selectedItems.length === 0) return
     setBulkArchiving(true)
     try {
       const res = await fetch("/api/clients/bulk-archive", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: archivableClients.map((c) => c.id) }),
+        body: JSON.stringify({ ids: selectedItems.map((c) => c.id) }),
       })
       if (res.ok) {
         const data = await res.json()
@@ -159,22 +159,15 @@ export default function ClientsPage() {
             Zaznaczono: {selected.size}
           </span>
           <div className="flex-1" />
-          {archivableClients.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-red-300 text-red-700 hover:bg-red-50"
-              onClick={() => setShowBulkArchive(true)}
-            >
-              <Archive className="w-4 h-4 mr-1" />
-              Archiwizuj ({archivableClients.length})
-            </Button>
-          )}
-          {archivableClients.length < selected.size && (
-            <span className="text-xs text-gray-500">
-              {selected.size - archivableClients.length} nie kwalifikuje się (wymag. etap: Nieaktywny)
-            </span>
-          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-red-300 text-red-700 hover:bg-red-50"
+            onClick={() => setShowBulkArchive(true)}
+          >
+            <Archive className="w-4 h-4 mr-1" />
+            Archiwizuj ({selected.size})
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
             <X className="w-4 h-4 mr-1" /> Odznacz
           </Button>
@@ -234,17 +227,15 @@ export default function ClientsPage() {
                   <TableCell>{client.contacts?.length || 0}</TableCell>
                   <TableCell>{client._count?.cases || 0}</TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
-                    {client.stage === "INACTIVE" && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-gray-400 hover:text-red-600"
-                        title="Archiwizuj"
-                        onClick={() => setArchiveTarget(client)}
-                      >
-                        <Archive className="w-4 h-4" />
-                      </Button>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-gray-400 hover:text-red-600"
+                      title="Archiwizuj"
+                      onClick={() => setArchiveTarget(client)}
+                    >
+                      <Archive className="w-4 h-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
@@ -280,13 +271,26 @@ export default function ClientsPage() {
             <DialogTitle>Masowa archiwizacja kontrahentów</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-gray-600">
-            Czy na pewno chcesz przenieść <strong>{archivableClients.length}</strong> kontrahentów do archiwum?
+            Czy na pewno chcesz przenieść <strong>{selectedItems.length}</strong> kontrahentów do archiwum?
           </p>
+          {nonInactiveClients.length > 0 && (
+            <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+              <p className="text-sm font-medium text-amber-800">
+                {nonInactiveClients.length} kontrahentów nie ma etapu Nieaktywny.
+              </p>
+              <p className="text-xs text-amber-600 mt-1">
+                Zostaną automatycznie oznaczeni jako Nieaktywni przy archiwizacji.
+              </p>
+            </div>
+          )}
           <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
-            {archivableClients.map((c) => (
+            {selectedItems.map((c) => (
               <div key={c.id} className="text-xs text-gray-500 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0" />
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${c.stage === "INACTIVE" ? "bg-gray-300" : "bg-amber-400"}`} />
                 {c.companyName} {c.nip ? `(${c.nip})` : ""}
+                {c.stage !== "INACTIVE" && (
+                  <span className="text-amber-600">({STAGE_CONFIG[c.stage]?.label || c.stage})</span>
+                )}
               </div>
             ))}
           </div>
@@ -297,7 +301,7 @@ export default function ClientsPage() {
             <Button variant="outline" onClick={() => setShowBulkArchive(false)}>Anuluj</Button>
             <Button variant="destructive" onClick={handleBulkArchive} disabled={bulkArchiving}>
               <Archive className="w-4 h-4 mr-1" />
-              {bulkArchiving ? "Archiwizowanie..." : `Archiwizuj (${archivableClients.length})`}
+              {bulkArchiving ? "Archiwizowanie..." : `Archiwizuj (${selectedItems.length})`}
             </Button>
           </div>
         </DialogContent>

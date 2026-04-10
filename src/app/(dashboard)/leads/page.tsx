@@ -126,16 +126,16 @@ export default function LeadsPage() {
   }
 
   const selectedItems = leads.filter((l) => selected.has(l.id))
-  const deletableLeads = selectedItems.filter((l) => !l.convertedToClientId)
+  const convertedLeads = selectedItems.filter((l) => l.convertedToClientId)
 
   const handleBulkDelete = async () => {
-    if (deletableLeads.length === 0) return
+    if (selectedItems.length === 0) return
     setBulkDeleting(true)
     try {
       const res = await fetch("/api/leads/bulk-delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: deletableLeads.map((l) => l.id) }),
+        body: JSON.stringify({ ids: selectedItems.map((l) => l.id) }),
       })
       if (res.ok) {
         const data = await res.json()
@@ -218,7 +218,7 @@ export default function LeadsPage() {
             Zaznaczono: {selected.size}
           </span>
           <div className="flex-1" />
-          {isAdminOrDirector && deletableLeads.length > 0 && (
+          {isAdminOrDirector && selectedItems.length > 0 && (
             <Button
               variant="outline"
               size="sm"
@@ -226,13 +226,8 @@ export default function LeadsPage() {
               onClick={() => setShowBulkDelete(true)}
             >
               <Trash2 className="w-4 h-4 mr-1" />
-              Usuń ({deletableLeads.length})
+              Usuń ({selected.size})
             </Button>
-          )}
-          {deletableLeads.length < selected.size && (
-            <span className="text-xs text-gray-500">
-              {selected.size - deletableLeads.length} skonwertowanych — nie można usunąć
-            </span>
           )}
           <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
             <X className="w-4 h-4 mr-1" /> Odznacz
@@ -323,24 +318,37 @@ export default function LeadsPage() {
           </DialogHeader>
           <p className="text-sm text-gray-600">
             Czy na pewno chcesz <strong className="text-red-600">trwale usunąć</strong>{" "}
-            <strong>{deletableLeads.length}</strong> leadów?
+            <strong>{selectedItems.length}</strong> leadów?
           </p>
+          {convertedLeads.length > 0 && (
+            <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+              <p className="text-sm font-medium text-amber-800">
+                {convertedLeads.length} leadów zostało skonwertowanych na kontrahentów.
+              </p>
+              <p className="text-xs text-amber-600 mt-1">
+                Skonwertowane leady zostaną również usunięte, ale kontrahenci pozostaną.
+              </p>
+            </div>
+          )}
           <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
-            {deletableLeads.map((l) => (
+            {selectedItems.map((l) => (
               <div key={l.id} className="text-xs text-gray-500 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0" />
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${l.convertedToClientId ? "bg-amber-400" : "bg-gray-300"}`} />
                 {l.companyName} — {l.contactPerson}
+                {l.convertedToClientId && (
+                  <span className="text-amber-600">(skonwertowany)</span>
+                )}
               </div>
             ))}
           </div>
           <p className="text-xs text-red-500 mt-2">
-            Ta operacja jest nieodwracalna. Leady skonwertowane na kontrahentów nie zostaną usunięte.
+            Ta operacja jest nieodwracalna.
           </p>
           <div className="flex gap-2 pt-4 justify-end">
             <Button variant="outline" onClick={() => setShowBulkDelete(false)}>Anuluj</Button>
             <Button variant="destructive" onClick={handleBulkDelete} disabled={bulkDeleting}>
               <Trash2 className="w-4 h-4 mr-1" />
-              {bulkDeleting ? "Usuwanie..." : `Usuń (${deletableLeads.length})`}
+              {bulkDeleting ? "Usuwanie..." : `Usuń (${selectedItems.length})`}
             </Button>
           </div>
         </DialogContent>
