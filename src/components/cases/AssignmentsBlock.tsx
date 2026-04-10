@@ -21,9 +21,10 @@ export default function AssignmentsBlock({ caseId, caseData, users, currentUserR
   const canEditCaretaker = ["ADMIN", "DIRECTOR"].includes(currentUserRole)
   const canEditDirector  = currentUserRole === "ADMIN"
 
-  const salespersons = users.filter((u) => ["SALESPERSON", "ADMIN", "DIRECTOR"].includes(u.role))
-  const caretakers   = users.filter((u) => u.role === "CARETAKER")
-  const directors    = users.filter((u) => u.role === "DIRECTOR")
+  const safeUsers = Array.isArray(users) ? users : []
+  const salespersons = safeUsers.filter((u) => ["SALESPERSON", "ADMIN", "DIRECTOR"].includes(u.role))
+  const caretakers   = safeUsers.filter((u) => u.role === "CARETAKER")
+  const directors    = safeUsers.filter((u) => u.role === "DIRECTOR")
 
   const handleAssign = async (field: string, value: string) => {
     setSaving(field)

@@ -41,10 +41,16 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
   const fetchCase = async () => {
     try {
       const res = await fetch(`/api/cases/${id}`)
+      if (!res.ok) {
+        console.error("Błąd pobierania sprawy:", res.status)
+        setCaseData(null)
+        return
+      }
       const data = await res.json()
       setCaseData(data)
     } catch (error) {
       console.error("Błąd:", error)
+      setCaseData(null)
     } finally {
       setLoading(false)
     }

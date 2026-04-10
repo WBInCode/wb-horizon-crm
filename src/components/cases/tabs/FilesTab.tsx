@@ -96,7 +96,7 @@ export function FilesTab({ caseId, files, onUpdate }: Props) {
         </div>
       </CardHeader>
       <CardContent>
-        {!files || files.length === 0 ? (
+        {!Array.isArray(files) || files.length === 0 ? (
           <p className="text-center text-gray-500 py-8">Brak plików</p>
         ) : (
           <div className="space-y-2">
