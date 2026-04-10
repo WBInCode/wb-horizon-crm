@@ -219,8 +219,16 @@ export async function PUT(
       ["title", "serviceName", "status", "processStage", "detailedStatus", "salesId", "caretakerId", "directorId"]
     ) : null
 
+    const isReassign = oldCase && (
+      (body.salesId && oldCase.salesId !== body.salesId) ||
+      (body.caretakerId && oldCase.caretakerId !== body.caretakerId) ||
+      (body.directorId && oldCase.directorId !== body.directorId)
+    )
+
     await auditLog({
-      action: body.status && oldCase?.status !== body.status ? "STATUS_CHANGE" : "UPDATE",
+      action: isReassign ? "REASSIGN"
+        : (body.status && oldCase?.status !== body.status) ? "STATUS_CHANGE"
+        : "UPDATE",
       entityType: "CASE",
       entityId: id,
       entityLabel: updated.title,

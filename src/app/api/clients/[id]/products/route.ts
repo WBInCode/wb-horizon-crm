@@ -19,6 +19,10 @@ export async function GET(
       where: { clientId: id, isActive: true },
       include: {
         _count: { select: { cases: true } },
+        cases: {
+          select: { id: true, title: true },
+          take: 10,
+        },
       },
       orderBy: { createdAt: "desc" },
     })

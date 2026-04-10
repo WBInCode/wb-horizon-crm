@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Plus, Pencil, Save, X, UserPlus, StickyNote, Package } from "lucide-react"
+import { ArrowLeft, Plus, Pencil, Save, X, UserPlus, StickyNote, Package, TrendingUp } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 const STAGE_CONFIG: Record<string, { label: string; className: string }> = {
@@ -24,6 +24,18 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   INACTIVE: ["LEAD", "PROSPECT", "QUOTATION", "SALE", "CLIENT"],
 }
 
+const STAGE_ORDER = ["LEAD", "PROSPECT", "QUOTATION", "SALE", "CLIENT"]
+
+const STAGE_LABEL_SHORT: Record<string, string> = {
+  LEAD: "Pozysk",
+  PROSPECT: "Kwalif.",
+  QUOTATION: "Wycena",
+  SALE: "Sprzedaż",
+  CLIENT: "Klient",
+}
+
+const MIN_STAGE_FOR_SALE = ["QUOTATION", "SALE", "CLIENT"]
+
 interface Props {
   client: any
   editing: boolean
@@ -35,12 +47,13 @@ interface Props {
   onAddContact: () => void
   onAddProduct: () => void
   onAddNote: () => void
+  clientId?: string
 }
 
 export default function ContractorHeader({
   client, editing, saving,
   onStageChange, onEdit, onSave, onCancelEdit,
-  onAddContact, onAddProduct, onAddNote,
+  onAddContact, onAddProduct, onAddNote, clientId,
 }: Props) {
   const router = useRouter()
   const stage = client.stage || "LEAD"
@@ -78,6 +91,16 @@ export default function ContractorHeader({
           <Package className="w-4 h-4 mr-1" /> Produkt
         </Button>
 
+        {MIN_STAGE_FOR_SALE.includes(stage) && clientId && (
+          <Button
+            size="sm"
+            onClick={() => router.push(`/cases/new?clientId=${clientId}`)}
+            title="Utwórz sprzedaż"
+          >
+            <TrendingUp className="w-4 h-4 mr-1" /> Nowa sprzedaż
+          </Button>
+        )}
+
         {allowedNext.length > 0 && (
           <Select onValueChange={(val: string | null) => { if (val) onStageChange(val) }}>
             <SelectTrigger className="w-44">
@@ -112,6 +135,35 @@ export default function ContractorHeader({
           <Plus className="w-4 h-4 mr-1" /> Nowa sprzedaż
         </Button>
       </div>
+
+      {/* ─── Evolution timeline ─────────────────────────────────────────── */}
+      {stage !== "INACTIVE" && (
+        <div className="flex items-center gap-0 mt-2 ml-12 overflow-x-auto">
+          {STAGE_ORDER.map((s, i) => {
+            const currentIdx = STAGE_ORDER.indexOf(stage)
+            const isDone = i < currentIdx
+            const isCurrent = i === currentIdx
+            return (
+              <div key={s} className="flex items-center">
+                <div
+                  className={`px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors ${
+                    isCurrent
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : isDone
+                      ? "bg-green-100 text-green-700 border-green-300"
+                      : "bg-gray-50 text-gray-400 border-gray-200"
+                  }`}
+                >
+                  {isDone ? "✓ " : ""}{STAGE_LABEL_SHORT[s] || s}
+                </div>
+                {i < STAGE_ORDER.length - 1 && (
+                  <div className={`w-6 h-0.5 ${i < currentIdx ? "bg-green-300" : "bg-gray-200"}`} />
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

@@ -5,25 +5,10 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Plus, Search, X } from "lucide-react"
-import { StageBadge, DetailedStatusBadge, STAGE_LABELS, DETAILED_LABELS } from "@/components/ui/status-badge"
-
-const statusColors: Record<string, string> = {
-  DRAFT: "bg-gray-100 text-gray-800",
-  IN_PREPARATION: "bg-blue-100 text-blue-800",
-  WAITING_CLIENT_DATA: "bg-yellow-100 text-yellow-800",
-  WAITING_FILES: "bg-orange-100 text-orange-800",
-  CARETAKER_REVIEW: "bg-purple-100 text-purple-800",
-  DIRECTOR_REVIEW: "bg-pink-100 text-pink-800",
-  TO_FIX: "bg-red-100 text-red-800",
-  ACCEPTED: "bg-green-100 text-green-800",
-  DELIVERED: "bg-teal-100 text-teal-800",
-  CLOSED: "bg-gray-200 text-gray-600",
-  CANCELLED: "bg-gray-300 text-gray-500",
-}
+import { StageBadge, DetailedStatusBadge, StatusBadge, STAGE_LABELS, DETAILED_LABELS } from "@/components/ui/status-badge"
 
 const statusLabels: Record<string, string> = {
   DRAFT: "Robocza",
@@ -200,7 +185,7 @@ export default function CasesPage() {
               <TableHead>Kontrahent</TableHead>
               <TableHead>Etap</TableHead>
               <TableHead>Status szczeg.</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Stan</TableHead>
               <TableHead>Handlowiec</TableHead>
               <TableHead>Opiekun</TableHead>
               <TableHead>Aktualizacja</TableHead>
@@ -231,9 +216,26 @@ export default function CasesPage() {
                     {c.detailedStatus ? <DetailedStatusBadge status={c.detailedStatus} /> : "—"}
                   </TableCell>
                   <TableCell>
-                    <Badge className={statusColors[c.status]}>
-                      {statusLabels[c.status]}
-                    </Badge>
+                    <div className="flex gap-1 flex-wrap">
+                      {c._status?.missingFiles > 0 && (
+                        <StatusBadge type="deficiency" text={`Braki: ${c._status.missingFiles}`} />
+                      )}
+                      {c._status?.blockingChecklist > 0 && (
+                        <StatusBadge type="blocked" text={`Blokada: ${c._status.blockingChecklist}`} />
+                      )}
+                      {c._status?.pendingApprovals > 0 && (
+                        <StatusBadge type="awaiting" text={`Akceptacja`} />
+                      )}
+                      {c._status?.allApproved && (
+                        <StatusBadge type="approved" text="Zaakceptowane" />
+                      )}
+                      {c.detailedStatus === "TO_FIX" && (
+                        <StatusBadge type="to_fix" text="Do poprawy" />
+                      )}
+                      {!c._status?.missingFiles && !c._status?.blockingChecklist && !c._status?.pendingApprovals && !c._status?.allApproved && c.detailedStatus !== "TO_FIX" && (
+                        <span className="text-gray-400 text-xs">—</span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>{c.salesperson?.name || "-"}</TableCell>
                   <TableCell>{c.caretaker?.name || "-"}</TableCell>

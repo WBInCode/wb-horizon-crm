@@ -152,21 +152,33 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   if (!client) return <div className="p-6 text-gray-500">Nie znaleziono kontrahenta.</div>
 
   const stage = client.stage || "LEAD"
+  const isInactive = stage === "INACTIVE"
+  const showProducts = ["PROSPECT", "QUOTATION", "SALE", "CLIENT", "INACTIVE"].includes(stage)
+  const showSales = ["SALE", "CLIENT", "INACTIVE"].includes(stage)
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
+      {/* ─── INACTIVE banner ───────────────────────────────────────────────── */}
+      {isInactive && (
+        <div className="mb-4 p-3 bg-gray-100 border border-gray-300 rounded-lg text-sm text-gray-600 flex items-center gap-2">
+          <span className="text-lg">🚫</span>
+          <span>Kontrahent jest <strong>nieaktywny</strong>. Widok tylko do odczytu.</span>
+        </div>
+      )}
+
       {/* ─── Header ────────────────────────────────────────────────────────── */}
       <ContractorHeader
         client={client}
-        editing={editing}
+        editing={isInactive ? false : editing}
         saving={saving}
         onStageChange={handleStageChange}
-        onEdit={startEdit}
+        onEdit={isInactive ? () => {} : startEdit}
         onSave={handleSave}
         onCancelEdit={() => setEditing(false)}
         onAddContact={() => setOpenAddContact(true)}
         onAddProduct={() => setOpenAddProduct(true)}
         onAddNote={() => setOpenAddNote(true)}
+        clientId={clientId}
       />
 
       <div className="space-y-6">
@@ -259,18 +271,22 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           />
         </div>
 
-        {/* ─── Row 2: Produkty ────────────────────────────────────────────── */}
-        <ProductsSection
-          products={products}
-          clientId={clientId}
-          stage={stage}
-          onRefresh={() => { fetchProducts(); fetchAuditLogs() }}
-          open={openAddProduct}
-          onOpenChange={setOpenAddProduct}
-        />
+        {/* ─── Row 2: Produkty (visible from PROSPECT+) ────────────────── */}
+        {showProducts && (
+          <ProductsSection
+            products={products}
+            clientId={clientId}
+            stage={stage}
+            onRefresh={() => { fetchProducts(); fetchAuditLogs() }}
+            open={openAddProduct}
+            onOpenChange={setOpenAddProduct}
+          />
+        )}
 
-        {/* ─── Row 3: Sprzedaże ──────────────────────────────────────────── */}
-        <SalesSection cases={client.cases || []} stage={stage} />
+        {/* ─── Row 3: Sprzedaże (visible from SALE+) ─────────────────────── */}
+        {showSales && (
+          <SalesSection cases={client.cases || []} stage={stage} clientId={clientId} />
+        )}
 
         {/* ─── Row 4: Notatki + Historia ─────────────────────────────────── */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

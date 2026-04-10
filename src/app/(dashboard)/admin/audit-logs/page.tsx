@@ -95,7 +95,11 @@ export default function AuditLogsPage() {
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
   const [userFilter, setUserFilter] = useState("")
+  const [caseFilter, setCaseFilter] = useState("")
+  const [clientFilter, setClientFilter] = useState("")
   const [users, setUsers] = useState<any[]>([])
+  const [cases, setCases] = useState<any[]>([])
+  const [clients, setClients] = useState<any[]>([])
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
 
   const fetchLogs = useCallback(async (page = 1) => {
@@ -108,6 +112,8 @@ export default function AuditLogsPage() {
       if (dateFrom) params.set("dateFrom", dateFrom)
       if (dateTo) params.set("dateTo", dateTo)
       if (userFilter) params.set("userId", userFilter)
+      if (caseFilter) params.set("caseId", caseFilter)
+      if (clientFilter) params.set("clientId", clientFilter)
 
       const res = await fetch(`/api/admin/audit-logs?${params}`)
       if (res.ok) {
@@ -120,7 +126,7 @@ export default function AuditLogsPage() {
     } finally {
       setLoading(false)
     }
-  }, [actionFilter, entityFilter, search, dateFrom, dateTo, userFilter])
+  }, [actionFilter, entityFilter, search, dateFrom, dateTo, userFilter, caseFilter, clientFilter])
 
   useEffect(() => {
     if (sessionStatus === "loading") return
@@ -129,8 +135,10 @@ export default function AuditLogsPage() {
       return
     }
     fetchLogs()
-    // Fetch users for filter
+    // Fetch dropdown data for filters
     fetch("/api/admin/users").then((r) => r.ok ? r.json() : []).then((d) => setUsers(Array.isArray(d) ? d : [])).catch(() => {})
+    fetch("/api/cases").then((r) => r.ok ? r.json() : []).then((d) => setCases(Array.isArray(d) ? d : [])).catch(() => {})
+    fetch("/api/clients").then((r) => r.ok ? r.json() : []).then((d) => setClients(Array.isArray(d) ? d : [])).catch(() => {})
   }, [session, sessionStatus, role, router, fetchLogs])
 
   const clearFilters = () => {
@@ -140,9 +148,11 @@ export default function AuditLogsPage() {
     setDateFrom("")
     setDateTo("")
     setUserFilter("")
+    setCaseFilter("")
+    setClientFilter("")
   }
 
-  const hasFilters = actionFilter || entityFilter || search || dateFrom || dateTo || userFilter
+  const hasFilters = actionFilter || entityFilter || search || dateFrom || dateTo || userFilter || caseFilter || clientFilter
 
   if (sessionStatus === "loading" || loading) return <div className="p-6">Ładowanie...</div>
 
@@ -210,6 +220,30 @@ export default function AuditLogsPage() {
                   <SelectItem value="all" label="Wszyscy">Wszyscy</SelectItem>
                   {users.map((u: any) => (
                     <SelectItem key={u.id} value={u.id} label={u.name}>{u.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-52">
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Sprzedaż</label>
+              <Select value={caseFilter} onValueChange={(v: string | null) => setCaseFilter(v ?? "")}>
+                <SelectTrigger><SelectValue placeholder="Wszystkie">{cases.find((c: any) => c.id === caseFilter)?.title || undefined}</SelectValue></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" label="Wszystkie">Wszystkie</SelectItem>
+                  {cases.map((c: any) => (
+                    <SelectItem key={c.id} value={c.id} label={c.title}>{c.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-52">
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Kontrahent</label>
+              <Select value={clientFilter} onValueChange={(v: string | null) => setClientFilter(v ?? "")}>
+                <SelectTrigger><SelectValue placeholder="Wszyscy">{clients.find((c: any) => c.id === clientFilter)?.companyName || undefined}</SelectValue></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" label="Wszyscy">Wszyscy</SelectItem>
+                  {clients.map((c: any) => (
+                    <SelectItem key={c.id} value={c.id} label={c.companyName}>{c.companyName}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

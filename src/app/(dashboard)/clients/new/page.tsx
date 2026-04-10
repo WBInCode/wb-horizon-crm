@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
 import { ArrowLeft, Save } from "lucide-react"
 
 export default function NewClientPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
+  const [contactError, setContactError] = useState("")
 
   const fromLeadId = searchParams.get("fromLeadId") || ""
 
@@ -34,21 +34,25 @@ export default function NewClientPage() {
     position: searchParams.get("position") || "",
     phone: searchParams.get("phone") || "",
     email: searchParams.get("email") || "",
-    isMain: true,
+    isMain: true, // Pierwszy kontakt zawsze główny
   })
+
+  const isContactValid = contact.name.trim() !== "" && (contact.phone.trim() !== "" || contact.email.trim() !== "")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.companyName) return
 
-    if (contact.name && !contact.phone && !contact.email) {
-      alert("Osoba kontaktowa musi mieć podany telefon lub email")
+    // Walidacja wymagalności kontaktu
+    if (!contact.name.trim()) {
+      setContactError("Podaj imię i nazwisko osoby kontaktowej")
       return
     }
-    if ((contact.phone || contact.email) && !contact.name) {
-      alert("Podaj imię i nazwisko osoby kontaktowej")
+    if (!contact.phone.trim() && !contact.email.trim()) {
+      setContactError("Podaj telefon lub email osoby kontaktowej")
       return
     }
+    setContactError("")
 
     setLoading(true)
     try {
@@ -67,14 +71,12 @@ export default function NewClientPage() {
 
       const client = await res.json()
 
-      // 2. Add contact person if provided
-      if (contact.name) {
-        await fetch(`/api/clients/${client.id}/contacts`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(contact),
-        })
-      }
+      // 2. Add contact person (required)
+      await fetch(`/api/clients/${client.id}/contacts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...contact, isMain: true }),
+      })
 
       // 3. Mark lead as transferred if converting
       if (fromLeadId) {
@@ -111,7 +113,7 @@ export default function NewClientPage() {
             <p className="text-sm text-gray-500">Dane zostały wstępnie wypełnione z leada. Uzupełnij brakujące informacje.</p>
           )}
         </div>
-        <Button onClick={handleSubmit} disabled={loading || !form.companyName}>
+        <Button onClick={handleSubmit} disabled={loading || !form.companyName || !isContactValid}>
           <Save className="w-4 h-4 mr-2" />
           {loading ? "Tworzenie..." : "Utwórz kontrahenta"}
         </Button>
@@ -144,30 +146,48 @@ export default function NewClientPage() {
           </CardContent>
         </Card>
 
-        {/* Osoba kontaktowa */}
-        <Card>
-          <CardHeader><CardTitle>Główna osoba kontaktowa</CardTitle></CardHeader>
+        {/* Osoba kontaktowa (wymagana) */}
+        <Card className={contactError ? "border-red-300" : ""}>
+          <CardHeader>
+            <CardTitle>Główna osoba kontaktowa *</CardTitle>
+            {contactError && (
+              <p className="text-sm text-red-600 mt-1">{contactError}</p>
+            )}
+            {!contactError && !isContactValid && (
+              <p className="text-sm text-amber-600 mt-1">Dodaj co najmniej jeden kontakt przed zapisaniem</p>
+            )}
+          </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <label className="text-sm font-medium">Imię i nazwisko</label>
-              <Input value={contact.name} onChange={(e) => updContact("name", e.target.value)} />
+              <label className="text-sm font-medium">Imię i nazwisko *</label>
+              <Input
+                value={contact.name}
+                onChange={(e) => { updContact("name", e.target.value); setContactError("") }}
+                className={contactError && !contact.name.trim() ? "border-red-400" : ""}
+              />
             </div>
             <div>
               <label className="text-sm font-medium">Stanowisko</label>
               <Input value={contact.position} onChange={(e) => updContact("position", e.target.value)} />
             </div>
             <div>
-              <label className="text-sm font-medium">Telefon</label>
-              <Input value={contact.phone} onChange={(e) => updContact("phone", e.target.value.replace(/[^\d+\s-]/g, "").slice(0, 15))} maxLength={15} />
+              <label className="text-sm font-medium">Telefon {!contact.email.trim() ? "*" : ""}</label>
+              <Input
+                value={contact.phone}
+                onChange={(e) => { updContact("phone", e.target.value.replace(/[^\d+\s-]/g, "").slice(0, 15)); setContactError("") }}
+                maxLength={15}
+                className={contactError && !contact.phone.trim() && !contact.email.trim() ? "border-red-400" : ""}
+              />
             </div>
             <div>
-              <label className="text-sm font-medium">Email</label>
-              <Input type="email" value={contact.email} onChange={(e) => updContact("email", e.target.value)} />
+              <label className="text-sm font-medium">Email {!contact.phone.trim() ? "*" : ""}</label>
+              <Input
+                type="email"
+                value={contact.email}
+                onChange={(e) => { updContact("email", e.target.value); setContactError("") }}
+                className={contactError && !contact.phone.trim() && !contact.email.trim() ? "border-red-400" : ""}
+              />
             </div>
-            <label className="flex items-center gap-2">
-              <Checkbox checked={contact.isMain} onCheckedChange={(v) => updContact("isMain", v === true)} />
-              <span className="text-sm">Główna osoba kontaktowa</span>
-            </label>
           </CardContent>
         </Card>
 

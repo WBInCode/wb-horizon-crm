@@ -51,6 +51,8 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
 
+    const oldLead = await prisma.lead.findUnique({ where: { id } })
+
     const data: Record<string, unknown> = {}
     if (body.companyName !== undefined) data.companyName = body.companyName
     if (body.nip !== undefined) data.nip = body.nip
@@ -77,12 +79,23 @@ export async function PUT(
       data,
     })
 
+    // Determine audit action based on what changed
+    const isStatusChange = body.status !== undefined && oldLead && oldLead.status !== body.status
+    const isReassign = body.assignedSalesId !== undefined && oldLead && oldLead.assignedSalesId !== body.assignedSalesId
+
+    const changes = oldLead ? diffChanges(
+      oldLead as unknown as Record<string, unknown>,
+      body,
+      ["status", "assignedSalesId", "meetingDate", "nextStep", "nextStepDate", "priority", "notes"]
+    ) : null
+
     await auditLog({
-      action: "UPDATE",
+      action: isStatusChange ? "STATUS_CHANGE" : isReassign ? "REASSIGN" : "UPDATE",
       entityType: "LEAD",
       entityId: id,
       entityLabel: lead.companyName,
       userId: user.id,
+      changes,
     })
 
     return NextResponse.json(lead)

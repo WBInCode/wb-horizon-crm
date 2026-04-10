@@ -38,9 +38,10 @@ const STATUS_COLORS: Record<string, string> = {
 interface Props {
   cases: any[]
   stage: string
+  clientId?: string
 }
 
-export default function SalesSection({ cases, stage }: Props) {
+export default function SalesSection({ cases, stage, clientId }: Props) {
   const router = useRouter()
   const [showClosed, setShowClosed] = useState(false)
 

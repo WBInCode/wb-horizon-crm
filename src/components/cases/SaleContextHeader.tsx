@@ -23,6 +23,8 @@ export default function SaleContextHeader({ caseData }: Props) {
   const missingFiles = caseData.files?.filter((f: any) => f.status === "MISSING" || f.status === "REJECTED").length || 0
   const blockingChecklist = caseData.checklist?.filter((c: any) => c.isBlocking && c.status === "PENDING").length || 0
   const pendingApprovals = caseData.approvals?.filter((a: any) => a.status === "PENDING").length || 0
+  const allApprovalsApproved = caseData.approvals?.length > 0 && caseData.approvals.every((a: any) => a.status === "APPROVED")
+  const isToFix = caseData.detailedStatus === "TO_FIX"
 
   return (
     <div className="sticky top-0 z-10 -mx-6 -mt-6 mb-6">
@@ -90,7 +92,7 @@ export default function SaleContextHeader({ caseData }: Props) {
           </div>
 
           {/* Row 3: Status tags */}
-          {(missingFiles > 0 || blockingChecklist > 0 || pendingApprovals > 0) && (
+          {(missingFiles > 0 || blockingChecklist > 0 || pendingApprovals > 0 || allApprovalsApproved || isToFix) && (
             <div className="flex gap-2 pl-11 flex-wrap">
               {missingFiles > 0 && (
                 <StatusBadge type="deficiency" text={`Braki: ${missingFiles} plików`} />
@@ -100,6 +102,12 @@ export default function SaleContextHeader({ caseData }: Props) {
               )}
               {pendingApprovals > 0 && (
                 <StatusBadge type="awaiting" text={`Czeka na ${pendingApprovals} akceptacji`} />
+              )}
+              {allApprovalsApproved && (
+                <StatusBadge type="approved" text="Zaakceptowane" />
+              )}
+              {isToFix && (
+                <StatusBadge type="to_fix" text="Do poprawy" />
               )}
             </div>
           )}

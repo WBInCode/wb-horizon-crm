@@ -89,6 +89,17 @@ export async function GET(request: NextRequest) {
         salesperson: { select: { id: true, name: true } },
         caretaker: { select: { id: true, name: true } },
         director: { select: { id: true, name: true } },
+        files: {
+          where: { status: { in: ["MISSING", "REJECTED"] } },
+          select: { id: true },
+        },
+        checklist: {
+          where: { isBlocking: true, status: "PENDING" },
+          select: { id: true },
+        },
+        approvals: {
+          select: { id: true, status: true },
+        },
         _count: { 
           select: { 
             files: true, 
@@ -100,7 +111,19 @@ export async function GET(request: NextRequest) {
       orderBy: { updatedAt: "desc" }
     })
 
-    return NextResponse.json(cases)
+    // Dodaj obliczone pola statusów do odpowiedzi
+    const casesWithStatus = cases.map((c) => {
+      const missingFiles = c.files.length
+      const blockingChecklist = c.checklist.length
+      const pendingApprovals = c.approvals.filter((a) => a.status === "PENDING").length
+      const allApproved = c.approvals.length > 0 && c.approvals.every((a) => a.status === "APPROVED")
+      return {
+        ...c,
+        _status: { missingFiles, blockingChecklist, pendingApprovals, allApproved },
+      }
+    })
+
+    return NextResponse.json(casesWithStatus)
   } catch (error) {
     console.error(error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })

@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, ArrowRight, Check, Upload, FileText, ClipboardList, Package, Building2, AlertTriangle, Plus, Loader2 } from "lucide-react"
+import { ArrowLeft, ArrowRight, Check, Upload, FileText, ClipboardList, Package, Building2, AlertTriangle, Plus, Loader2, AlertCircle } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import AddProductInlineForm from "@/components/cases/AddProductInlineForm"
 
 interface SurveyQuestion {
   question: string
@@ -66,8 +67,6 @@ export default function NewCasePage() {
   const [surveyAnswers, setSurveyAnswers] = useState<Record<string, string>>({})
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({})
   const [showAddProduct, setShowAddProduct] = useState(false)
-  const [addingProduct, setAddingProduct] = useState(false)
-  const [newProduct, setNewProduct] = useState({ name: "", description: "", category: "Produkt" })
 
   const selectedClient = clients.find((c) => c.id === form.clientId)
   const selectedProduct = products.find((p) => p.id === form.productId)
@@ -313,90 +312,24 @@ export default function NewCasePage() {
                 className="w-full border-dashed"
                 onClick={() => setShowAddProduct(true)}
               >
-                <Plus className="w-4 h-4 mr-2" /> Dodaj nowy produkt
+                <Plus className="w-4 h-4 mr-2" /> Dodaj nowy produkt / usługę
               </Button>
             ) : (
-              <div className="p-4 border border-dashed rounded-lg space-y-3 bg-gray-50">
-                <p className="font-medium text-sm">Nowy produkt</p>
-                <div>
-                  <Label>Nazwa *</Label>
-                  <Input
-                    value={newProduct.name}
-                    onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                    placeholder="Nazwa produktu"
-                  />
-                </div>
-                <div>
-                  <Label>Opis</Label>
-                  <Textarea
-                    value={newProduct.description}
-                    onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                    placeholder="Krótki opis produktu..."
-                    rows={2}
-                  />
-                </div>
-                <div>
-                  <Label>Kategoria</Label>
-                  <Select
-                    value={newProduct.category}
-                    onValueChange={(val: string | null) => setNewProduct({ ...newProduct, category: val ?? "Produkt" })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Kategoria">{newProduct.category}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Produkt" label="Produkt">Produkt</SelectItem>
-                      <SelectItem value="Usługa" label="Usługa">Usługa</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    disabled={!newProduct.name.trim() || addingProduct}
-                    onClick={async () => {
-                      setAddingProduct(true)
-                      try {
-                        const res = await fetch(`/api/clients/${form.clientId}/products`, {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            name: newProduct.name.trim(),
-                            description: newProduct.description || null,
-                            category: newProduct.category,
-                          }),
-                        })
-                        if (!res.ok) {
-                          const err = await res.json()
-                          alert(err.error || "Błąd dodawania produktu")
-                          return
-                        }
-                        const created = await res.json()
-                        fetchProducts(form.clientId)
-                        setForm((prev) => ({ ...prev, productId: created.id, title: created.name }))
-                        setNewProduct({ name: "", description: "", category: "Produkt" })
-                        setShowAddProduct(false)
-                      } catch {
-                        alert("Błąd połączenia z serwerem")
-                      } finally {
-                        setAddingProduct(false)
-                      }
-                    }}
-                  >
-                    {addingProduct ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />}
-                    {addingProduct ? "Dodawanie..." : "Dodaj"}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setShowAddProduct(false)
-                      setNewProduct({ name: "", description: "", category: "Produkt" })
-                    }}
-                  >
-                    Anuluj
-                  </Button>
-                </div>
+              <AddProductInlineForm
+                clientId={form.clientId}
+                onProductCreated={(created) => {
+                  fetchProducts(form.clientId)
+                  setForm((prev) => ({ ...prev, productId: created.id, title: created.name }))
+                  setShowAddProduct(false)
+                }}
+                onCancel={() => setShowAddProduct(false)}
+              />
+            )}
+
+            {!form.productId && products.length > 0 && (
+              <div className="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded-lg text-sm text-orange-700">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>Wybierz produkt aby przejść dalej</span>
               </div>
             )}
 
@@ -514,7 +447,7 @@ export default function NewCasePage() {
         </Card>
       )}
 
-      {/* Step 5: Summary */}
+      {/* Step 5: Summary with completeness validation */}
       {step === 5 && (
         <Card>
           <CardHeader>
@@ -524,49 +457,96 @@ export default function NewCasePage() {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-gray-500">Kontrahent</p>
-                <p className="font-medium">{selectedClient?.companyName}</p>
+                <p className={`font-medium ${!selectedClient ? "text-red-500" : ""}`}>
+                  {selectedClient?.companyName || <span className="flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Nie wybrano</span>}
+                </p>
               </div>
               <div>
                 <p className="text-gray-500">Produkt</p>
-                <p className="font-medium">{selectedProduct?.name}</p>
+                <p className={`font-medium ${!selectedProduct ? "text-red-500" : ""}`}>
+                  {selectedProduct?.name || <span className="flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Nie wybrano</span>}
+                </p>
               </div>
               <div className="col-span-2">
                 <p className="text-gray-500">Tytuł sprzedaży</p>
-                <p className="font-medium">{form.title || selectedProduct?.name || "—"}</p>
+                <p className={`font-medium ${!form.title ? "text-red-500" : ""}`}>
+                  {form.title || selectedProduct?.name || <span className="flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Brak tytułu</span>}
+                </p>
               </div>
             </div>
 
-            {surveyQuestions.length > 0 && Object.keys(surveyAnswers).length > 0 && (
+            {/* Survey completeness */}
+            {surveyQuestions.length > 0 && (
               <div>
                 <p className="text-gray-500 text-sm mb-2">Ankieta</p>
                 <div className="space-y-1 text-sm">
-                  {surveyQuestions.map((q, idx) => (
-                    <div key={idx} className="flex gap-2">
-                      <span className="text-gray-500">{q.question}:</span>
-                      <span className="font-medium">{surveyAnswers[q.question] || "—"}</span>
-                    </div>
-                  ))}
+                  {surveyQuestions.map((q, idx) => {
+                    const answered = !!surveyAnswers[q.question]?.trim()
+                    return (
+                      <div key={idx} className="flex gap-2">
+                        <span className="text-gray-500">{q.question}:</span>
+                        {answered ? (
+                          <span className="font-medium">{surveyAnswers[q.question]}</span>
+                        ) : (
+                          <span className="text-red-500 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> Brak odpowiedzi
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}
 
+            {/* Files completeness */}
             {requiredFiles.length > 0 && (
               <div>
                 <p className="text-gray-500 text-sm mb-2">Pliki</p>
                 <div className="space-y-1 text-sm">
-                  {requiredFiles.map((rf, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <span className="text-gray-500">{rf.name}:</span>
-                      {uploadedFiles[rf.name] ? (
-                        <span className="font-medium text-green-600">{uploadedFiles[rf.name].name}</span>
-                      ) : (
-                        <span className="text-orange-500">Nie dodano</span>
-                      )}
-                    </div>
-                  ))}
+                  {requiredFiles.map((rf, idx) => {
+                    const uploaded = !!uploadedFiles[rf.name]
+                    return (
+                      <div key={idx} className="flex items-center gap-2">
+                        <span className="text-gray-500">{rf.name}:</span>
+                        {uploaded ? (
+                          <span className="font-medium text-green-600 flex items-center gap-1">
+                            <Check className="w-3 h-3" /> {uploadedFiles[rf.name].name}
+                          </span>
+                        ) : (
+                          <span className="text-red-500 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> Nie dodano
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}
+
+            {/* Completeness summary banner */}
+            {(() => {
+              const missing: string[] = []
+              if (!selectedClient) missing.push("kontrahent")
+              if (!selectedProduct) missing.push("produkt")
+              const unansweredSurvey = surveyQuestions.filter((q) => !surveyAnswers[q.question]?.trim()).length
+              if (unansweredSurvey > 0) missing.push(`${unansweredSurvey} pytań ankiety`)
+              const missingFiles = requiredFiles.filter((rf) => !uploadedFiles[rf.name]).length
+              if (missingFiles > 0) missing.push(`${missingFiles} plików`)
+              if (missing.length === 0) return null
+              return (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+                  <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-red-800 text-sm">Niekompletne dane</p>
+                    <p className="text-red-700 text-sm">
+                      Brakuje: {missing.join(", ")}. Możesz utworzyć sprzedaż i uzupełnić dane później.
+                    </p>
+                  </div>
+                </div>
+              )
+            })()}
           </CardContent>
         </Card>
       )}
