@@ -14,7 +14,17 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search")
     const stage = searchParams.get("stage")
 
+    const archived = searchParams.get("archived")
+
     const where: Record<string, unknown> = {}
+
+    // By default exclude archived, ?archived=true shows only archived
+    if (archived === "true") {
+      where.archivedAt = { not: null }
+    } else {
+      where.archivedAt = null
+    }
+
     if (search) {
       where.OR = [
         { companyName: { contains: search, mode: "insensitive" } },

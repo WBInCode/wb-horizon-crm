@@ -7,8 +7,10 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Plus, Search, X } from "lucide-react"
+import { Plus, Search, X, Archive } from "lucide-react"
 import { StageBadge, DetailedStatusBadge, StatusBadge, STAGE_LABELS, DETAILED_LABELS } from "@/components/ui/status-badge"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { toast } from "sonner"
 
 const statusLabels: Record<string, string> = {
   DRAFT: "Robocza",
@@ -37,7 +39,8 @@ export default function CasesPage() {
   const [detailedStatusFilter, setDetailedStatusFilter] = useState("")
   const [hasMissing, setHasMissing] = useState(false)
   const [users, setUsers] = useState<any[]>([])
-
+  const [archiveTarget, setArchiveTarget] = useState<any>(null)
+  const [archiving, setArchiving] = useState(false)
   useEffect(() => {
     fetch("/api/admin/users")
       .then((r) => r.ok ? r.json() : [])
@@ -84,6 +87,26 @@ export default function CasesPage() {
     setStageFilter("")
     setDetailedStatusFilter("")
     setHasMissing(false)
+  }
+
+  const handleArchive = async () => {
+    if (!archiveTarget) return
+    setArchiving(true)
+    try {
+      const res = await fetch(`/api/cases/${archiveTarget.id}/archive`, { method: "POST" })
+      if (res.ok) {
+        toast.success("Sprzedaż przeniesiona do archiwum")
+        setArchiveTarget(null)
+        fetchCases()
+      } else {
+        const err = await res.json()
+        toast.error(err.error || "Błąd archiwizacji")
+      }
+    } catch {
+      toast.error("Błąd połączenia")
+    } finally {
+      setArchiving(false)
+    }
   }
 
   return (
@@ -189,16 +212,17 @@ export default function CasesPage() {
               <TableHead>Handlowiec</TableHead>
               <TableHead>Opiekun</TableHead>
               <TableHead>Aktualizacja</TableHead>
+              <TableHead className="w-10"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">Ładowanie...</TableCell>
+                <TableCell colSpan={9} className="text-center py-8">Ładowanie...</TableCell>
               </TableRow>
             ) : cases.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">Brak sprzedaży</TableCell>
+                <TableCell colSpan={9} className="text-center py-8">Brak sprzedaży</TableCell>
               </TableRow>
             ) : (
               cases.map((c) => (
@@ -242,12 +266,50 @@ export default function CasesPage() {
                   <TableCell>
                     {new Date(c.updatedAt).toLocaleDateString("pl-PL")}
                   </TableCell>
+                  <TableCell>
+                    {["CLOSED", "CANCELLED"].includes(c.status) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-gray-400 hover:text-red-600"
+                        title="Archiwizuj"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setArchiveTarget(c)
+                        }}
+                      >
+                        <Archive className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
       </div>
+
+      {/* Dialog potwierdzenia archiwizacji */}
+      <Dialog open={!!archiveTarget} onOpenChange={(open) => { if (!open) setArchiveTarget(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Archiwizuj sprzedaż</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            Czy na pewno chcesz przenieść sprzedaż <strong>&quot;{archiveTarget?.title}&quot;</strong> do archiwum?
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            Elementy w archiwum są automatycznie usuwane po 30 dniach. Administrator może je przywrócić lub usunąć wcześniej.
+          </p>
+          <div className="flex gap-2 pt-4 justify-end">
+            <Button variant="outline" onClick={() => setArchiveTarget(null)}>Anuluj</Button>
+            <Button variant="destructive" onClick={handleArchive} disabled={archiving}>
+              <Archive className="w-4 h-4 mr-1" />
+              {archiving ? "Archiwizowanie..." : "Archiwizuj"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

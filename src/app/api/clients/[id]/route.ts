@@ -136,3 +136,55 @@ export async function PUT(
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    if (user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Brak uprawnień — tylko Administrator" }, { status: 403 })
+    }
+
+    const { id } = await params
+
+    const client = await prisma.client.findUnique({
+      where: { id },
+      select: { id: true, companyName: true, archivedAt: true },
+    })
+
+    if (!client) {
+      return NextResponse.json({ error: "Nie znaleziono kontrahenta" }, { status: 404 })
+    }
+
+    if (!client.archivedAt) {
+      return NextResponse.json({ error: "Można trwale usuwać tylko zarchiwizowanych kontrahentów" }, { status: 400 })
+    }
+
+    // Delete associated archived cases first
+    await prisma.case.deleteMany({
+      where: { clientId: id, archivedAt: { not: null } },
+    })
+
+    await prisma.client.delete({ where: { id } })
+
+    await auditLog({
+      action: "DELETE",
+      entityType: "CLIENT",
+      entityId: id,
+      entityLabel: client.companyName,
+      userId: user.id,
+      metadata: { action: "permanent_delete" },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error(error)
+    return NextResponse.json({ error: "Server error" }, { status: 500 })
+  }
+}

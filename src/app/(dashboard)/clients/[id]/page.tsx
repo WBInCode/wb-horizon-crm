@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
+import { Archive } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 import ContractorHeader   from "@/components/contractors/ContractorHeader"
 import ContactsSection    from "@/components/contractors/ContactsSection"
@@ -39,6 +41,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const [openAddContact, setOpenAddContact] = useState(false)
   const [openAddProduct, setOpenAddProduct] = useState(false)
   const [openAddNote,    setOpenAddNote]    = useState(false)
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false)
+  const [archiving, setArchiving] = useState(false)
 
   // ─── Init ─────────────────────────────────────────────────────────────────
   useEffect(() => { params.then((p) => setClientId(p.id)) }, [params])
@@ -147,6 +151,26 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     }
   }
 
+  const handleArchive = async () => {
+    setArchiving(true)
+    try {
+      const res = await fetch(`/api/clients/${clientId}/archive`, { method: "POST" })
+      if (res.ok) {
+        const data = await res.json()
+        toast.success(data.message || "Kontrahent przeniesiony do archiwum")
+        router.push("/clients")
+      } else {
+        const err = await res.json()
+        toast.error(err.error || "Błąd archiwizacji")
+      }
+    } catch {
+      toast.error("Błąd połączenia")
+    } finally {
+      setArchiving(false)
+      setShowArchiveDialog(false)
+    }
+  }
+
   // ─── Render ───────────────────────────────────────────────────────────────
   if (loading) return <div className="p-6 text-gray-500">Ładowanie...</div>
   if (!client) return <div className="p-6 text-gray-500">Nie znaleziono kontrahenta.</div>
@@ -178,6 +202,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         onAddContact={() => setOpenAddContact(true)}
         onAddProduct={() => setOpenAddProduct(true)}
         onAddNote={() => setOpenAddNote(true)}
+        onArchive={isInactive ? () => setShowArchiveDialog(true) : undefined}
         clientId={clientId}
       />
 
@@ -300,6 +325,29 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           <AuditSection auditLogs={auditLogs} />
         </div>
       </div>
+
+      {/* Dialog potwierdzenia archiwizacji */}
+      <Dialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Archiwizuj kontrahenta</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            Czy na pewno chcesz przenieść kontrahenta <strong>&quot;{client.companyName}&quot;</strong> do archiwum?
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            Zamknięte/anulowane sprzedaże tego kontrahenta zostaną również zarchiwizowane.
+            Elementy w archiwum są automatycznie usuwane po 30 dniach.
+          </p>
+          <div className="flex gap-2 pt-4 justify-end">
+            <Button variant="outline" onClick={() => setShowArchiveDialog(false)}>Anuluj</Button>
+            <Button variant="destructive" onClick={handleArchive} disabled={archiving}>
+              <Archive className="w-4 h-4 mr-1" />
+              {archiving ? "Archiwizowanie..." : "Archiwizuj"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

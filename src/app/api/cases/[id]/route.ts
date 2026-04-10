@@ -242,3 +242,50 @@ export async function PUT(
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    if (user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Brak uprawnień — tylko Administrator" }, { status: 403 })
+    }
+
+    const { id } = await params
+
+    const caseData = await prisma.case.findUnique({
+      where: { id },
+      select: { id: true, title: true, archivedAt: true },
+    })
+
+    if (!caseData) {
+      return NextResponse.json({ error: "Nie znaleziono sprzedaży" }, { status: 404 })
+    }
+
+    if (!caseData.archivedAt) {
+      return NextResponse.json({ error: "Można trwale usuwać tylko zarchiwizowane sprzedaże" }, { status: 400 })
+    }
+
+    await prisma.case.delete({ where: { id } })
+
+    await auditLog({
+      action: "DELETE",
+      entityType: "CASE",
+      entityId: id,
+      entityLabel: caseData.title,
+      userId: user.id,
+      metadata: { action: "permanent_delete" },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error(error)
+    return NextResponse.json({ error: "Server error" }, { status: 500 })
+  }
+}

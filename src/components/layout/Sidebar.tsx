@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
-import { LayoutDashboard, Users, Building2, ShoppingCart, Shield, ScrollText } from "lucide-react"
+import { LayoutDashboard, Users, Building2, ShoppingCart, Shield, ScrollText, Archive } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const menuItems = [
@@ -15,6 +15,7 @@ const menuItems = [
 
 const adminItem = { label: "Admin", href: "/admin", icon: Shield }
 const auditItem = { label: "Audit Log", href: "/admin/audit-logs", icon: ScrollText }
+const archiveItem = { label: "Archiwum", href: "/archive", icon: Archive }
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -22,7 +23,7 @@ export function Sidebar() {
   const role = (session?.user as any)?.role
 
   const items = role === "ADMIN" || role === "DIRECTOR" 
-    ? [...menuItems, adminItem, auditItem] 
+    ? [...menuItems, archiveItem, adminItem, auditItem] 
     : menuItems
 
   return (

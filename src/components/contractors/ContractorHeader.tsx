@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Plus, Pencil, Save, X, UserPlus, StickyNote, Package, TrendingUp } from "lucide-react"
+import { ArrowLeft, Plus, Pencil, Save, X, UserPlus, StickyNote, Package, TrendingUp, Archive } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 const STAGE_CONFIG: Record<string, { label: string; className: string }> = {
@@ -47,13 +47,14 @@ interface Props {
   onAddContact: () => void
   onAddProduct: () => void
   onAddNote: () => void
+  onArchive?: () => void
   clientId?: string
 }
 
 export default function ContractorHeader({
   client, editing, saving,
   onStageChange, onEdit, onSave, onCancelEdit,
-  onAddContact, onAddProduct, onAddNote, clientId,
+  onAddContact, onAddProduct, onAddNote, onArchive, clientId,
 }: Props) {
   const router = useRouter()
   const stage = client.stage || "LEAD"
@@ -98,6 +99,18 @@ export default function ContractorHeader({
             title="Utwórz sprzedaż"
           >
             <TrendingUp className="w-4 h-4 mr-1" /> Nowa sprzedaż
+          </Button>
+        )}
+
+        {stage === "INACTIVE" && onArchive && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            onClick={onArchive}
+            title="Przenieś do archiwum"
+          >
+            <Archive className="w-4 h-4 mr-1" /> Archiwizuj
           </Button>
         )}
 

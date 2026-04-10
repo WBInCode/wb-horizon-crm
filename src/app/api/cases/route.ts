@@ -51,8 +51,16 @@ export async function GET(request: NextRequest) {
 
     const processStage = searchParams.get("processStage")
     const detailedStatus = searchParams.get("detailedStatus")
+    const archived = searchParams.get("archived")
 
     const where: Record<string, unknown> = {}
+
+    // By default exclude archived, ?archived=true shows only archived
+    if (archived === "true") {
+      where.archivedAt = { not: null }
+    } else {
+      where.archivedAt = null
+    }
     
     if (status) where.status = status
     if (processStage) where.processStage = processStage

@@ -213,6 +213,7 @@ model Client {
   interestedProducts String? @db.Text
   keyFindings  String?  @db.Text
   stage        ContractorStage @default(LEAD)
+  archivedAt   DateTime?
   
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -272,6 +273,7 @@ model Case {
   processStage   SaleProcessStage   @default(NEW)
   detailedStatus SaleDetailedStatus @default(WAITING_SURVEY)
   commercialData Json?
+  archivedAt     DateTime?
   
   // Dane ankiety (uproszczone MVP)
   surveyNeeds    String?    @db.Text

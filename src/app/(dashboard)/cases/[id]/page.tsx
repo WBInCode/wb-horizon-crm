@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Archive } from "lucide-react"
 import { toast } from "sonner"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { SurveyTab } from "@/components/cases/tabs/SurveyTab"
 import { SummaryTab } from "@/components/cases/tabs/SummaryTab"
 import { FilesTab } from "@/components/cases/tabs/FilesTab"
@@ -34,6 +35,8 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
   const [users, setUsers] = useState<any[]>([])
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false)
+  const [archiving, setArchiving] = useState(false)
 
   const fetchCase = async () => {
     try {
@@ -71,6 +74,25 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
   }, [id])
 
   const canChangeStage = currentUser && ["ADMIN", "DIRECTOR", "CARETAKER"].includes(currentUser.role)
+
+  const handleArchive = async () => {
+    setArchiving(true)
+    try {
+      const res = await fetch(`/api/cases/${id}/archive`, { method: "POST" })
+      if (res.ok) {
+        toast.success("Sprzedaż przeniesiona do archiwum")
+        router.push("/cases")
+      } else {
+        const err = await res.json()
+        toast.error(err.error || "Błąd archiwizacji")
+      }
+    } catch {
+      toast.error("Błąd połączenia")
+    } finally {
+      setArchiving(false)
+      setShowArchiveDialog(false)
+    }
+  }
 
   const handleStageChange = async (newStage: string) => {
     const allowedStatuses = ALLOWED_STATUS_PER_STAGE[newStage] || []
@@ -125,6 +147,16 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         <Button variant="ghost" size="sm" onClick={() => router.back()}>
           <ArrowLeft className="w-4 h-4 mr-1" /> Wróć
         </Button>
+        {canChangeStage && ["CLOSED", "CANCELLED"].includes(caseData.status) && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto text-red-600 hover:text-red-700 hover:bg-red-50"
+            onClick={() => setShowArchiveDialog(true)}
+          >
+            <Archive className="w-4 h-4 mr-1" /> Archiwizuj
+          </Button>
+        )}
       </div>
 
       {/* Sticky context header */}
@@ -208,6 +240,28 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           <ChecklistTab caseId={id} items={caseData.checklist} onUpdate={fetchCase} />
         </TabsContent>
       </Tabs>
+
+      {/* Dialog potwierdzenia archiwizacji */}
+      <Dialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Archiwizuj sprzedaż</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            Czy na pewno chcesz przenieść sprzedaż <strong>&quot;{caseData.title}&quot;</strong> do archiwum?
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            Elementy w archiwum są automatycznie usuwane po 30 dniach. Administrator może je przywrócić lub usunąć wcześniej.
+          </p>
+          <div className="flex gap-2 pt-4 justify-end">
+            <Button variant="outline" onClick={() => setShowArchiveDialog(false)}>Anuluj</Button>
+            <Button variant="destructive" onClick={handleArchive} disabled={archiving}>
+              <Archive className="w-4 h-4 mr-1" />
+              {archiving ? "Archiwizowanie..." : "Archiwizuj"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
