@@ -33,18 +33,37 @@ const DEFAULT_FIELDS: SurveyField[] = [
 
 export function SurveyTab({ caseData, onUpdate }: Props) {
   const survey = caseData.surveys?.[0]
-  const [schema, setSchema] = useState<SurveyField[]>(
-    survey?.schemaJson ? JSON.parse(JSON.stringify(survey.schemaJson)) : DEFAULT_FIELDS
-  )
-  const [answers, setAnswers] = useState<Record<string, any>>(
-    survey?.answersJson ? JSON.parse(JSON.stringify(survey.answersJson)) : {
-      needs: caseData.surveyNeeds || "",
-      budget: caseData.surveyBudget?.toString() || "",
-      deadline: caseData.surveyDeadline?.split("T")[0] || "",
-      clientNotes: caseData.surveyClientNotes || "",
-      salesNotes: caseData.surveySalesNotes || "",
+
+  const parseSchema = (): SurveyField[] => {
+    if (!survey?.schemaJson) return DEFAULT_FIELDS
+    try {
+      const parsed = JSON.parse(JSON.stringify(survey.schemaJson))
+      return Array.isArray(parsed) ? parsed : DEFAULT_FIELDS
+    } catch {
+      return DEFAULT_FIELDS
     }
-  )
+  }
+
+  const parseAnswers = (): Record<string, any> => {
+    if (!survey?.answersJson) {
+      return {
+        needs: caseData.surveyNeeds || "",
+        budget: caseData.surveyBudget?.toString() || "",
+        deadline: caseData.surveyDeadline?.split("T")[0] || "",
+        clientNotes: caseData.surveyClientNotes || "",
+        salesNotes: caseData.surveySalesNotes || "",
+      }
+    }
+    try {
+      const parsed = JSON.parse(JSON.stringify(survey.answersJson))
+      return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? parsed : {}
+    } catch {
+      return {}
+    }
+  }
+
+  const [schema, setSchema] = useState<SurveyField[]>(parseSchema)
+  const [answers, setAnswers] = useState<Record<string, any>>(parseAnswers)
   const [saving, setSaving] = useState(false)
   const [editingSchema, setEditingSchema] = useState(false)
   const [newField, setNewField] = useState<SurveyField>({ id: "", label: "", type: "text" })
