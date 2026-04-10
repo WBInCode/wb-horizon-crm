@@ -52,8 +52,11 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch("/api/users")
-      if (res.ok) setUsers(await res.json())
+      const res = await fetch("/api/admin/users")
+      if (res.ok) {
+        const data = await res.json()
+        setUsers(Array.isArray(data) ? data : [])
+      }
     } catch {}
   }
 
