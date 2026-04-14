@@ -86,6 +86,10 @@ export default function SaleContextHeader({ caseData }: Props) {
               {caseData.caretaker?.name || <span className="text-gray-400">—</span>}
             </ContextItem>
 
+            <ContextItem label="Dyrektor">
+              {caseData.director?.name || <span className="text-gray-400">—</span>}
+            </ContextItem>
+
             <ContextItem label="Aktualizacja">
               {formatDate(caseData.updatedAt)}
             </ContextItem>

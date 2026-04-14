@@ -17,6 +17,7 @@ import ProductsSection    from "@/components/contractors/ProductsSection"
 import SalesSection       from "@/components/contractors/SalesSection"
 import NotesSection       from "@/components/contractors/NotesSection"
 import AuditSection       from "@/components/contractors/AuditSection"
+import AssignmentsSection from "@/components/contractors/AssignmentsSection"
 
 export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
@@ -295,6 +296,11 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             onOpenChange={setOpenAddContact}
           />
         </div>
+
+        {/* ─── Row 1b: Przypisania ról (visible from PROSPECT+) ────────── */}
+        {showProducts && (
+          <AssignmentsSection client={client} cases={client.cases || []} />
+        )}
 
         {/* ─── Row 2: Produkty (visible from PROSPECT+) ────────────────── */}
         {showProducts && (

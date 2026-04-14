@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import {
   Building2, ShoppingCart, CalendarDays, MessageSquarePlus,
-  UserRoundCog, RefreshCw, Zap, NotebookPen,
+  UserRoundCog, RefreshCw, Zap, NotebookPen, FileText,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -59,6 +59,7 @@ export default function LeadQuickActions({ lead, leadId, users, currentUserRole,
   const canChangeSalesperson = ["ADMIN", "DIRECTOR"].includes(currentUserRole)
   const canCreateContractor = lead.status !== "TRANSFERRED" && !lead.convertedToClientId
   const canCreateSale = !!lead.convertedToClientId
+  const canCreateQuote = !!lead.convertedToClientId
 
   const patchLead = async (data: Record<string, unknown>) => {
     setSaving(true)
@@ -177,6 +178,14 @@ export default function LeadQuickActions({ lead, leadId, users, currentUserRole,
               <Button variant="outline" size="sm" className="justify-start gap-2" onClick={handleCreateSale}>
                 <ShoppingCart className="w-4 h-4 text-green-600" />
                 <span className="text-xs">Utwórz sprzedaż</span>
+              </Button>
+            )}
+
+            {/* Utwórz wycenę */}
+            {canCreateQuote && (
+              <Button variant="outline" size="sm" className="justify-start gap-2" onClick={() => router.push(`/cases/new?clientId=${lead.convertedToClientId}&withQuote=true`)}>
+                <FileText className="w-4 h-4 text-emerald-600" />
+                <span className="text-xs">Utwórz wycenę</span>
               </Button>
             )}
 
