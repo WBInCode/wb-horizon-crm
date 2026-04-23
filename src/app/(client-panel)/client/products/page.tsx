@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Package, X, ClipboardList, FileText, Trash2 } from "lucide-react"
+import { Plus, Package, X, ClipboardList, FileText } from "lucide-react"
 
 interface SurveyQuestion {
   question: string
@@ -90,7 +90,6 @@ export default function ClientProductsPage() {
     }
   }
 
-  // Survey question helpers
   const addQuestion = () => {
     setSurveyQuestions([...surveyQuestions, { question: "", type: "text" }])
   }
@@ -103,7 +102,6 @@ export default function ClientProductsPage() {
     setSurveyQuestions(surveyQuestions.filter((_, i) => i !== idx))
   }
 
-  // Required file helpers
   const addRequiredFile = () => {
     setRequiredFiles([...requiredFiles, { name: "", description: "" }])
   }
@@ -117,66 +115,97 @@ export default function ClientProductsPage() {
   }
 
   if (loading) {
-    return <div className="p-6"><p className="text-gray-500">Ładowanie...</p></div>
+    return (
+      <div className="p-6 flex items-center justify-center h-64">
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
+          <p className="text-sm" style={{ color: "var(--content-muted)" }}>Ładowanie...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Moje produkty i usługi</h1>
-        <Button onClick={() => setShowAddForm(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Dodaj produkt
-        </Button>
+      <div className="flex items-center justify-between reveal">
+        <div>
+          <h1
+            className="text-2xl font-semibold tracking-tight"
+            style={{ color: "var(--content-strong)", fontFamily: "var(--font-display)" }}
+          >
+            Moje produkty i usługi
+          </h1>
+          <p className="text-sm mt-0.5" style={{ color: "var(--content-muted)" }}>
+            {products.length} {products.length === 1 ? "produkt" : products.length < 5 ? "produkty" : "produktów"}
+          </p>
+        </div>
+        {!showAddForm && (
+          <Button onClick={() => setShowAddForm(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Dodaj produkt
+          </Button>
+        )}
       </div>
 
       {/* Add product form */}
       {showAddForm && (
-        <Card>
+        <Card className="scale-in">
           <CardHeader>
-            <CardTitle className="text-lg">Nowy produkt / usługa</CardTitle>
+            <CardTitle className="text-[0.9375rem]">Nowy produkt / usługa</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Basic info */}
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="name">Nazwa produktu / usługi *</Label>
+                  <Label htmlFor="name" className="text-sm font-medium" style={{ color: "var(--content-strong)" }}>
+                    Nazwa produktu / usługi *
+                  </Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="np. Certyfikacja ISO 9001"
                     required
+                    className="mt-1.5"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="description">Opis</Label>
+                  <Label htmlFor="description" className="text-sm font-medium" style={{ color: "var(--content-strong)" }}>
+                    Opis
+                  </Label>
                   <Input
                     id="description"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     placeholder="Krótki opis produktu..."
+                    className="mt-1.5"
                   />
                 </div>
               </div>
 
               {/* Survey questions */}
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <Label className="flex items-center gap-1">
-                    <ClipboardList className="w-4 h-4" /> Ankieta (pytania dla handlowca)
+                <div className="flex items-center justify-between mb-3">
+                  <Label className="flex items-center gap-1.5 text-sm font-medium" style={{ color: "var(--content-strong)" }}>
+                    <ClipboardList className="w-4 h-4" style={{ color: "var(--brand)" }} /> Ankieta
                   </Label>
                   <Button type="button" variant="outline" size="sm" onClick={addQuestion}>
                     <Plus className="w-3 h-3 mr-1" /> Dodaj pytanie
                   </Button>
                 </div>
                 {surveyQuestions.length === 0 ? (
-                  <p className="text-sm text-gray-400">Brak pytań. Handlowiec nie będzie wypełniał ankiety.</p>
+                  <p className="text-sm" style={{ color: "var(--content-subtle)" }}>
+                    Brak pytań. Handlowiec nie będzie wypełniał ankiety.
+                  </p>
                 ) : (
                   <div className="space-y-3">
                     {surveyQuestions.map((q, idx) => (
-                      <div key={idx} className="flex items-start gap-2 p-3 border rounded-lg bg-gray-50">
+                      <div
+                        key={idx}
+                        className="flex items-start gap-2 p-3 rounded-lg"
+                        style={{ background: "var(--surface-2)", border: "1px solid var(--line-subtle)" }}
+                      >
                         <div className="flex-1 space-y-2">
                           <Input
                             value={q.question}
@@ -185,7 +214,12 @@ export default function ClientProductsPage() {
                           />
                           <div className="flex gap-2">
                             <select
-                              className="border rounded px-2 py-1 text-sm"
+                              className="rounded-lg px-2.5 py-1.5 text-sm transition-all duration-200"
+                              style={{
+                                background: "var(--surface-3)",
+                                border: "1px solid var(--line-default)",
+                                color: "var(--content-default)",
+                              }}
                               value={q.type}
                               onChange={(e) => updateQuestion(idx, { type: e.target.value as SurveyQuestion["type"] })}
                             >
@@ -207,7 +241,13 @@ export default function ClientProductsPage() {
                             )}
                           </div>
                         </div>
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeQuestion(idx)}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeQuestion(idx)}
+                          className="text-content-muted hover:text-danger shrink-0"
+                        >
                           <X className="w-4 h-4" />
                         </Button>
                       </div>
@@ -218,20 +258,26 @@ export default function ClientProductsPage() {
 
               {/* Required files */}
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <Label className="flex items-center gap-1">
-                    <FileText className="w-4 h-4" /> Wymagane dokumenty
+                <div className="flex items-center justify-between mb-3">
+                  <Label className="flex items-center gap-1.5 text-sm font-medium" style={{ color: "var(--content-strong)" }}>
+                    <FileText className="w-4 h-4" style={{ color: "var(--brand)" }} /> Wymagane dokumenty
                   </Label>
                   <Button type="button" variant="outline" size="sm" onClick={addRequiredFile}>
                     <Plus className="w-3 h-3 mr-1" /> Dodaj dokument
                   </Button>
                 </div>
                 {requiredFiles.length === 0 ? (
-                  <p className="text-sm text-gray-400">Brak wymaganych dokumentów.</p>
+                  <p className="text-sm" style={{ color: "var(--content-subtle)" }}>
+                    Brak wymaganych dokumentów.
+                  </p>
                 ) : (
                   <div className="space-y-3">
                     {requiredFiles.map((rf, idx) => (
-                      <div key={idx} className="flex items-start gap-2 p-3 border rounded-lg bg-gray-50">
+                      <div
+                        key={idx}
+                        className="flex items-start gap-2 p-3 rounded-lg"
+                        style={{ background: "var(--surface-2)", border: "1px solid var(--line-subtle)" }}
+                      >
                         <div className="flex-1 space-y-2">
                           <Input
                             value={rf.name}
@@ -244,7 +290,13 @@ export default function ClientProductsPage() {
                             placeholder="Opis (opcjonalnie)"
                           />
                         </div>
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeRequiredFile(idx)}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeRequiredFile(idx)}
+                          className="text-content-muted hover:text-danger shrink-0"
+                        >
                           <X className="w-4 h-4" />
                         </Button>
                       </div>
@@ -253,7 +305,7 @@ export default function ClientProductsPage() {
                 )}
               </div>
 
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-2 pt-2" style={{ borderTop: "1px solid var(--line-subtle)" }}>
                 <Button type="submit" disabled={submitting}>
                   {submitting ? "Zapisywanie..." : "Zapisz produkt"}
                 </Button>
@@ -267,26 +319,41 @@ export default function ClientProductsPage() {
       )}
 
       {/* Products list */}
-      {products.length === 0 ? (
-        <Card>
-          <CardContent className="p-8 text-center text-gray-500">
-            Nie masz jeszcze żadnych produktów. Dodaj produkt, aby handlowcy mogli tworzyć sprzedaże.
+      {products.length === 0 && !showAddForm ? (
+        <Card className="reveal reveal-delay-1">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Package className="w-10 h-10 mb-3" style={{ color: "var(--content-subtle)" }} strokeWidth={1} />
+            <p style={{ color: "var(--content-muted)" }} className="text-sm">
+              Nie masz jeszcze żadnych produktów.
+            </p>
+            <p className="text-xs mt-1" style={{ color: "var(--content-subtle)" }}>
+              Dodaj produkt, aby handlowcy mogli tworzyć sprzedaże.
+            </p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
-          {products.map((p) => (
-            <Card key={p.id}>
-              <CardContent className="p-4">
+        <div className="grid gap-3">
+          {products.map((p, i) => (
+            <Card key={p.id} className={`reveal reveal-delay-${Math.min(i + 1, 6)}`}>
+              <CardContent className="p-5">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Package className="w-5 h-5 text-primary" />
+                    <div
+                      className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                      style={{ background: "var(--brand-muted)" }}
+                    >
+                      <Package className="w-5 h-5" style={{ color: "var(--brand)" }} />
                     </div>
                     <div>
-                      <p className="font-semibold">{p.name}</p>
-                      {p.description && <p className="text-sm text-gray-500">{p.description}</p>}
-                      <div className="flex gap-3 mt-1 text-xs text-gray-400">
+                      <p className="font-semibold text-[0.9375rem]" style={{ color: "var(--content-strong)" }}>
+                        {p.name}
+                      </p>
+                      {p.description && (
+                        <p className="text-sm mt-0.5" style={{ color: "var(--content-muted)" }}>
+                          {p.description}
+                        </p>
+                      )}
+                      <div className="flex gap-3 mt-1.5 text-xs" style={{ color: "var(--content-subtle)" }}>
                         {(p.surveySchema as SurveyQuestion[] | null)?.length ? (
                           <span className="flex items-center gap-1">
                             <ClipboardList className="w-3 h-3" />
@@ -302,7 +369,7 @@ export default function ClientProductsPage() {
                       </div>
                     </div>
                   </div>
-                  <Badge variant="outline" className="text-green-600 border-green-200">
+                  <Badge className="bg-success/10 text-success">
                     Aktywny
                   </Badge>
                 </div>

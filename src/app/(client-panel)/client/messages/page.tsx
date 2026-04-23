@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Send } from "lucide-react"
+import { Send, MessageSquare } from "lucide-react"
 
 export default function ClientMessagesPage() {
   const { data: session } = useSession()
@@ -16,6 +16,7 @@ export default function ClientMessagesPage() {
   const [newMessage, setNewMessage] = useState("")
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetchCases()
@@ -26,6 +27,10 @@ export default function ClientMessagesPage() {
       fetchMessages(selectedCaseId)
     }
   }, [selectedCaseId])
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
 
   const fetchCases = async () => {
     try {
@@ -45,7 +50,6 @@ export default function ClientMessagesPage() {
       const res = await fetch(`/api/cases/${caseId}/messages`)
       if (res.ok) {
         const data = await res.json()
-        // Client only sees ALL and CLIENT visibility messages
         const visible = data.filter(
           (m: any) => m.visibilityScope === "ALL" || m.visibilityScope === "CLIENT"
         )
@@ -81,42 +85,57 @@ export default function ClientMessagesPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
-        <p className="text-gray-500">Ładowanie...</p>
+      <div className="p-6 flex items-center justify-center h-64">
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
+          <p className="text-sm" style={{ color: "var(--content-muted)" }}>Ładowanie...</p>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Komunikacja</h1>
+      <div className="reveal">
+        <h1
+          className="text-2xl font-semibold tracking-tight"
+          style={{ color: "var(--content-strong)", fontFamily: "var(--font-display)" }}
+        >
+          Komunikacja
+        </h1>
+      </div>
 
       {cases.length === 0 ? (
-        <Card>
-          <CardContent className="p-8 text-center text-gray-500">
-            Brak sprzedaży do komunikacji.
+        <Card className="reveal reveal-delay-1">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <MessageSquare className="w-10 h-10 mb-3" style={{ color: "var(--content-subtle)" }} strokeWidth={1} />
+            <p style={{ color: "var(--content-muted)" }} className="text-sm">
+              Brak sprzedaży do komunikacji.
+            </p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 reveal reveal-delay-1">
           {/* Case list */}
           <Card className="lg:col-span-1">
             <CardHeader>
-              <CardTitle className="text-sm">Sprzedaże</CardTitle>
+              <CardTitle className="text-[0.8125rem] mono-label" style={{ color: "var(--content-muted)" }}>
+                Sprzedaże
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-2">
               {cases.map((c: any) => (
                 <button
                   key={c.id}
                   onClick={() => setSelectedCaseId(c.id)}
-                  className={`w-full text-left p-3 rounded-lg text-sm transition-colors ${
-                    selectedCaseId === c.id
-                      ? "bg-primary/10 text-primary"
-                      : "hover:bg-gray-100"
-                  }`}
+                  className="w-full text-left p-3 rounded-lg text-sm transition-all duration-200"
+                  style={{
+                    background: selectedCaseId === c.id ? "var(--brand-muted)" : "transparent",
+                    color: selectedCaseId === c.id ? "var(--brand)" : "var(--content-default)",
+                  }}
                 >
                   <p className="font-medium truncate">{c.title}</p>
-                  <p className="text-xs text-gray-400 truncate">
+                  <p className="text-xs mt-0.5 truncate" style={{ color: "var(--content-subtle)" }}>
                     {c.client?.companyName}
                   </p>
                 </button>
@@ -125,43 +144,56 @@ export default function ClientMessagesPage() {
           </Card>
 
           {/* Messages */}
-          <Card className="lg:col-span-3 flex flex-col" style={{ height: "70vh" }}>
-            <CardHeader className="border-b">
-              <CardTitle className="text-sm">
+          <Card className="lg:col-span-3 flex flex-col overflow-hidden" style={{ height: "70vh" }}>
+            <CardHeader style={{ borderBottom: "1px solid var(--line-subtle)" }}>
+              <CardTitle className="text-sm" style={{ color: "var(--content-strong)" }}>
                 {cases.find((c: any) => c.id === selectedCaseId)?.title || "Wybierz sprzedaż"}
               </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 overflow-auto p-4 space-y-3">
               {messages.length === 0 ? (
-                <p className="text-gray-500 text-sm text-center py-8">
-                  Brak wiadomości
-                </p>
+                <div className="flex flex-col items-center justify-center h-full">
+                  <MessageSquare className="w-8 h-8 mb-2" style={{ color: "var(--content-subtle)" }} strokeWidth={1} />
+                  <p className="text-sm" style={{ color: "var(--content-muted)" }}>Brak wiadomości</p>
+                </div>
               ) : (
-                [...messages].reverse().map((msg: any) => (
-                  <div
-                    key={msg.id}
-                    className={`p-3 rounded-lg max-w-[80%] ${
-                      msg.authorId === user?.id
-                        ? "ml-auto bg-primary/10"
-                        : "bg-gray-100"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-medium">
-                        {msg.author?.name || "System"}
-                      </span>
-                      <span className="text-[10px] text-gray-400">
-                        {new Date(msg.createdAt).toLocaleString("pl-PL")}
-                      </span>
-                    </div>
-                    <p className="text-sm">{msg.content}</p>
-                  </div>
-                ))
+                <>
+                  {[...messages].reverse().map((msg: any) => {
+                    const isOwn = msg.authorId === user?.id
+                    return (
+                      <div
+                        key={msg.id}
+                        className={`p-3 rounded-xl max-w-[80%] ${isOwn ? "ml-auto" : ""}`}
+                        style={{
+                          background: isOwn ? "var(--brand-muted)" : "var(--surface-2)",
+                          borderBottomRightRadius: isOwn ? "4px" : undefined,
+                          borderBottomLeftRadius: !isOwn ? "4px" : undefined,
+                        }}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <span
+                            className="text-xs font-medium"
+                            style={{ color: isOwn ? "var(--brand)" : "var(--content-strong)" }}
+                          >
+                            {msg.author?.name || "System"}
+                          </span>
+                          <span className="text-[0.625rem] tabular-nums" style={{ color: "var(--content-subtle)" }}>
+                            {new Date(msg.createdAt).toLocaleString("pl-PL")}
+                          </span>
+                        </div>
+                        <p className="text-sm" style={{ color: "var(--content-default)" }}>
+                          {msg.content}
+                        </p>
+                      </div>
+                    )
+                  })}
+                  <div ref={messagesEndRef} />
+                </>
               )}
             </CardContent>
 
             {selectedCaseId && (
-              <div className="border-t p-4">
+              <div className="p-4" style={{ borderTop: "1px solid var(--line-subtle)" }}>
                 <form onSubmit={handleSend} className="flex gap-2">
                   <Input
                     value={newMessage}

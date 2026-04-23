@@ -9,14 +9,32 @@ export function ClientHeader() {
   const user = session?.user as any
 
   return (
-    <header className="h-14 border-b bg-white flex items-center justify-between px-6">
+    <header
+      className="h-[60px] flex items-center justify-between px-6 fade-in"
+      style={{
+        background: "var(--card)",
+        borderBottom: "1px solid var(--border)",
+      }}
+    >
       <div />
       <div className="flex items-center gap-4">
         <div className="text-right">
-          <p className="text-sm font-medium">{user?.name}</p>
-          <p className="text-xs text-gray-500">Klient</p>
+          <p
+            className="text-sm font-medium"
+            style={{ color: "var(--content-strong)", fontFamily: "var(--font-display)" }}
+          >
+            {user?.name}
+          </p>
+          <p className="mono-label" style={{ color: "var(--content-muted)", fontSize: "0.6rem" }}>
+            Klient
+          </p>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => signOut({ callbackUrl: "/login" })}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          className="text-content-muted hover:text-danger"
+        >
           <LogOut className="w-4 h-4" />
         </Button>
       </div>

@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Briefcase, FileText, CheckSquare, MessageSquare } from "lucide-react"
+import Link from "next/link"
+import { Briefcase, FileText, CheckSquare, MessageSquare, ArrowRight } from "lucide-react"
 
 const statusLabels: Record<string, string> = {
   DRAFT: "Szkic",
@@ -19,11 +20,24 @@ const statusLabels: Record<string, string> = {
   CANCELLED: "Anulowana",
 }
 
+const statusColors: Record<string, string> = {
+  DRAFT: "bg-surface-3 text-content-muted",
+  IN_PREPARATION: "bg-brand-muted text-brand",
+  WAITING_CLIENT_DATA: "bg-warning/10 text-warning",
+  WAITING_FILES: "bg-warning/10 text-warning",
+  CARETAKER_REVIEW: "bg-[oklch(0.55_0.14_270/0.10)] text-[oklch(0.55_0.14_270)]",
+  DIRECTOR_REVIEW: "bg-[oklch(0.55_0.14_270/0.10)] text-[oklch(0.55_0.14_270)]",
+  TO_FIX: "bg-danger/10 text-danger",
+  ACCEPTED: "bg-success/10 text-success",
+  DELIVERED: "bg-success/10 text-success",
+  CLOSED: "bg-surface-3 text-content-muted",
+  CANCELLED: "bg-danger/10 text-danger",
+}
+
 export default async function ClientDashboardPage() {
   const user = await getCurrentUser()
   if (!user || user.role !== "CLIENT") redirect("/login")
 
-  // Find client linked to this user
   const client = await prisma.client.findFirst({
     where: { ownerId: user.id },
   })
@@ -31,9 +45,11 @@ export default async function ClientDashboardPage() {
   if (!client) {
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-bold mb-4">Witaj, {user.name}</h1>
+        <h1 className="text-2xl font-bold mb-4" style={{ color: "var(--content-strong)", fontFamily: "var(--font-display)" }}>
+          Witaj, {user.name}
+        </h1>
         <Card>
-          <CardContent className="p-8 text-center text-gray-500">
+          <CardContent className="p-8 text-center" style={{ color: "var(--content-muted)" }}>
             Nie masz jeszcze przypisanej firmy. Skontaktuj się z administratorem.
           </CardContent>
         </Card>
@@ -56,87 +72,96 @@ export default async function ClientDashboardPage() {
   const totalFiles = cases.reduce((sum, c) => sum + c._count.files, 0)
   const totalMessages = cases.reduce((sum, c) => sum + c._count.messages, 0)
 
+  const kpis = [
+    { label: "Wszystkie sprzedaże", value: totalCases, icon: Briefcase, color: "var(--content-muted)" },
+    { label: "Aktywne sprzedaże", value: activeCases, icon: Briefcase, color: "var(--brand)" },
+    { label: "Pliki", value: totalFiles, icon: FileText, color: "var(--content-muted)" },
+    { label: "Wiadomości", value: totalMessages, icon: MessageSquare, color: "var(--content-muted)" },
+  ]
+
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Witaj, {user.name}</h1>
-        <p className="text-gray-500">{client.companyName}</p>
+      {/* Welcome */}
+      <div className="reveal">
+        <h1
+          className="text-2xl font-semibold tracking-tight"
+          style={{ color: "var(--content-strong)", fontFamily: "var(--font-display)" }}
+        >
+          Witaj, {user.name}
+        </h1>
+        <p style={{ color: "var(--content-muted)" }} className="text-sm mt-0.5">
+          {client.companyName}
+        </p>
       </div>
 
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">
-              Wszystkie sprzedaże
-            </CardTitle>
-            <Briefcase className="w-4 h-4 text-gray-400" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{totalCases}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">
-              Aktywne sprzedaże
-            </CardTitle>
-            <Briefcase className="w-4 h-4 text-blue-400" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{activeCases}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">
-              Pliki
-            </CardTitle>
-            <FileText className="w-4 h-4 text-gray-400" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{totalFiles}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">
-              Wiadomości
-            </CardTitle>
-            <MessageSquare className="w-4 h-4 text-gray-400" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{totalMessages}</p>
-          </CardContent>
-        </Card>
+        {kpis.map((kpi, i) => (
+          <Card key={kpi.label} className={`reveal reveal-delay-${i + 1}`}>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="mono-label" style={{ color: "var(--content-muted)" }}>
+                  {kpi.label}
+                </span>
+                <kpi.icon className="w-4 h-4" style={{ color: kpi.color }} strokeWidth={1.5} />
+              </div>
+              <p
+                className="text-3xl font-semibold tabular-nums tracking-tight"
+                style={{ color: "var(--content-strong)", fontFamily: "var(--font-display)" }}
+              >
+                {kpi.value}
+              </p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      <Card>
-        <CardHeader>
+      {/* Recent Cases */}
+      <Card className="reveal reveal-delay-5">
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Ostatnie sprzedaże</CardTitle>
+          {cases.length > 5 && (
+            <Link
+              href="/client/cases"
+              className="flex items-center gap-1 text-xs font-medium transition-colors duration-150"
+              style={{ color: "var(--brand)" }}
+            >
+              Zobacz wszystkie
+              <ArrowRight className="w-3 h-3" />
+            </Link>
+          )}
         </CardHeader>
         <CardContent>
           {cases.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">Brak sprzedaży</p>
+            <div className="flex flex-col items-center justify-center py-8">
+              <Briefcase className="w-8 h-8 mb-2" style={{ color: "var(--content-subtle)" }} strokeWidth={1} />
+              <p style={{ color: "var(--content-muted)" }} className="text-sm">Brak sprzedaży</p>
+            </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {cases.slice(0, 5).map((c) => (
-                <div
+                <Link
                   key={c.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  href={`/client/cases/${c.id}`}
+                  className="flex items-center justify-between p-3 rounded-lg transition-colors duration-150 group"
+                  style={{ background: "var(--surface-2)" }}
+                  onMouseEnter={(e: any) => (e.currentTarget.style.background = "var(--brand-muted)")}
+                  onMouseLeave={(e: any) => (e.currentTarget.style.background = "var(--surface-2)")}
                 >
                   <div>
-                    <p className="font-medium">{c.title}</p>
+                    <p className="font-medium text-sm" style={{ color: "var(--content-strong)" }}>
+                      {c.title}
+                    </p>
                     {c.serviceName && (
-                      <p className="text-sm text-gray-500">{c.serviceName}</p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--content-muted)" }}>
+                        {c.serviceName}
+                      </p>
                     )}
                   </div>
-                  <Badge variant="outline">
+                  <Badge className={statusColors[c.status] || "bg-surface-3 text-content-muted"} variant="outline">
                     {statusLabels[c.status] || c.status}
                   </Badge>
-                </div>
+                </Link>
               ))}
             </div>
           )}
