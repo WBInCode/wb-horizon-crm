@@ -159,30 +159,34 @@ export default function AdminPage() {
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
                     <Select
-                      defaultValue={user.role}
+                      value={user.role}
                       onValueChange={(value) => updateUser(user.id, "role", value)}
                     >
                       <SelectTrigger className="w-40">
-                        <SelectValue />
+                        <span data-slot="select-value" className="flex flex-1 text-left truncate">
+                          {roleLabels[user.role] || user.role}
+                        </span>
                       </SelectTrigger>
                       <SelectContent>
                         {Object.entries(roleLabels).map(([key, label]) => (
-                          <SelectItem key={key} value={key} label={label}>{label}</SelectItem>
+                          <SelectItem key={key} value={key}>{label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </TableCell>
                   <TableCell>
                     <Select
-                      defaultValue={user.status}
+                      value={user.status}
                       onValueChange={(value) => updateUser(user.id, "status", value)}
                     >
                       <SelectTrigger className="w-36">
-                        <SelectValue />
+                        <span data-slot="select-value" className="flex flex-1 text-left truncate">
+                          {statusLabels[user.status] || user.status}
+                        </span>
                       </SelectTrigger>
                       <SelectContent>
                         {Object.entries(statusLabels).map(([key, label]) => (
-                          <SelectItem key={key} value={key} label={label}>{label}</SelectItem>
+                          <SelectItem key={key} value={key}>{label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -300,10 +304,14 @@ export default function AdminPage() {
             <div>
               <label className="text-sm font-medium">Rola</label>
               <Select value={newUser.role} onValueChange={(v: string | null) => setNewUser({ ...newUser, role: v ?? "SALESPERSON" })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <span data-slot="select-value" className="flex flex-1 text-left truncate">
+                    {roleLabels[newUser.role] || newUser.role}
+                  </span>
+                </SelectTrigger>
                 <SelectContent>
                   {Object.entries(roleLabels).map(([key, label]) => (
-                    <SelectItem key={key} value={key} label={label}>{label}</SelectItem>
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

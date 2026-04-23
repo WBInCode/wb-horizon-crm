@@ -176,7 +176,7 @@ export default function LeadsPage() {
         </div>
         <Select value={statusFilter} onValueChange={(v: string | null) => setStatusFilter(v ?? "")}>
           <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Status" />
+            <SelectValue placeholder="Status">{statusFilter ? statusLabels[statusFilter] : undefined}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {Object.entries(statusLabels).map(([key, label]) => (

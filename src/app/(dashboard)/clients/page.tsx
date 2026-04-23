@@ -142,7 +142,9 @@ export default function ClientsPage() {
         </div>
         <Select value={stageFilter} onValueChange={(val) => setStageFilter(val === "ALL" ? "" : (val ?? ""))}>
           <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filtruj po etapie" />
+            <SelectValue placeholder="Filtruj po etapie">
+              {stageFilter ? STAGE_CONFIG[stageFilter]?.label : undefined}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">Wszystkie etapy</SelectItem>

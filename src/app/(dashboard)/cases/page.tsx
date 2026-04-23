@@ -181,7 +181,7 @@ export default function CasesPage() {
         </div>
         <Select value={statusFilter} onValueChange={(v: string | null) => setStatusFilter(v ?? "")}>
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Status" />
+            <SelectValue placeholder="Status">{statusFilter ? statusLabels[statusFilter] : undefined}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {Object.entries(statusLabels).map(([key, label]) => (

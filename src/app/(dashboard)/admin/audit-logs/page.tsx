@@ -170,7 +170,7 @@ export default function AuditLogsPage() {
             <div className="w-40">
               <label className="text-xs font-medium text-gray-500 mb-1 block">Akcja</label>
               <Select value={actionFilter} onValueChange={(v: string | null) => setActionFilter(v ?? "")}>
-                <SelectTrigger><SelectValue placeholder="Wszystkie" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Wszystkie">{actionFilter && actionFilter !== "all" ? actionLabels[actionFilter] : undefined}</SelectValue></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all" label="Wszystkie">Wszystkie</SelectItem>
                   {Object.entries(actionLabels).map(([key, label]) => (
@@ -182,7 +182,7 @@ export default function AuditLogsPage() {
             <div className="w-40">
               <label className="text-xs font-medium text-gray-500 mb-1 block">Typ obiektu</label>
               <Select value={entityFilter} onValueChange={(v: string | null) => setEntityFilter(v ?? "")}>
-                <SelectTrigger><SelectValue placeholder="Wszystkie" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Wszystkie">{entityFilter && entityFilter !== "all" ? entityLabels[entityFilter] : undefined}</SelectValue></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all" label="Wszystkie">Wszystkie</SelectItem>
                   {Object.entries(entityLabels).map(([key, label]) => (
