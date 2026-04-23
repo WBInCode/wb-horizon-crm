@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireRole } from "@/lib/auth"
+import { requirePermission } from "@/lib/auth"
 
 function buildEntityUrl(entityType: string, entityId: string | null): string | null {
   if (!entityId) return null
@@ -22,7 +22,7 @@ async function getRelatedIds(roleField: string, userId: string) {
 
 // GET /api/admin/audit-logs - lista logów audytowych
 export async function GET(req: NextRequest) {
-  const currentUser = await requireRole(["ADMIN", "DIRECTOR", "CARETAKER"])
+  const currentUser = await requirePermission("admin.audit")
   if (!currentUser) {
     return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
   }

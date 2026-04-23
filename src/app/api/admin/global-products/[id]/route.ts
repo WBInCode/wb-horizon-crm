@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireRole } from "@/lib/auth"
+import { requirePermission } from "@/lib/auth"
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const user = await requireRole(["ADMIN", "DIRECTOR"])
+  const user = await requirePermission("admin.products")
   if (!user) return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
 
   const { id } = await params
@@ -24,7 +24,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const user = await requireRole(["ADMIN"])
+  const user = await requirePermission("admin.products")
   if (!user) return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
 
   const { id } = await params

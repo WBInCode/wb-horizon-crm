@@ -149,6 +149,10 @@ model User {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
+  // Dynamic permission system
+  roleTemplateId String?
+  roleTemplate   RoleTemplate? @relation("UserRoleTemplate", fields: [roleTemplateId], references: [id])
+
   // Relacje
   leadsAssigned    Lead[]        @relation("SalespersonLeads")
   clientsOwned     Client[]      @relation("ClientOwner")
@@ -514,5 +518,46 @@ model CooperationTerms {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ==================== DYNAMIC PERMISSIONS ====================
+
+model RoleTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique          // e.g. "ADMIN", "DIRECTOR", "custom_intern"
+  label       String                    // PL display: "Administrator", "Stażysta"
+  description String?  @db.Text
+  isSystem    Boolean  @default(false)  // true for original 6 — cannot delete
+  isDefault   Boolean  @default(false)  // assigned to new users if no role specified
+  color       String?                   // hex or oklch for UI badge
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  permissions RolePermission[]
+  users       User[]   @relation("UserRoleTemplate")
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  code        String   @unique          // e.g. "leads.create", "pages.admin"
+  category    String                    // e.g. "leads", "cases", "admin", "pages"
+  label       String                    // PL display: "Tworzenie leadów"
+  description String?
+  sortOrder   Int      @default(0)      // for consistent UI ordering
+
+  roles       RolePermission[]
+
+  @@index([category])
+}
+
+model RolePermission {
+  roleTemplateId String
+  roleTemplate   RoleTemplate @relation(fields: [roleTemplateId], references: [id], onDelete: Cascade)
+  permissionId   String
+  permission     Permission   @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleTemplateId, permissionId])
+  @@index([roleTemplateId])
+  @@index([permissionId])
 }
 

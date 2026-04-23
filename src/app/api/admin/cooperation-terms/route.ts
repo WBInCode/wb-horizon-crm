@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireRole } from "@/lib/auth"
+import { requirePermission } from "@/lib/auth"
 
 export async function GET() {
-  const user = await requireRole(["ADMIN", "DIRECTOR"])
+  const user = await requirePermission("admin.terms")
   if (!user) return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
 
   const terms = await prisma.cooperationTerms.findMany({ orderBy: { updatedAt: "desc" } })
@@ -11,7 +11,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const user = await requireRole(["ADMIN", "DIRECTOR"])
+  const user = await requirePermission("admin.terms")
   if (!user) return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
 
   const body = await req.json()

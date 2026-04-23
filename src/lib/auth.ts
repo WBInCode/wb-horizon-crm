@@ -24,6 +24,78 @@ export async function requireRole(allowedRoles: string[]) {
   return user
 }
 
+// ==================== DYNAMIC PERMISSION SYSTEM ====================
+
+/**
+ * Get all permission codes for a user (from their RoleTemplate).
+ * Cached per request via static Map to avoid repeated DB hits.
+ */
+const _permCache = new Map<string, string[]>()
+
+export async function getUserPermissions(userId: string): Promise<string[]> {
+  if (_permCache.has(userId)) return _permCache.get(userId)!
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      roleTemplate: {
+        select: {
+          permissions: {
+            select: { permission: { select: { code: true } } }
+          }
+        }
+      }
+    }
+  })
+
+  const codes = user?.roleTemplate?.permissions.map(rp => rp.permission.code) ?? []
+  _permCache.set(userId, codes)
+  return codes
+}
+
+/**
+ * Check if user has a specific permission.
+ */
+export async function hasPermission(userId: string, permissionCode: string): Promise<boolean> {
+  const perms = await getUserPermissions(userId)
+  return perms.includes(permissionCode)
+}
+
+/**
+ * Check if user has ANY of the given permissions.
+ */
+export async function hasAnyPermission(userId: string, codes: string[]): Promise<boolean> {
+  const perms = await getUserPermissions(userId)
+  return codes.some(c => perms.includes(c))
+}
+
+/**
+ * Server-side guard: returns user if they have the required permission, null otherwise.
+ * Drop-in replacement for requireRole().
+ */
+export async function requirePermission(permissionCode: string) {
+  const user = await getCurrentUser()
+  if (!user) return null
+
+  const allowed = await hasPermission(user.id, permissionCode)
+  if (!allowed) return null
+
+  return user
+}
+
+/**
+ * Server-side guard: returns user if they have ANY of the required permissions.
+ */
+export async function requireAnyPermission(codes: string[]) {
+  const user = await getCurrentUser()
+  if (!user) return null
+
+  const allowed = await hasAnyPermission(user.id, codes)
+  if (!allowed) return null
+
+  return user
+}
+
 /**
  * Check if user has access to a specific case based on role.
  * ADMIN/DIRECTOR: full access

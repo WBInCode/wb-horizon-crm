@@ -16,6 +16,7 @@ import ChecklistTemplatesTab from "@/components/admin/ChecklistTemplatesTab"
 import GlobalProductsTab from "@/components/admin/GlobalProductsTab"
 import CooperationTermsTab from "@/components/admin/CooperationTermsTab"
 import ArchiveManagementTab from "@/components/admin/ArchiveManagementTab"
+import RolesPermissionsTab from "@/components/admin/RolesPermissionsTab"
 
 const roleLabels: Record<string, string> = {
   ADMIN: "Administrator",
@@ -120,6 +121,7 @@ export default function AdminPage() {
       <Tabs defaultValue="users" className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="users">Użytkownicy</TabsTrigger>
+          <TabsTrigger value="roles">Role i uprawnienia</TabsTrigger>
           <TabsTrigger value="surveys">Szablony ankiet</TabsTrigger>
           <TabsTrigger value="checklists">Szablony checklist</TabsTrigger>
           <TabsTrigger value="products">Produkty/Usługi</TabsTrigger>
@@ -264,6 +266,10 @@ export default function AdminPage() {
 
         <TabsContent value="surveys">
           <SurveyTemplatesTab />
+        </TabsContent>
+
+        <TabsContent value="roles">
+          <RolesPermissionsTab />
         </TabsContent>
 
         <TabsContent value="checklists">

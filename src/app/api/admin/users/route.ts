@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireRole } from "@/lib/auth"
+import { requirePermission } from "@/lib/auth"
 import bcrypt from "bcryptjs"
 import { auditLog } from "@/lib/audit"
 
 // GET /api/admin/users - lista użytkowników (admin/dyrektor)
 export async function GET(req: NextRequest) {
-  const currentUser = await requireRole(["ADMIN", "DIRECTOR"])
+  const currentUser = await requirePermission("admin.users.view")
   if (!currentUser) {
     return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
   }
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
 // PUT /api/admin/users - aktualizacja użytkownika
 export async function PUT(req: NextRequest) {
-  const currentUser = await requireRole(["ADMIN"])
+  const currentUser = await requirePermission("admin.users")
   if (!currentUser) {
     return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
   }
@@ -69,7 +69,7 @@ export async function PUT(req: NextRequest) {
 
 // POST /api/admin/users - tworzenie nowego użytkownika 
 export async function POST(req: NextRequest) {
-  const currentUser = await requireRole(["ADMIN"])
+  const currentUser = await requirePermission("admin.users")
   if (!currentUser) {
     return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
   }

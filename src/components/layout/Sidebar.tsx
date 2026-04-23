@@ -2,29 +2,25 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useSession } from "next-auth/react"
 import { LayoutDashboard, Users, Building2, ShoppingCart, Shield, ScrollText, Archive } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { usePermissions } from "@/components/providers/PermissionProvider"
 
-const menuItems = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Leady", href: "/leads", icon: Users },
-  { label: "Kontrahenci", href: "/clients", icon: Building2 },
-  { label: "Sprzedaże", href: "/cases", icon: ShoppingCart },
+const allMenuItems = [
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, permission: "pages.dashboard" },
+  { label: "Leady", href: "/leads", icon: Users, permission: "pages.leads" },
+  { label: "Kontrahenci", href: "/clients", icon: Building2, permission: "pages.clients" },
+  { label: "Sprzedaże", href: "/cases", icon: ShoppingCart, permission: "pages.cases" },
+  { label: "Archiwum", href: "/archive", icon: Archive, permission: "pages.archive" },
+  { label: "Admin", href: "/admin", icon: Shield, permission: "pages.admin" },
+  { label: "Audit Log", href: "/admin/audit-logs", icon: ScrollText, permission: "admin.audit" },
 ]
-
-const adminItem = { label: "Admin", href: "/admin", icon: Shield }
-const auditItem = { label: "Audit Log", href: "/admin/audit-logs", icon: ScrollText }
-const archiveItem = { label: "Archiwum", href: "/archive", icon: Archive }
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { data: session } = useSession()
-  const role = (session?.user as any)?.role
+  const { has, loading } = usePermissions()
 
-  const items = role === "ADMIN" || role === "DIRECTOR" 
-    ? [...menuItems, archiveItem, adminItem, auditItem] 
-    : menuItems
+  const items = allMenuItems.filter(item => has(item.permission))
 
   return (
     <aside
