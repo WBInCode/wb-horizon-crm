@@ -82,6 +82,12 @@
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-in-out-quint: cubic-bezier(0.83, 0, 0.17, 1);
+
+  /* ── Durations ── */
+  --duration-micro: 150ms;
+  --duration-standard: 320ms;
+  --duration-choreography: 600ms;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -247,20 +253,34 @@
     border-radius: 4px;
   }
 
-  /* Scrollbar styling */
+  /* Scrollbar styling — refined thin rail */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
+    margin: 4px 0;
   }
   ::-webkit-scrollbar-thumb {
-    background: var(--content-subtle);
-    border-radius: 3px;
+    background: var(--line-default);
+    border-radius: 99px;
+    transition: background 200ms;
   }
   ::-webkit-scrollbar-thumb:hover {
     background: var(--content-muted);
+  }
+  ::-webkit-scrollbar-thumb:active {
+    background: var(--brand);
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* Firefox scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-default) transparent;
   }
 }
 
@@ -321,6 +341,85 @@
 @keyframes count-up-glow {
   0%, 100% { text-shadow: none; }
   50% { text-shadow: 0 0 24px var(--brand-muted); }
+}
+
+/* ── Overlay / popup choreography ── */
+@keyframes overlay-in {
+  from { opacity: 0; backdrop-filter: blur(0px); }
+  to   { opacity: 1; backdrop-filter: blur(12px); }
+}
+@keyframes overlay-out {
+  from { opacity: 1; backdrop-filter: blur(12px); }
+  to   { opacity: 0; backdrop-filter: blur(0px); }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.96);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    filter: blur(0px);
+  }
+}
+@keyframes dialog-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    filter: blur(0px);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.96);
+    filter: blur(4px);
+  }
+}
+
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+  }
+}
+@keyframes dropdown-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+}
+
+@keyframes slide-up-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--brand-muted); }
+  50% { box-shadow: 0 0 20px 4px var(--brand-muted); }
 }
 
 .reveal {
@@ -387,12 +486,37 @@
 /* Card hover lift */
 .card-hover {
   transition: transform 350ms var(--ease-out-expo),
-              box-shadow 350ms var(--ease-out-expo);
+              box-shadow 350ms var(--ease-out-expo),
+              border-color 350ms var(--ease-out-expo);
 }
 .card-hover:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 32px -8px oklch(0.16 0.015 55 / 0.08),
-              0 2px 8px -2px oklch(0.16 0.015 55 / 0.04);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px -12px oklch(0.16 0.015 55 / 0.10),
+              0 4px 12px -4px oklch(0.16 0.015 55 / 0.05);
+  border-color: var(--brand-muted);
+}
+
+/* Interactive row highlight */
+.row-hover {
+  transition: background 200ms var(--ease-out-quart),
+              transform 200ms var(--ease-out-quart);
+}
+.row-hover:hover {
+  background: var(--brand-muted);
+}
+
+/* Button press — satisfying dip */
+.btn-press {
+  transition: transform 120ms var(--ease-out-expo),
+              box-shadow 120ms var(--ease-out-expo);
+}
+.btn-press:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -4px oklch(0.16 0.015 55 / 0.12);
+}
+.btn-press:active {
+  transform: translateY(1px) scale(0.98);
+  box-shadow: none;
 }
 
 /* Tabular numbers for data */
@@ -413,7 +537,16 @@
     transform: none !important;
     filter: none !important;
   }
-  .card-hover:hover {
+  .card-hover:hover,
+  .btn-press:hover,
+  .btn-press:active {
     transform: none;
+  }
+  [data-slot="dialog-overlay"],
+  [data-slot="dialog-content"],
+  [data-slot="dropdown-menu-content"],
+  [data-slot="select-content"] {
+    animation: none !important;
+    transition: none !important;
   }
 }

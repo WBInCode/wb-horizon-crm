@@ -26,7 +26,7 @@ export default async function DashboardLayout({
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0">
           <Header />
-          <main className="flex-1 overflow-auto" style={{ background: "var(--surface-1)" }}>
+          <main className="flex-1 overflow-auto animate-[slide-up-in_400ms_cubic-bezier(0.16,1,0.3,1)_both]" style={{ background: "var(--surface-1)" }}>
             {children}
           </main>
         </div>
