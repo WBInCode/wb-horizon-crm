@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { display, body, mono } from "./fonts";
 import "./globals.css";
 import { SessionProvider } from "@/components/providers/SessionProvider";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "WB Horizon CRM",
@@ -16,8 +14,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pl">
-      <body className={inter.className}>
+    <html lang="pl" className={`${display.variable} ${body.variable} ${mono.variable}`} suppressHydrationWarning>
+      <body className="antialiased">
         <SessionProvider>
           {children}
         </SessionProvider>
