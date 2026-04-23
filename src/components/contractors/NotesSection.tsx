@@ -25,7 +25,7 @@ export default function NotesSection({ notes, clientId, onRefresh, openForm, onF
   const [text, setText] = useState("")
   const [saving, setSaving] = useState(false)
 
-  const isFormOpen = openForm !== undefined ? openForm : showForm
+  const isFormOpen = openForm || showForm
 
   const handleAdd = async () => {
     if (!text.trim()) return
