@@ -6,7 +6,46 @@ import { Select as SelectPrimitive } from "@base-ui/react/select"
 import { cn } from "@/lib/utils"
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
 
-const Select = SelectPrimitive.Root
+/**
+ * Auto-builds Base UI Select `items` map from descendant <SelectItem> children
+ * so <SelectValue /> can render the item label instead of the raw value (id).
+ *
+ * Base UI's <Select.Value/> displays the value verbatim unless the Root is
+ * given an `items` map. Most of our codebase uses `<SelectItem value={id}>{name}</SelectItem>`
+ * which used to render the id on the trigger after selection. This wrapper
+ * walks children recursively and builds the lookup map automatically, so that
+ * existing call sites work without modifications. Consumers can still pass
+ * `items` explicitly to override.
+ */
+function buildItemsMap(children: React.ReactNode): Record<string, React.ReactNode> | undefined {
+  const map: Record<string, React.ReactNode> = {}
+  const walk = (nodes: React.ReactNode) => {
+    React.Children.forEach(nodes, (child) => {
+      if (!React.isValidElement(child)) return
+      const childProps = child.props as Record<string, unknown> & { value?: unknown; children?: React.ReactNode; label?: React.ReactNode }
+      if (typeof childProps.value === "string" && (childProps.label !== undefined || childProps.children !== undefined)) {
+        map[childProps.value] = childProps.label ?? childProps.children
+      }
+      if (childProps.children !== undefined) walk(childProps.children as React.ReactNode)
+    })
+  }
+  walk(children)
+  return Object.keys(map).length > 0 ? map : undefined
+}
+
+type SelectRootProps = React.ComponentProps<typeof SelectPrimitive.Root>
+
+function Select({ children, items, ...props }: SelectRootProps) {
+  const computedItems = React.useMemo(
+    () => items ?? buildItemsMap(children),
+    [items, children],
+  )
+  return (
+    <SelectPrimitive.Root items={computedItems as SelectRootProps["items"]} {...props}>
+      {children}
+    </SelectPrimitive.Root>
+  )
+}
 
 function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
   return (

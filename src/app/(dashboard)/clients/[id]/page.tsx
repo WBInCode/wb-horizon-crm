@@ -18,6 +18,7 @@ import SalesSection       from "@/components/contractors/SalesSection"
 import NotesSection       from "@/components/contractors/NotesSection"
 import AuditSection       from "@/components/contractors/AuditSection"
 import AssignmentsSection from "@/components/contractors/AssignmentsSection"
+import LeadInfoSection    from "@/components/contractors/LeadInfoSection"
 
 export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
@@ -182,7 +183,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const showSales = ["SALE", "CLIENT", "INACTIVE"].includes(stage)
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       {/* ─── INACTIVE banner ───────────────────────────────────────────────── */}
       {isInactive && (
         <div className="mb-4 p-3 bg-gray-100 border border-gray-300 rounded-lg text-sm text-gray-600 flex items-center gap-2">
@@ -301,6 +302,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         {showProducts && (
           <AssignmentsSection client={client} cases={client.cases || []} />
         )}
+
+        {/* ─── Row 1c: Lead info (PDF C.5) ─────────────────────────── */}
+        <LeadInfoSection clientId={clientId} canEdit={true} />
 
         {/* ─── Row 2: Produkty (visible from PROSPECT+) ────────────────── */}
         {showProducts && (

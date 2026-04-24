@@ -1,7 +1,7 @@
 ﻿import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
-import { notifyNewMessage } from "@/lib/notifications"
+import { notifyProcessParticipants } from "@/lib/notifications"
 
 export async function GET(
   request: NextRequest,
@@ -92,19 +92,15 @@ export async function POST(
       data: { updatedAt: new Date() }
     })
 
-    // Powiadom uczestników sprzedaży o nowej wiadomości
+    // Powiadom WSZYSTKICH uczestników procesu o nowej wiadomości (PDF A.4.3)
     if (messageType === "CHAT") {
-      const caseData = await prisma.case.findUnique({
-        where: { id },
-        select: { salesId: true, caretakerId: true, directorId: true }
-      })
-      if (caseData) {
-        const recipients = [caseData.salesId, caseData.caretakerId, caseData.directorId]
-          .filter((uid): uid is string => uid !== null && uid !== user.id)
-        for (const recipientId of recipients) {
-          await notifyNewMessage(recipientId, id, user.name || "Użytkownik")
-        }
-      }
+      await notifyProcessParticipants(
+        id,
+        user.id,
+        "NEW_MESSAGE",
+        "Nowa wiadomość",
+        `${user.name || "Użytkownik"} wysłał(a) wiadomość`,
+      )
     }
 
     return NextResponse.json(message, { status: 201 })

@@ -23,7 +23,7 @@ export async function GET(
     }
 
     const files = await prisma.caseFile.findMany({
-      where: { caseId: id },
+      where: { caseId: id, deletedAt: null },
       include: {
         uploadedBy: { select: { name: true } }
       },

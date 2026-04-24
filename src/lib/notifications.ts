@@ -7,6 +7,8 @@ type NotificationType =
   | "CASE_FOR_APPROVAL"
   | "CASE_RETURNED"
   | "CARETAKER_CHANGED"
+  | "MEETING_CREATED"
+  | "STAGE_CHANGED"
 
 export async function createNotification(
   userId: string,
@@ -24,6 +26,55 @@ export async function createNotification(
       link: link || null,
     },
   })
+}
+
+// PDF A.4.3 — zwraca wszystkich uczestników procesu (case)
+// Pomija przekazanego `excludeUserId` (nie wysyłaj notif do siebie)
+export async function getProcessParticipants(
+  caseId: string,
+  excludeUserId?: string,
+): Promise<string[]> {
+  const c = await prisma.case.findUnique({
+    where: { id: caseId },
+    select: {
+      salesId: true,
+      caretakerId: true,
+      directorId: true,
+      client: { select: { ownerId: true, caretakerId: true } },
+      meetings: {
+        where: { assignedToId: { not: null } },
+        select: { assignedToId: true },
+        distinct: ["assignedToId"],
+      },
+    },
+  })
+  if (!c) return []
+
+  const ids = new Set<string>()
+  if (c.salesId) ids.add(c.salesId)
+  if (c.caretakerId) ids.add(c.caretakerId)
+  if (c.directorId) ids.add(c.directorId)
+  if (c.client?.ownerId) ids.add(c.client.ownerId)
+  if (c.client?.caretakerId) ids.add(c.client.caretakerId)
+  for (const m of c.meetings) {
+    if (m.assignedToId) ids.add(m.assignedToId)
+  }
+  if (excludeUserId) ids.delete(excludeUserId)
+  return Array.from(ids)
+}
+
+// Bulk helper: wyślij notif do wszystkich uczestników procesu
+export async function notifyProcessParticipants(
+  caseId: string,
+  excludeUserId: string,
+  type: NotificationType,
+  title: string,
+  message: string,
+) {
+  const ids = await getProcessParticipants(caseId, excludeUserId)
+  await Promise.all(
+    ids.map((uid) => createNotification(uid, type, title, message, `/cases/${caseId}`)),
+  )
 }
 
 export async function notifyCaseAssigned(caretakerId: string, caseId: string, caseTitle: string) {

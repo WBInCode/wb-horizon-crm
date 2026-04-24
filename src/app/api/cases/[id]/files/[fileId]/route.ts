@@ -1,7 +1,6 @@
 ﻿import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
-import { del } from "@vercel/blob"
 import { auditLog } from "@/lib/audit"
 
 export async function PATCH(
@@ -108,24 +107,27 @@ export async function DELETE(
     if (file && file.uploadedById !== user.id && !["CARETAKER", "DIRECTOR", "ADMIN"].includes(user.role)) {
       return NextResponse.json({ error: "Brak uprawnień do usunięcia pliku" }, { status: 403 })
     }
-
-    // Usuń blob z Vercel Blob (jeśli URL jest blob URL)
-    if (file?.filePath && file.filePath.includes("blob.vercel-storage.com")) {
-      try {
-        await del(file.filePath)
-      } catch (e) {
-        console.error("Blob delete error:", e)
-      }
+    if (file?.deletedAt) {
+      return NextResponse.json({ error: "Plik już został usunięty" }, { status: 410 })
     }
-    
-    await prisma.caseFile.delete({
-      where: { id: fileId }
+
+    const body = await request.json().catch(() => ({}))
+    const reason: string = (body?.reason || "").toString().trim()
+
+    // PDF B.9 — soft-delete: plik znika z listy, ale audit zostaje, w UI jako wpis "X usunął"
+    await prisma.caseFile.update({
+      where: { id: fileId },
+      data: {
+        deletedAt: new Date(),
+        deletedById: user.id,
+        deleteReason: reason || null,
+      },
     })
 
     await prisma.caseMessage.create({
       data: {
         caseId: id,
-        content: `Usunięto plik: ${file?.fileName}`,
+        content: `Plik "${file?.fileName}" został usunięty przez ${user.name}${reason ? ` (powód: ${reason})` : ""}`,
         type: "SYSTEM_LOG",
         visibilityScope: "ALL",
         authorId: user.id
@@ -138,7 +140,7 @@ export async function DELETE(
       entityId: fileId,
       entityLabel: file?.fileName,
       userId: user.id,
-      metadata: { caseId: id },
+      metadata: { caseId: id, soft: true, reason: reason || null },
     })
 
     return NextResponse.json({ success: true })

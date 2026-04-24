@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
 import { notifyCaseAssigned } from "@/lib/notifications"
 import { auditLog } from "@/lib/audit"
+import { getVisibleUserIds, getVisibleClientIds } from "@/lib/structure"
+import type { Role } from "@prisma/client"
 
 async function findCaretakerWithLeastCases() {
   const caretakers = await prisma.user.findMany({
@@ -88,7 +90,27 @@ export async function GET(request: NextRequest) {
       where.caretakerId = user.id
     } else if (user.role === "CLIENT") {
       where.client = { ownerId: user.id }
+    } else if (user.role === "CALL_CENTER") {
+      where.salesId = user.id
+    } else if (user.role === "DIRECTOR" || user.role === "MANAGER") {
+      const [visibleUsers, visibleClients] = await Promise.all([
+        getVisibleUserIds(user.id, user.role as Role),
+        getVisibleClientIds(user.id, user.role as Role),
+      ])
+      const orFilters: Record<string, unknown>[] = []
+      if (visibleUsers !== "ALL") {
+        orFilters.push({ salesId: { in: visibleUsers } })
+        orFilters.push({ caretakerId: { in: visibleUsers } })
+        orFilters.push({ directorId: { in: visibleUsers } })
+      }
+      if (visibleClients !== "ALL" && visibleClients.length > 0) {
+        orFilters.push({ clientId: { in: visibleClients } })
+      }
+      if (orFilters.length > 0) where.OR = orFilters
+    } else if (user.role === "KONTRAHENT") {
+      where.product = { vendorId: user.id }
     }
+    // ADMIN — bez ograniczeń
 
     const cases = await prisma.case.findMany({
       where,
@@ -146,7 +168,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Tylko SALESPERSON/ADMIN/DIRECTOR mogą tworzyć sprzedaże
-    if (!["SALESPERSON", "ADMIN", "DIRECTOR"].includes(user.role)) {
+    if (!["SALESPERSON", "ADMIN", "DIRECTOR", "MANAGER"].includes(user.role)) {
       return NextResponse.json({ error: "Brak uprawnień" }, { status: 403 })
     }
 
@@ -155,7 +177,7 @@ export async function POST(request: NextRequest) {
     // Walidacja: kontrahent musi być min. w etapie QUOTATION
     const client = await prisma.client.findUnique({
       where: { id: body.clientId },
-      select: { stage: true, companyName: true },
+      select: { stage: true, companyName: true, sourceId: true },
     })
     if (!client) {
       return NextResponse.json({ error: "Nie znaleziono kontrahenta" }, { status: 404 })
@@ -181,6 +203,7 @@ export async function POST(request: NextRequest) {
         salesId: body.salesId || user.id,
         caretakerId: caretakerId,
         directorId: body.directorId,
+        sourceId: body.sourceId || client.sourceId || null,
         status: "DRAFT",
         processStage: "NEW",
         detailedStatus: "WAITING_SURVEY",

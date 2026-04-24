@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Users, Building2, ShoppingCart, Shield, ScrollText, Archive } from "lucide-react"
+import { LayoutDashboard, Users, Building2, ShoppingCart, Shield, ScrollText, Archive, BookOpen } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { usePermissions } from "@/components/providers/PermissionProvider"
 
@@ -104,6 +104,21 @@ export function Sidebar() {
           )
         })}
       </nav>
+
+      {/* Documentation link */}
+      <div className="px-3 pb-2">
+        <Link
+          href="/docs"
+          className="group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-[0.8125rem] font-medium transition-all duration-200"
+          style={{
+            color: pathname.startsWith("/docs") ? "var(--sidebar-accent-foreground)" : "var(--sidebar-foreground)",
+            background: pathname.startsWith("/docs") ? "var(--sidebar-accent)" : "transparent",
+          }}
+        >
+          <BookOpen className="w-[18px] h-[18px]" strokeWidth={pathname.startsWith("/docs") ? 2 : 1.5} style={{ color: pathname.startsWith("/docs") ? "var(--brand)" : "var(--sidebar-foreground)" }} />
+          <span>Dokumentacja</span>
+        </Link>
+      </div>
 
       {/* Bottom section */}
       <div

@@ -22,7 +22,8 @@ export async function GET(
     }
 
     const quote = await prisma.quote.findUnique({
-      where: { id: quoteId }
+      where: { id: quoteId },
+      include: { lineItems: { orderBy: { sortOrder: "asc" } } },
     })
 
     if (!quote) {
@@ -69,6 +70,7 @@ export async function PUT(
         variants: body.variants,
         notes: body.notes,
         status: body.status,
+        kind: body.kind,
       }
     })
 

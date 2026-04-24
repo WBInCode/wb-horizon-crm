@@ -169,6 +169,52 @@ export async function GET(request: NextRequest) {
       where: { ...caseFilter, processStage: "EXECUTION" },
     })
 
+    // PDF B.2 — Zadania (checklisty przypisane do mnie, niezrobione)
+    const myTasks = await prisma.caseChecklistItem.findMany({
+      where: {
+        assignedToId: user.id,
+        status: "PENDING",
+      },
+      include: {
+        case: { select: { id: true, title: true, client: { select: { companyName: true } } } },
+      },
+      orderBy: { createdAt: "asc" },
+      take: 10,
+    })
+
+    // PDF B.2 — Kontakty (klienci których jestem właścicielem)
+    const myClients = await prisma.client.findMany({
+      where: {
+        ownerId: user.id,
+        stage: { notIn: ["INACTIVE"] },
+      },
+      select: {
+        id: true,
+        companyName: true,
+        industry: true,
+        stage: true,
+        contacts: { where: { isMain: true }, select: { name: true, phone: true, email: true }, take: 1 },
+        source: { select: { name: true } },
+        caretaker: { select: { name: true } },
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 10,
+    })
+
+    // PDF B.2 — Do poprawy (case ze statusem TO_FIX przypisane do mnie)
+    const toFix = await prisma.case.findMany({
+      where: {
+        ...caseFilter,
+        detailedStatus: "TO_FIX",
+        status: { notIn: ["CLOSED", "CANCELLED"] },
+      },
+      include: {
+        client: { select: { companyName: true } },
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 5,
+    })
+
     return NextResponse.json({
       newLeads,
       activeCasesCount,
@@ -182,6 +228,9 @@ export async function GET(request: NextRequest) {
       mySales,
       myApprovals,
       myMissing,
+      myTasks,
+      myClients,
+      toFix,
       userId: user.id,
     })
   } catch (error) {

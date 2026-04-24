@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
+import { getVisibleUserIds, getVisibleClientIds } from "@/lib/structure"
+import type { Role } from "@prisma/client"
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,7 +37,7 @@ export async function GET(request: NextRequest) {
       where.stage = stage
     }
 
-    // Ograniczenia wg roli
+    // Ograniczenia wg roli (PDF A.2.2 — scope visibility)
     if (user.role === "CLIENT") {
       where.ownerId = user.id
     } else if (user.role === "SALESPERSON") {
@@ -44,11 +46,32 @@ export async function GET(request: NextRequest) {
         { cases: { some: { salesId: user.id } } }
       ]
     } else if (user.role === "CARETAKER") {
-      where.cases = { some: { caretakerId: user.id } }
+      where.OR = [
+        { caretakerId: user.id },
+        { cases: { some: { caretakerId: user.id } } },
+      ]
+    } else if (user.role === "DIRECTOR" || user.role === "MANAGER") {
+      const [visibleUsers, visibleClients] = await Promise.all([
+        getVisibleUserIds(user.id, user.role as Role),
+        getVisibleClientIds(user.id, user.role as Role),
+      ])
+      const orFilters: Record<string, unknown>[] = []
+      if (visibleUsers !== "ALL") {
+        orFilters.push({ ownerId: { in: visibleUsers } })
+        orFilters.push({ cases: { some: { salesId: { in: visibleUsers } } } })
+      }
+      if (visibleClients !== "ALL" && visibleClients.length > 0) {
+        orFilters.push({ id: { in: visibleClients } })
+      }
+      if (orFilters.length > 0) where.OR = orFilters
     } else if (user.role === "CALL_CENTER") {
-      // Call center nie ma dostępu do kontrahentów
-      return NextResponse.json([])
+      // CC widzi tylko klientów których jest właścicielem (utworzył)
+      where.ownerId = user.id
+    } else if (user.role === "KONTRAHENT") {
+      // Vendor widzi klientów u których jego produkty są w sprzedaży
+      where.cases = { some: { product: { vendorId: user.id } } }
     }
+    // ADMIN — bez ograniczeń
 
     const clients = await prisma.client.findMany({
       where,
@@ -74,7 +97,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Tylko SALESPERSON/ADMIN/DIRECTOR mogą tworzyć kontrahentów
-    if (!["SALESPERSON", "ADMIN", "DIRECTOR"].includes(user.role)) {
+    if (!["SALESPERSON", "ADMIN", "DIRECTOR", "MANAGER"].includes(user.role)) {
       return NextResponse.json({ error: "Brak uprawnień" }, { status: 403 })
     }
 
@@ -92,6 +115,7 @@ export async function POST(request: NextRequest) {
         requirements: body.requirements,
         interestedProducts: body.interestedProducts,
         keyFindings: body.keyFindings,
+        sourceId: body.sourceId || null,
         fromLeadId: body.fromLeadId || undefined,
         ownerId: user.id,
         stage: body.stage || "LEAD",

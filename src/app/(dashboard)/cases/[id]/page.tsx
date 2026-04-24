@@ -12,6 +12,9 @@ import { SurveyTab } from "@/components/cases/tabs/SurveyTab"
 import { SummaryTab } from "@/components/cases/tabs/SummaryTab"
 import { FilesTab } from "@/components/cases/tabs/FilesTab"
 import { ChecklistTab } from "@/components/cases/tabs/ChecklistTab"
+import { MeetingsTab } from "@/components/cases/tabs/MeetingsTab"
+import { ChatPanel } from "@/components/cases/tabs/ChatPanel"
+import { ActionsPanel } from "@/components/cases/tabs/ActionsPanel"
 import SaleContextHeader from "@/components/cases/SaleContextHeader"
 import AssignmentsBlock from "@/components/cases/AssignmentsBlock"
 import { STAGE_LABELS, DETAILED_LABELS } from "@/components/ui/status-badge"
@@ -231,6 +234,9 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           <TabsTrigger value="summary">Podsumowanie</TabsTrigger>
           <TabsTrigger value="files">Pliki ({caseData.files?.length || 0})</TabsTrigger>
           <TabsTrigger value="checklist">Checklista</TabsTrigger>
+          <TabsTrigger value="meetings">Spotkania</TabsTrigger>
+          <TabsTrigger value="chat">Czat</TabsTrigger>
+          <TabsTrigger value="actions">Akcje</TabsTrigger>
         </TabsList>
 
         <TabsContent value="survey">
@@ -247,6 +253,18 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
 
         <TabsContent value="checklist">
           <ChecklistTab caseId={id} items={caseData.checklist} onUpdate={fetchCase} />
+        </TabsContent>
+
+        <TabsContent value="meetings">
+          <MeetingsTab caseId={id} />
+        </TabsContent>
+
+        <TabsContent value="chat">
+          <ChatPanel caseId={id} />
+        </TabsContent>
+
+        <TabsContent value="actions">
+          <ActionsPanel caseId={id} />
         </TabsContent>
       </Tabs>
 

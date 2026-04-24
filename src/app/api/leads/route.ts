@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
+import { getVisibleUserIds } from "@/lib/structure"
+import type { Role } from "@prisma/client"
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,14 +27,22 @@ export async function GET(request: NextRequest) {
       where.companyName = { contains: search, mode: "insensitive" }
     }
 
-    // Ograniczenia wg roli
-    if (user.role === "SALESPERSON") {
+    // Ograniczenia wg roli (PDF A.2.2 — scope visibility)
+    if (user.role === "SALESPERSON" || user.role === "CALL_CENTER") {
       where.assignedSalesId = user.id
-    } else if (user.role === "CLIENT") {
-      return NextResponse.json([]) // Klient nie widzi leadów
-    } else if (user.role === "CARETAKER") {
-      return NextResponse.json([]) // Opiekun nie pracuje z leadami
+    } else if (user.role === "CLIENT" || user.role === "CARETAKER" || user.role === "KONTRAHENT") {
+      return NextResponse.json([])
+    } else if (user.role === "DIRECTOR" || user.role === "MANAGER") {
+      // Widzi leady przypisane do osób w jego strukturze
+      const visible = await getVisibleUserIds(user.id, user.role as Role)
+      if (visible !== "ALL") {
+        where.OR = [
+          { assignedSalesId: { in: visible } },
+          { assignedSalesId: null }, // nieprzypisane są też widoczne dla zarządzających
+        ]
+      }
     }
+    // ADMIN — bez ograniczeń
 
     const leads = await prisma.lead.findMany({
       where,
@@ -59,7 +69,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Tylko CALL_CENTER/SALESPERSON/ADMIN/DIRECTOR mogą tworzyć leady
-    if (!["CALL_CENTER", "SALESPERSON", "ADMIN", "DIRECTOR"].includes(user.role)) {
+    if (!["CALL_CENTER", "SALESPERSON", "ADMIN", "DIRECTOR", "MANAGER"].includes(user.role)) {
       return NextResponse.json({ error: "Brak uprawnień" }, { status: 403 })
     }
 
@@ -72,6 +82,7 @@ export async function POST(request: NextRequest) {
         industry: body.industry,
         website: body.website,
         source: body.source,
+        sourceId: body.sourceId || null,
         contactPerson: body.contactPerson,
         position: body.position,
         phone: body.phone,

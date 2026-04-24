@@ -32,6 +32,7 @@ export async function GET(
         caretaker: { select: { id: true, name: true, email: true } },
         director: { select: { id: true, name: true, email: true } },
         files: {
+          where: { deletedAt: null },
           include: {
             uploadedBy: { select: { name: true } }
           },

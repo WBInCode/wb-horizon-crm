@@ -1,12 +1,19 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface Props {
   open: boolean
@@ -16,6 +23,7 @@ interface Props {
 
 export function CreateLeadModal({ open, onClose, onSuccess }: Props) {
   const [loading, setLoading] = useState(false)
+  const [sources, setSources] = useState<{ id: string; name: string }[]>([])
   const [formData, setFormData] = useState({
     companyName: "",
     nip: "",
@@ -25,10 +33,19 @@ export function CreateLeadModal({ open, onClose, onSuccess }: Props) {
     position: "",
     phone: "",
     email: "",
+    sourceId: "",
     source: "",
     isDecisionMaker: false,
     notes: "",
   })
+
+  useEffect(() => {
+    if (!open) return
+    fetch("/api/lead-sources")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => Array.isArray(d) && setSources(d))
+      .catch(() => {})
+  }, [open])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,6 +69,7 @@ export function CreateLeadModal({ open, onClose, onSuccess }: Props) {
           position: "",
           phone: "",
           email: "",
+          sourceId: "",
           source: "",
           isDecisionMaker: false,
           notes: "",
@@ -169,11 +187,30 @@ export function CreateLeadModal({ open, onClose, onSuccess }: Props) {
 
           <div>
             <Label htmlFor="source">Źródło leada</Label>
+            <Select
+              value={formData.sourceId || "__none__"}
+              onValueChange={(v) =>
+                setFormData({ ...formData, sourceId: v === "__none__" ? "" : v })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Wybierz źródło (lub wpisz w polu poniżej)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">— brak —</SelectItem>
+                {sources.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Input
               id="source"
+              className="mt-2"
               value={formData.source}
               onChange={(e) => setFormData({ ...formData, source: e.target.value })}
-              placeholder="np. cold call, strona www, polecenie"
+              placeholder="Opcjonalnie: dodatkowy opis źródła (free text)"
             />
           </div>
 

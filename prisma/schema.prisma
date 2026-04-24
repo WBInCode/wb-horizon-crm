@@ -11,10 +11,29 @@ datasource db {
 enum Role {
   ADMIN
   DIRECTOR
+  MANAGER
   CARETAKER
   SALESPERSON
   CALL_CENTER
   CLIENT
+  KONTRAHENT
+}
+
+enum MeetingStatus {
+  PLANNED
+  HELD
+  NOT_HELD
+}
+
+enum MeetingAssignedRole {
+  CALL_CENTER
+  SALESPERSON
+}
+
+enum ProductLifecycleStatus {
+  DRAFT
+  READY
+  INACTIVE
 }
 
 enum UserStatus {
@@ -100,12 +119,12 @@ enum ApprovalTargetType {
 }
 
 enum ContractorStage {
-  LEAD        // Pozysk — aktywny lead
-  PROSPECT    // Kwalifikowany — po spotkaniu, w ocenie
-  QUOTATION   // Wycena — przygotowywanie oferty
-  SALE        // Sprzedaż — aktywna sprzedaż
-  CLIENT      // Klient — zrealizowana sprzedaż
-  INACTIVE    // Nieaktywny
+  LEAD // Pozysk — aktywny lead
+  PROSPECT // Kwalifikowany — po spotkaniu, w ocenie
+  QUOTATION // Wycena — przygotowywanie oferty
+  SALE // Sprzedaż — aktywna sprzedaż
+  CLIENT // Klient — zrealizowana sprzedaż
+  INACTIVE // Nieaktywny
 }
 
 enum LeadPriority {
@@ -116,25 +135,43 @@ enum LeadPriority {
 }
 
 enum SaleProcessStage {
-  NEW              // Nowa sprzedaż
-  DATA_COLLECTION  // Zbieranie danych
-  DOCUMENTS        // Dokumenty
-  VERIFICATION     // Weryfikacja
-  APPROVAL         // Akceptacja
-  EXECUTION        // Realizacja
-  CLOSED           // Zamknięcie
+  NEW                   // Nowa sprzedaż
+  DATA_COLLECTION       // Zbieranie danych
+  DOCUMENTS             // Dokumenty
+  VERIFICATION          // Weryfikacja
+  APPROVAL              // Akceptacja
+  EXECUTION             // Realizacja
+  CLOSED                // Zamknięcie
+  // PDF v1 — dodatkowe etapy
+  LEAD                  // Lead
+  QUOTATION             // Wycena
+  SALES_ARRANGEMENTS    // Ustalenia sprzedażowe
+  MATERIAL_COMPLETION   // Kompletowanie materiałów
+  HANDED_TO_EXECUTION   // Przekazany do realizacji
+  ORDER_ACCEPTANCE      // Odbiór zlecenia
+  MAINTENANCE           // Utrzymanie
+  COMPLETED             // Zrealizowane
+  UNREALIZED            // Niezrealizowane
 }
 
 enum SaleDetailedStatus {
-  WAITING_SURVEY       // Czeka na ankietę
-  WAITING_FILES        // Czeka na pliki
-  FORMAL_DEFICIENCIES  // Braki formalne
-  CARETAKER_APPROVAL   // Do akceptacji opiekuna
-  DIRECTOR_APPROVAL    // Do akceptacji dyrektora
-  TO_FIX               // Do poprawy
-  READY_TO_START       // Gotowe do startu
-  IN_PROGRESS          // W realizacji
-  COMPLETED            // Zakończone
+  WAITING_SURVEY        // Czeka na ankietę
+  WAITING_FILES         // Czeka na pliki
+  FORMAL_DEFICIENCIES   // Braki formalne
+  CARETAKER_APPROVAL    // Do akceptacji opiekuna
+  DIRECTOR_APPROVAL     // Do akceptacji dyrektora
+  TO_FIX                // Do poprawy
+  READY_TO_START        // Gotowe do startu
+  IN_PROGRESS           // W realizacji
+  COMPLETED             // Zakończone
+  // PDF v1 — dodatkowe statusy
+  DRAFT                 // Roboczy
+  SENT_TO_CLIENT        // Wysłane do klienta
+  CLIENT_ACCEPTED       // Zaakceptowane przez klienta
+  CLIENT_REJECTED       // Odrzucone przez klienta
+  AWAITING_DECISION     // Oczekiwanie na decyzję
+  ON_HOLD               // Wstrzymane
+  CANCELLED             // Anulowane
 }
 
 // ==================== MODELE ====================
@@ -149,32 +186,58 @@ model User {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
+  // Bezpieczeństwo i audyt logowań (PDF A.4.1)
+  lastLoginAt    DateTime?
+  sessionVersion Int       @default(0)
+  createdById    String?
+  createdBy      User?     @relation("UserCreatedBy", fields: [createdById], references: [id])
+  createdUsers   User[]    @relation("UserCreatedBy")
+
   // Dynamic permission system
   roleTemplateId String?
   roleTemplate   RoleTemplate? @relation("UserRoleTemplate", fields: [roleTemplateId], references: [id])
 
   // Relacje
-  leadsAssigned    Lead[]        @relation("SalespersonLeads")
-  clientsOwned     Client[]      @relation("ClientOwner")
-  
-  casesAsSales     Case[]        @relation("CaseSalesperson")
-  casesAsCaretaker Case[]        @relation("CaseCaretaker")
-  casesAsDirector  Case[]        @relation("CaseDirector")
-  
-  filesUploaded    CaseFile[]    @relation("FileUploader")
-  messagesWritten  CaseMessage[] @relation("MessageAuthor")
-  checklistUpdates CaseChecklistItem[] @relation("ChecklistUpdater")
+  leadsAssigned    Lead[]   @relation("SalespersonLeads")
+  clientsOwned     Client[] @relation("ClientOwner")
+  clientsCaretaken Client[] @relation("ClientCaretaker")
+
+  casesAsSales     Case[] @relation("CaseSalesperson")
+  casesAsCaretaker Case[] @relation("CaseCaretaker")
+  casesAsDirector  Case[] @relation("CaseDirector")
+
+  filesUploaded     CaseFile[]          @relation("FileUploader")
+  messagesWritten   CaseMessage[]       @relation("MessageAuthor")
+  checklistUpdates  CaseChecklistItem[] @relation("ChecklistUpdater")
   checklistAssigned CaseChecklistItem[] @relation("ChecklistAssigned")
-  
-  approvals        Approval[]    @relation("ApprovalApprover")
-  surveysUpdated   CaseSurvey[]  @relation("SurveyUpdater")
-  notifications    Notification[]
-  auditLogs        AuditLog[]    @relation("AuditLogs")
-  clientNotesWritten ClientNote[] @relation("ClientNoteAuthor")
+
+  approvals          Approval[]     @relation("ApprovalApprover")
+  surveysUpdated     CaseSurvey[]   @relation("SurveyUpdater")
+  notifications      Notification[]
+  auditLogs          AuditLog[]     @relation("AuditLogs")
+  clientNotesWritten ClientNote[]   @relation("ClientNoteAuthor")
+
+  // Spotkania (PDF B.6.4 / C.6)
+  meetingsCreated  Meeting[] @relation("MeetingCreator")
+  meetingsAssigned Meeting[] @relation("MeetingAssignee")
+
+  // Struktury organizacyjne (PDF A.2 / D)
+  directedStructure Structure?        @relation("StructureDirector")
+  structureMembers  StructureMember[] @relation("StructureMemberUser")
+
+  // Login attempts / sessions
+  loginAttempts LoginAttempt[] @relation("LoginAttemptUser")
+  sessions      UserSession[]  @relation("UserSessionUser")
+
+  // Vendor — produkty utworzone w kreatorze (PDF F.3)
+  vendorProducts Product[] @relation("ProductVendor")
+
+  // Zapisane widoki (PDF A.5)
+  savedViews SavedView[] @relation("UserSavedViews")
 }
 
 model Lead {
-  id              String     @id @default(cuid())
+  id              String        @id @default(cuid())
   companyName     String
   nip             String?
   industry        String?
@@ -184,177 +247,233 @@ model Lead {
   position        String?
   phone           String
   email           String?
-  isDecisionMaker Boolean    @default(false)
+  isDecisionMaker Boolean       @default(false)
   meetingDate     DateTime?
-  status          LeadStatus @default(NEW)
-  notes           String?    @db.Text
-  needs           String?    @db.Text
-  nextStep        String?    @db.Text
+  status          LeadStatus    @default(NEW)
+  notes           String?       @db.Text
+  needs           String?       @db.Text
+  nextStep        String?       @db.Text
   nextStepDate    DateTime?
   priority        LeadPriority?
-  
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
 
-  // Relacje
-  assignedSalesId String?
-  assignedSales   User?      @relation("SalespersonLeads", fields: [assignedSalesId], references: [id])
-  
-  convertedToClient   Client? @relation("LeadToClient")
-  convertedToClientId String? @unique
-}
-
-model Client {
-  id           String   @id @default(cuid())
-  companyName  String
-  nip          String?
-  industry     String?
-  website      String?
-  description  String?  @db.Text
-  priorities   String?  @db.Text
-  notes        String?  @db.Text
-  requirements String?  @db.Text
-  interestedProducts String? @db.Text
-  keyFindings  String?  @db.Text
-  stage        ContractorStage @default(LEAD)
-  archivedAt   DateTime?
-  
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  // Relacje
-  ownerId      String?
-  owner        User?    @relation("ClientOwner", fields: [ownerId], references: [id])
-  
-  fromLead     Lead?    @relation("LeadToClient", fields: [fromLeadId], references: [id])
-  fromLeadId   String?  @unique
-  
-  contacts     ContactPerson[]
-  cases        Case[]
-  products     Product[]
-  clientNotes  ClientNote[]    @relation("ClientNotes")
-}
-
-model ContactPerson {
-  id        String   @id @default(cuid())
-  name      String
-  position  String?
-  phone     String?
-  email     String?
-  isMain    Boolean  @default(false)
-  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relacje
-  clientId  String
-  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  assignedSalesId String?
+  assignedSales   User?   @relation("SalespersonLeads", fields: [assignedSalesId], references: [id])
+
+  convertedToClient   Client? @relation("LeadToClient")
+  convertedToClientId String? @unique
+
+  // Pozysk z listy zarządzanej przez admina (PDF A.4.2)
+  sourceId  String?
+  sourceRef LeadSource? @relation("LeadSourceRef", fields: [sourceId], references: [id])
+}
+
+model Client {
+  id                 String          @id @default(cuid())
+  companyName        String
+  nip                String?
+  industry           String?
+  website            String?
+  hasWebsite         Boolean         @default(false)
+  address            String?
+  description        String?         @db.Text
+  priorities         String?         @db.Text
+  notes              String?         @db.Text
+  requirements       String?         @db.Text
+  interestedProducts String?         @db.Text
+  keyFindings        String?         @db.Text
+  stage              ContractorStage @default(LEAD)
+  archivedAt         DateTime?
+
+  // Lead tab (PDF C.5) — wpisy z pierwszego kontaktu CC
+  leadFirstContactNotes String?   @db.Text
+  leadNeeds             String?   @db.Text
+  leadConcerns          String?   @db.Text
+  leadNextStep          String?   @db.Text
+  leadNextContactDate   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacje
+  ownerId String?
+  owner   User?   @relation("ClientOwner", fields: [ownerId], references: [id])
+
+  // Opiekun klienta (PDF A.2.3)
+  caretakerId String?
+  caretaker   User?   @relation("ClientCaretaker", fields: [caretakerId], references: [id])
+
+  // Pozysk z listy zarządzanej przez admina (PDF A.4.2)
+  sourceId String?
+  source   LeadSource? @relation("ClientSource", fields: [sourceId], references: [id])
+
+  fromLead   Lead?   @relation("LeadToClient", fields: [fromLeadId], references: [id])
+  fromLeadId String? @unique
+
+  contacts    ContactPerson[]
+  cases       Case[]
+  products    Product[]
+  clientNotes ClientNote[]      @relation("ClientNotes")
+  meetings    Meeting[]         @relation("MeetingClient")
+  structures  StructureClient[] @relation("StructureClientClient")
+}
+
+model ContactPerson {
+  id       String  @id @default(cuid())
+  name     String
+  position String?
+  phone    String?
+  email    String?
+  isMain   Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacje
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 }
 
 model Product {
-  id              String   @id @default(cuid())
-  name            String
-  description     String?  @db.Text
-  category        String?  // "Produkt" | "Usługa"
-  surveySchema    Json?    // Tablica pytań ankiety: [{ question: string, type: "text"|"number"|"select", options?: string[] }]
-  requiredFiles   Json?    // Tablica wymaganych dokumentów: [{ name: string, description?: string }]
-  isActive        Boolean  @default(true)
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String  @id @default(cuid())
+  name          String
+  description   String? @db.Text
+  category      String? // "Produkt" | "Usługa"
+  surveySchema  Json? // Tablica pytań ankiety: [{ question: string, type: "text"|"number"|"select", options?: string[] }]
+  requiredFiles Json? // Tablica wymaganych dokumentów: [{ name: string, description?: string }]
+  isActive      Boolean @default(true)
+
+  // Status produktu (PDF F.4)
+  lifecycleStatus ProductLifecycleStatus @default(DRAFT)
+
+  // Vendor (PDF F) — User z rolą KONTRAHENT, który stworzył produkt w kreatorze
+  vendorId String?
+  vendor   User?   @relation("ProductVendor", fields: [vendorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relacje
-  clientId        String
-  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  cases           Case[]
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  cases    Case[]
+
+  // Kreator produktu (PDF F.5, F.6)
+  surveyQuestions ProductSurveyQuestion[] @relation("ProductSurveyQuestions")
+  fileGroups      ProductFileGroup[]      @relation("ProductFileGroups")
+  meetings        Meeting[]               @relation("MeetingProduct")
 }
 
 model Case {
-  id             String     @id @default(cuid())
+  id             String             @id @default(cuid())
   title          String
   serviceName    String?
-  status         CaseStatus @default(DRAFT)
+  status         CaseStatus         @default(DRAFT)
   processStage   SaleProcessStage   @default(NEW)
   detailedStatus SaleDetailedStatus @default(WAITING_SURVEY)
   commercialData Json?
   archivedAt     DateTime?
-  
+
   // Dane ankiety (uproszczone MVP)
-  surveyNeeds    String?    @db.Text
-  surveyBudget   Float?
-  surveyDeadline DateTime?
-  surveyClientNotes  String? @db.Text
-  surveySalesNotes   String? @db.Text
-  
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  surveyNeeds       String?   @db.Text
+  surveyBudget      Float?
+  surveyDeadline    DateTime?
+  surveyClientNotes String?   @db.Text
+  surveySalesNotes  String?   @db.Text
+
+  // Daty procesowe (PDF B.6.2 — Podsumowanie)
+  contractSignedAt DateTime?
+  executionStartAt DateTime?
+  executionEndAt   DateTime?
+  decisionStatus   String? // ocena/decyzja czy realizować
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relacje
-  clientId       String
-  client         Client     @relation(fields: [clientId], references: [id])
-  
-  productId      String?
-  product        Product?   @relation(fields: [productId], references: [id])
-  
-  salesId        String?
-  salesperson    User?      @relation("CaseSalesperson", fields: [salesId], references: [id])
-  
-  caretakerId    String?
-  caretaker      User?      @relation("CaseCaretaker", fields: [caretakerId], references: [id])
-  
-  directorId     String?
-  director       User?      @relation("CaseDirector", fields: [directorId], references: [id])
-  
-  files          CaseFile[]
-  checklist      CaseChecklistItem[]
-  messages       CaseMessage[]
-  surveys        CaseSurvey[]
-  quotes         Quote[]
-  approvals      Approval[]
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+
+  salesId     String?
+  salesperson User?   @relation("CaseSalesperson", fields: [salesId], references: [id])
+
+  caretakerId String?
+  caretaker   User?   @relation("CaseCaretaker", fields: [caretakerId], references: [id])
+
+  directorId String?
+  director   User?   @relation("CaseDirector", fields: [directorId], references: [id])
+
+  // Pozysk (PDF A.4.2)
+  sourceId String?
+  source   LeadSource? @relation("CaseSource", fields: [sourceId], references: [id])
+
+  files     CaseFile[]
+  checklist CaseChecklistItem[]
+  messages  CaseMessage[]
+  surveys   CaseSurvey[]
+  quotes    Quote[]
+  surveyAnswers CaseSurveyAnswer[] @relation("CaseSurveyAnswers")
+  approvals Approval[]
+  meetings  Meeting[]
 }
 
 model CaseFile {
-  id            String     @id @default(cuid())
-  fileName      String
-  fileType      String?
-  filePath      String
-  fileSize      Int?
-  status        FileStatus @default(PENDING)
-  version       Int        @default(1)
-  comment       String?    @db.Text
-  
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  id       String     @id @default(cuid())
+  fileName String
+  fileType String?
+  filePath String
+  fileSize Int?
+  status   FileStatus @default(PENDING)
+  version  Int        @default(1)
+  comment  String?    @db.Text
+
+  // Soft delete (PDF B.9 — plik znika ale zostaje wpis tekstowy)
+  deletedAt    DateTime?
+  deletedById  String?
+  deleteReason String?   @db.Text
+
+  // Grupa pliku z kreatora produktu (PDF F.6)
+  groupId String?
+  group   ProductFileGroup? @relation("CaseFileGroup", fields: [groupId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relacje
-  caseId        String
-  case          Case       @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  
-  uploadedById  String
-  uploadedBy    User       @relation("FileUploader", fields: [uploadedById], references: [id])
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  uploadedById String
+  uploadedBy   User   @relation("FileUploader", fields: [uploadedById], references: [id])
 }
 
 model CaseChecklistItem {
-  id          String              @id @default(cuid())
-  label       String
-  itemType    String?
-  isRequired  Boolean             @default(false)
-  isCritical  Boolean             @default(false)
-  isBlocking  Boolean             @default(false)
-  status      ChecklistItemStatus @default(PENDING)
-  
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  id         String              @id @default(cuid())
+  label      String
+  itemType   String?
+  isRequired Boolean             @default(false)
+  isCritical Boolean             @default(false)
+  isBlocking Boolean             @default(false)
+  status     ChecklistItemStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relacje
-  caseId      String
-  case        Case                @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
   assignedToId String?
-  assignedTo   User?              @relation("ChecklistAssigned", fields: [assignedToId], references: [id])
-  
-  updatedById  String?
-  updatedBy    User?              @relation("ChecklistUpdater", fields: [updatedById], references: [id])
+  assignedTo   User?   @relation("ChecklistAssigned", fields: [assignedToId], references: [id])
+
+  updatedById String?
+  updatedBy   User?   @relation("ChecklistUpdater", fields: [updatedById], references: [id])
 }
 
 model CaseMessage {
@@ -362,96 +481,99 @@ model CaseMessage {
   content         String          @db.Text
   type            MessageType     @default(CHAT)
   visibilityScope VisibilityScope @default(ALL)
-  
-  createdAt       DateTime        @default(now())
 
-  // Relacje
-  caseId          String
-  case            Case            @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  
-  authorId        String?
-  author          User?           @relation("MessageAuthor", fields: [authorId], references: [id])
-}
-
-model CaseSurvey {
-  id          String   @id @default(cuid())
-  schemaJson  Json?
-  answersJson Json?
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relacje
-  caseId      String
-  case        Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  
-  updatedById String?
-  updatedBy   User?    @relation("SurveyUpdater", fields: [updatedById], references: [id])
-}
-
-model Quote {
-  id          String      @id @default(cuid())
-  scope       String?     @db.Text
-  price       Float?
-  variants    Json?
-  notes       String?     @db.Text
-  status      QuoteStatus @default(DRAFT)
-  
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  // Relacje
-  caseId      String
-  case        Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
-}
-
-model Approval {
-  id          String              @id @default(cuid())
-  targetType  ApprovalTargetType
-  targetId    String
-  status      ApprovalStatus      @default(PENDING)
-  comment     String?             @db.Text
-  
-  createdAt   DateTime            @default(now())
-
-  // Relacje
-  caseId      String
-  case        Case                @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  
-  approvedById String
-  approvedBy   User               @relation("ApprovalApprover", fields: [approvedById], references: [id])
-}
-
-model Notification {
-  id        String   @id @default(cuid())
-  type      String?
-  title     String
-  message   String
-  link      String?
-  isRead    Boolean  @default(false)
-  
   createdAt DateTime @default(now())
 
   // Relacje
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  authorId String?
+  author   User?   @relation("MessageAuthor", fields: [authorId], references: [id])
+}
+
+model CaseSurvey {
+  id          String @id @default(cuid())
+  schemaJson  Json?
+  answersJson Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacje
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  updatedById String?
+  updatedBy   User?   @relation("SurveyUpdater", fields: [updatedById], references: [id])
+}
+
+model Quote {
+  id       String      @id @default(cuid())
+  scope    String?     @db.Text
+  price    Float?
+  variants Json?
+  notes    String?     @db.Text
+  status   QuoteStatus @default(DRAFT)
+  kind     String      @default("CLASSIC") // CLASSIC | SURVEY_CALCULATOR | FEATURE_LIST
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacje
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  lineItems QuoteLineItem[] @relation("QuoteLineItems")
+}
+
+model Approval {
+  id         String             @id @default(cuid())
+  targetType ApprovalTargetType
+  targetId   String
+  status     ApprovalStatus     @default(PENDING)
+  comment    String?            @db.Text
+
+  createdAt DateTime @default(now())
+
+  // Relacje
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  approvedById String
+  approvedBy   User   @relation("ApprovalApprover", fields: [approvedById], references: [id])
+}
+
+model Notification {
+  id      String  @id @default(cuid())
+  type    String?
+  title   String
+  message String
+  link    String?
+  isRead  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  // Relacje
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AuditLog {
-  id          String   @id @default(cuid())
-  action      String   // CREATE, UPDATE, DELETE, CONVERT, LOGIN, STATUS_CHANGE, ROLE_CHANGE, REASSIGN
-  entityType  String   // CASE, LEAD, CLIENT, USER, FILE, QUOTE, APPROVAL, CHECKLIST, CONTACT, SURVEY, MESSAGE
+  id          String  @id @default(cuid())
+  action      String // CREATE, UPDATE, DELETE, CONVERT, LOGIN, STATUS_CHANGE, ROLE_CHANGE, REASSIGN
+  entityType  String // CASE, LEAD, CLIENT, USER, FILE, QUOTE, APPROVAL, CHECKLIST, CONTACT, SURVEY, MESSAGE
   entityId    String?
-  entityLabel String?  // Czytelna nazwa (np. tytuł sprawy, nazwa firmy)
-  changes     Json?    // { field: { old: val, new: val } }
-  metadata    Json?    // Dowolne dodatkowe dane
+  entityLabel String? // Czytelna nazwa (np. tytuł sprawy, nazwa firmy)
+  changes     Json? // { field: { old: val, new: val } }
+  metadata    Json? // Dowolne dodatkowe dane
   ipAddress   String?
-  
-  createdAt   DateTime @default(now())
-  
+
+  createdAt DateTime @default(now())
+
   // Relacje
-  userId      String?
-  user        User?    @relation("AuditLogs", fields: [userId], references: [id])
+  userId String?
+  user   User?   @relation("AuditLogs", fields: [userId], references: [id])
 
   @@index([entityType, entityId])
   @@index([userId])
@@ -463,11 +585,11 @@ model ClientNote {
   content   String   @db.Text
   createdAt DateTime @default(now())
 
-  clientId  String
-  client    Client   @relation("ClientNotes", fields: [clientId], references: [id], onDelete: Cascade)
+  clientId String
+  client   Client @relation("ClientNotes", fields: [clientId], references: [id], onDelete: Cascade)
 
-  authorId  String?
-  author    User?    @relation("ClientNoteAuthor", fields: [authorId], references: [id])
+  authorId String?
+  author   User?   @relation("ClientNoteAuthor", fields: [authorId], references: [id])
 }
 
 // ==================== ADMIN TEMPLATES ====================
@@ -524,28 +646,28 @@ model CooperationTerms {
 
 model RoleTemplate {
   id          String   @id @default(cuid())
-  name        String   @unique          // e.g. "ADMIN", "DIRECTOR", "custom_intern"
-  label       String                    // PL display: "Administrator", "Stażysta"
+  name        String   @unique // e.g. "ADMIN", "DIRECTOR", "custom_intern"
+  label       String // PL display: "Administrator", "Stażysta"
   description String?  @db.Text
-  isSystem    Boolean  @default(false)  // true for original 6 — cannot delete
-  isDefault   Boolean  @default(false)  // assigned to new users if no role specified
-  color       String?                   // hex or oklch for UI badge
+  isSystem    Boolean  @default(false) // true for original 6 — cannot delete
+  isDefault   Boolean  @default(false) // assigned to new users if no role specified
+  color       String? // hex or oklch for UI badge
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   permissions RolePermission[]
-  users       User[]   @relation("UserRoleTemplate")
+  users       User[]           @relation("UserRoleTemplate")
 }
 
 model Permission {
-  id          String   @id @default(cuid())
-  code        String   @unique          // e.g. "leads.create", "pages.admin"
-  category    String                    // e.g. "leads", "cases", "admin", "pages"
-  label       String                    // PL display: "Tworzenie leadów"
+  id          String  @id @default(cuid())
+  code        String  @unique // e.g. "leads.create", "pages.admin"
+  category    String // e.g. "leads", "cases", "admin", "pages"
+  label       String // PL display: "Tworzenie leadów"
   description String?
-  sortOrder   Int      @default(0)      // for consistent UI ordering
+  sortOrder   Int     @default(0) // for consistent UI ordering
 
-  roles       RolePermission[]
+  roles RolePermission[]
 
   @@index([category])
 }
@@ -561,3 +683,224 @@ model RolePermission {
   @@index([permissionId])
 }
 
+// ==================== PDF v1 EXTENSIONS (Sprint 3) ====================
+
+// PDF A.4.2 — Sposoby pozysku zarządzane przez admina
+model LeadSource {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leads   Lead[]   @relation("LeadSourceRef")
+  clients Client[] @relation("ClientSource")
+  cases   Case[]   @relation("CaseSource")
+}
+
+// PDF B.6.4 / C.6 — Spotkania
+model Meeting {
+  id           String              @id @default(cuid())
+  date         DateTime
+  topic        String
+  note         String?             @db.Text
+  status       MeetingStatus       @default(PLANNED)
+  assignedRole MeetingAssignedRole @default(SALESPERSON)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacje (case lub klient — spotkanie może istnieć przed utworzeniem case'a)
+  caseId String?
+  case   Case?   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  clientId String?
+  client   Client? @relation("MeetingClient", fields: [clientId], references: [id], onDelete: Cascade)
+
+  productId String?
+  product   Product? @relation("MeetingProduct", fields: [productId], references: [id])
+
+  assignedToId String?
+  assignedTo   User?   @relation("MeetingAssignee", fields: [assignedToId], references: [id])
+
+  createdById String?
+  createdBy   User?   @relation("MeetingCreator", fields: [createdById], references: [id])
+
+  @@index([caseId])
+  @@index([clientId])
+  @@index([assignedToId])
+  @@index([date])
+}
+
+// PDF A.2.1 / D — Struktura organizacyjna
+model Structure {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Każda struktura ma jednego Dyrektora
+  directorId String @unique
+  director   User   @relation("StructureDirector", fields: [directorId], references: [id])
+
+  members StructureMember[] @relation("StructureMemberStructure")
+  clients StructureClient[] @relation("StructureClientStructure")
+}
+
+model StructureMember {
+  id          String    @id @default(cuid())
+  structureId String
+  structure   Structure @relation("StructureMemberStructure", fields: [structureId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation("StructureMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Hierarchia — manager nadrzędny w obrębie tej samej struktury (null = bezpośrednio pod Dyrektorem)
+  parentMemberId String?
+  parentMember   StructureMember?  @relation("StructureMemberHierarchy", fields: [parentMemberId], references: [id])
+  childMembers   StructureMember[] @relation("StructureMemberHierarchy")
+
+  // Rola w strukturze (kopia roli usera dla szybkiego query)
+  roleInStructure Role
+
+  createdAt DateTime @default(now())
+
+  @@unique([structureId, userId])
+  @@index([structureId])
+  @@index([userId])
+}
+
+// Wielu Dyrektorów może obsługiwać jednego Kontrahenta (PDF A.2.1)
+model StructureClient {
+  structureId String
+  structure   Structure @relation("StructureClientStructure", fields: [structureId], references: [id], onDelete: Cascade)
+
+  clientId String
+  client   Client @relation("StructureClientClient", fields: [clientId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([structureId, clientId])
+  @@index([clientId])
+}
+
+// PDF A.4.1 — Bezpieczeństwo logowań
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation("LoginAttemptUser", fields: [userId], references: [id], onDelete: SetNull)
+  email     String
+  success   Boolean
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([email])
+  @@index([createdAt])
+}
+
+model UserSession {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation("UserSessionUser", fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  ipAddress String?
+  userAgent String?
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// PDF F.5 — Pytania ankiety produktu (definiowane przez Kontrahenta-Vendora)
+model ProductSurveyQuestion {
+  id               String                  @id @default(cuid())
+  productId        String
+  product          Product                 @relation("ProductSurveyQuestions", fields: [productId], references: [id], onDelete: Cascade)
+  text             String
+  type             String // TEXT|SINGLE|MULTI|NUMBER|DATE|FILE
+  isRequired       Boolean                 @default(false)
+  options          Json? // dla SINGLE/MULTI
+  parentQuestionId String?
+  parentQuestion   ProductSurveyQuestion?  @relation("ConditionalQuestions", fields: [parentQuestionId], references: [id])
+  childQuestions   ProductSurveyQuestion[] @relation("ConditionalQuestions")
+  surveyAnswers    CaseSurveyAnswer[]      @relation("SurveyAnswers")
+  triggerValue     String?
+  sortOrder        Int                     @default(0)
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@index([productId])
+}
+
+// PDF F.6 — Grupy plików produktu
+model ProductFileGroup {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation("ProductFileGroups", fields: [productId], references: [id], onDelete: Cascade)
+  name        String
+  description String?  @db.Text
+  isRequired  Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  files CaseFile[] @relation("CaseFileGroup")
+
+  @@index([productId])
+}
+
+// PDF B.7 — Pozycje wyceny (Feature List / klasyczna)
+model QuoteLineItem {
+  id          String  @id @default(cuid())
+  quoteId     String
+  quote       Quote   @relation("QuoteLineItems", fields: [quoteId], references: [id], onDelete: Cascade)
+  name        String
+  description String? @db.Text
+  unitPrice   Float   @default(0)
+  qty         Int     @default(1)
+  total       Float   @default(0)
+  isOptional  Boolean @default(false)
+  sortOrder   Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([quoteId])
+}
+
+// PDF B.8 — Odpowiedzi na ankietę produktu
+model CaseSurveyAnswer {
+  id         String @id @default(cuid())
+  caseId     String
+  case       Case   @relation("CaseSurveyAnswers", fields: [caseId], references: [id], onDelete: Cascade)
+  questionId String
+  question   ProductSurveyQuestion @relation("SurveyAnswers", fields: [questionId], references: [id], onDelete: Cascade)
+  value      String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([caseId, questionId])
+  @@index([caseId])
+  @@index([questionId])
+}
+
+// PDF A.5 — Zapisane widoki
+model SavedView {
+  id         String @id @default(cuid())
+  userId     String
+  user       User   @relation("UserSavedViews", fields: [userId], references: [id], onDelete: Cascade)
+  entityType String // LEADS | CLIENTS | CASES | USERS
+  name       String
+  filtersJson Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, entityType])
+}

@@ -1,11 +1,18 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { ArrowLeft, Save } from "lucide-react"
 
 export default function NewClientPage() {
@@ -21,6 +28,7 @@ export default function NewClientPage() {
     nip: searchParams.get("nip") || "",
     industry: searchParams.get("industry") || "",
     website: searchParams.get("website") || "",
+    sourceId: "",
     description: "",
     priorities: "",
     requirements: "",
@@ -28,6 +36,14 @@ export default function NewClientPage() {
     interestedProducts: searchParams.get("needs") || "",
     keyFindings: "",
   })
+
+  const [sources, setSources] = useState<{ id: string; name: string }[]>([])
+  useEffect(() => {
+    fetch("/api/lead-sources")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => Array.isArray(d) && setSources(d))
+      .catch(() => {})
+  }, [])
 
   const [contact, setContact] = useState({
     name: searchParams.get("contactPerson") || "",
@@ -142,6 +158,25 @@ export default function NewClientPage() {
             <div>
               <label className="text-sm font-medium">WWW</label>
               <Input value={form.website} onChange={(e) => upd("website", e.target.value)} />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Źródło pozyskania</label>
+              <Select
+                value={form.sourceId || "__none__"}
+                onValueChange={(v) => upd("sourceId", v === "__none__" ? "" : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Wybierz źródło" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— brak —</SelectItem>
+                  {sources.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>

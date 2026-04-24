@@ -11,6 +11,7 @@ import {
   MessageSquare,
   ClipboardList,
   Package,
+  BookOpen,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -117,6 +118,21 @@ export function ClientSidebar() {
           )
         })}
       </nav>
+
+      {/* Documentation link */}
+      <div className="px-3 pb-2">
+        <Link
+          href="/client/docs"
+          className="group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-[0.8125rem] font-medium transition-all duration-200"
+          style={{
+            color: pathname.startsWith("/client/docs") ? "var(--sidebar-accent-foreground)" : "var(--sidebar-foreground)",
+            background: pathname.startsWith("/client/docs") ? "var(--sidebar-accent)" : "transparent",
+          }}
+        >
+          <BookOpen className="w-[18px] h-[18px]" strokeWidth={pathname.startsWith("/client/docs") ? 2 : 1.5} style={{ color: pathname.startsWith("/client/docs") ? "var(--brand)" : "var(--sidebar-foreground)" }} />
+          <span>Pomoc i instrukcje</span>
+        </Link>
+      </div>
 
       {/* User info */}
       {user && (

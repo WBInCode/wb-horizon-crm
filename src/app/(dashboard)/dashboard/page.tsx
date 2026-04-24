@@ -302,6 +302,99 @@ export default function DashboardPage() {
           )}
         </DashboardCard>
       </div>
+
+      {/* Tasks + To Fix + My Clients (PDF B.2) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <DashboardCard
+          title="Moje zadania"
+          icon={CheckCircle2}
+          delay={7}
+        >
+          {!data?.myTasks?.length ? (
+            <EmptyState icon={CheckCircle2} message="Brak otwartych zadań" />
+          ) : (
+            <div className="space-y-1">
+              {data.myTasks.map((t: any, i: number) => (
+                <ListRow
+                  key={t.id}
+                  onClick={() => router.push(`/cases/${t.case?.id}`)}
+                  delay={i * 40}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: "var(--content-strong)" }}>
+                      {t.label}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--content-muted)" }}>
+                      {t.case?.client?.companyName} · {t.case?.title}
+                    </p>
+                  </div>
+                </ListRow>
+              ))}
+            </div>
+          )}
+        </DashboardCard>
+
+        <DashboardCard
+          title="Do poprawy"
+          icon={AlertCircle}
+          delay={8}
+        >
+          {!data?.toFix?.length ? (
+            <EmptyState icon={CheckCircle2} message="Brak spraw do poprawy" />
+          ) : (
+            <div className="space-y-1">
+              {data.toFix.map((c: any, i: number) => (
+                <ListRow
+                  key={c.id}
+                  onClick={() => router.push(`/cases/${c.id}`)}
+                  delay={i * 40}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: "var(--content-strong)" }}>
+                      {c.title}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--danger)" }}>
+                      {c.client?.companyName} — Do poprawy
+                    </p>
+                  </div>
+                </ListRow>
+              ))}
+            </div>
+          )}
+        </DashboardCard>
+
+        <DashboardCard
+          title="Moi kontrahenci"
+          icon={Users}
+          action={{ label: "Wszyscy", onClick: () => router.push("/clients") }}
+          delay={9}
+        >
+          {!data?.myClients?.length ? (
+            <EmptyState icon={Users} message="Brak przypisanych kontrahentów" />
+          ) : (
+            <div className="space-y-1">
+              {data.myClients.map((cl: any, i: number) => (
+                <ListRow
+                  key={cl.id}
+                  onClick={() => router.push(`/clients/${cl.id}`)}
+                  delay={i * 40}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: "var(--content-strong)" }}>
+                      {cl.companyName}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--content-muted)" }}>
+                      {cl.contacts?.[0]?.name || "—"}
+                      {cl.source?.name ? ` · ${cl.source.name}` : ""}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="text-[10px]">{cl.stage}</Badge>
+                </ListRow>
+              ))}
+            </div>
+          )}
+        </DashboardCard>
+      </div>
     </div>
   )
 }

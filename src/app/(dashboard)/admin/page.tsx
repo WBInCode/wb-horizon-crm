@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -17,6 +18,8 @@ import GlobalProductsTab from "@/components/admin/GlobalProductsTab"
 import CooperationTermsTab from "@/components/admin/CooperationTermsTab"
 import ArchiveManagementTab from "@/components/admin/ArchiveManagementTab"
 import RolesPermissionsTab from "@/components/admin/RolesPermissionsTab"
+import LeadSourcesTab from "@/components/admin/LeadSourcesTab"
+import StructuresTab from "@/components/admin/StructuresTab"
 
 const roleLabels: Record<string, string> = {
   ADMIN: "Administrator",
@@ -40,6 +43,7 @@ const statusColors: Record<string, string> = {
 }
 
 export default function AdminPage() {
+  const router = useRouter()
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateUser, setShowCreateUser] = useState(false)
@@ -126,6 +130,8 @@ export default function AdminPage() {
           <TabsTrigger value="checklists">Szablony checklist</TabsTrigger>
           <TabsTrigger value="products">Produkty/Usługi</TabsTrigger>
           <TabsTrigger value="terms">Warunki współpracy</TabsTrigger>
+          <TabsTrigger value="sources">Sposoby pozysku</TabsTrigger>
+          <TabsTrigger value="structures">Struktury</TabsTrigger>
           <TabsTrigger value="archive">Archiwum</TabsTrigger>
         </TabsList>
 
@@ -150,6 +156,7 @@ export default function AdminPage() {
                 <TableHead>Rola</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Aktywne sprzedaże</TableHead>
+                <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -193,6 +200,9 @@ export default function AdminPage() {
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline">{user._count?.casesAsCaretaker ?? 0}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="sm" onClick={() => router.push(`/admin/users/${user.id}`)}>Karta</Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -286,6 +296,14 @@ export default function AdminPage() {
 
         <TabsContent value="terms">
           <CooperationTermsTab />
+        </TabsContent>
+
+        <TabsContent value="sources">
+          <LeadSourcesTab />
+        </TabsContent>
+
+        <TabsContent value="structures">
+          <StructuresTab />
         </TabsContent>
 
         <TabsContent value="archive">

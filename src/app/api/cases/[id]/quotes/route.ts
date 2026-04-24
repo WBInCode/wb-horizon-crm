@@ -23,6 +23,7 @@ export async function GET(
 
     const quotes = await prisma.quote.findMany({
       where: { caseId: id },
+      include: { lineItems: { orderBy: { sortOrder: "asc" } } },
       orderBy: { updatedAt: "desc" }
     })
 
@@ -66,6 +67,7 @@ export async function POST(
         variants: body.variants,
         notes: body.notes,
         status: body.status || "DRAFT",
+        kind: body.kind || "CLASSIC",
       }
     })
 

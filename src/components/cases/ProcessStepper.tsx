@@ -2,8 +2,9 @@
 
 import { useState } from "react"
 import { Check } from "lucide-react"
+import { PROCESS_STAGE_LABELS, PDF_STAGES_ORDER } from "@/lib/dictionaries"
 
-const STAGES = [
+const LEGACY_STAGES = [
   { key: "NEW",             label: "Nowa" },
   { key: "DATA_COLLECTION", label: "Zbieranie danych" },
   { key: "DOCUMENTS",       label: "Dokumenty" },
@@ -12,6 +13,17 @@ const STAGES = [
   { key: "EXECUTION",       label: "Realizacja" },
   { key: "CLOSED",          label: "Zamknięcie" },
 ]
+
+const PDF_STAGES = PDF_STAGES_ORDER.map((key) => ({
+  key,
+  label: PROCESS_STAGE_LABELS[key] || key,
+}))
+
+function resolveStages(currentStage: string) {
+  // If current stage is a PDF stage, use PDF pipeline; otherwise legacy
+  if (PDF_STAGES_ORDER.includes(currentStage as any)) return PDF_STAGES
+  return LEGACY_STAGES
+}
 
 const STAGE_SUMMARIES: Record<string, string> = {
   NEW:             "Sprzedaż utworzona, przypisano kontrahenta i produkt.",
@@ -31,6 +43,7 @@ interface Props {
 }
 
 export default function ProcessStepper({ currentStage, detailedStatus, missingFiles = 0, pendingApprovals = 0 }: Props) {
+  const STAGES = resolveStages(currentStage)
   const currentIdx = STAGES.findIndex((s) => s.key === currentStage)
   const [activePopover, setActivePopover] = useState<string | null>(null)
 
