@@ -397,6 +397,8 @@ export default function SurveyTemplatesTab() {
                       } ${dragIdx === idx ? "opacity-40" : ""}`}
                       style={{
                         background: q.type === "heading" ? "var(--surface-3)" : "var(--surface-2)",
+                        marginLeft: q.condition ? "1.5rem" : 0,
+                        borderLeft: q.condition ? "2px solid oklch(0.7 0.12 270)" : undefined,
                       }}
                     >
                       <GripVertical className="w-4 h-4 flex-shrink-0" style={{ color: "var(--content-subtle)" }} />
@@ -409,7 +411,7 @@ export default function SurveyTemplatesTab() {
                         <p className={`text-sm truncate ${q.type === "heading" ? "font-semibold" : "font-medium"}`} style={{ color: "var(--content-strong)" }}>
                           {q.label || <span style={{ color: "var(--content-subtle)" }}>Brak treści</span>}
                         </p>
-                        <div className="flex items-center gap-2 mt-0.5">
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                           <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: "var(--content-muted)" }}>
                             {QUESTION_TYPE_LABELS[q.type]}
                           </span>
@@ -418,11 +420,18 @@ export default function SurveyTemplatesTab() {
                               Wymagane
                             </span>
                           )}
-                          {q.condition && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "oklch(0.95 0.04 270)", color: "oklch(0.5 0.15 270)" }}>
-                              Warunkowe
-                            </span>
-                          )}
+                          {q.condition && (() => {
+                            const parentQ = formQuestions.find(pq => pq.id === q.condition?.questionId)
+                            const parentLabel = parentQ?.label || "?"
+                            const condVal = q.condition.operator === "not_empty" ? "wypełnione" :
+                              parentQ?.type === "boolean" ? (q.condition.value === "true" ? "Tak" : "Nie") :
+                              `"${q.condition.value}"`
+                            return (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "oklch(0.95 0.04 270)", color: "oklch(0.5 0.15 270)" }}>
+                                ↳ {parentLabel} = {condVal}
+                              </span>
+                            )
+                          })()}
                           {q.description && (
                             <span className="text-[10px]" style={{ color: "var(--content-subtle)" }}>· z opisem</span>
                           )}
@@ -720,16 +729,48 @@ export default function SurveyTemplatesTab() {
                           <SelectItem value="not_empty">jest wypełnione</SelectItem>
                         </SelectContent>
                       </Select>
-                      {editingQuestion.condition.operator !== "not_empty" && (
-                        <Input
-                          value={editingQuestion.condition.value || ""}
-                          onChange={e => setEditingQuestion({
-                            ...editingQuestion,
-                            condition: { ...editingQuestion.condition!, value: e.target.value }
-                          })}
-                          placeholder="Wartość..."
-                        />
-                      )}
+                      {editingQuestion.condition.operator !== "not_empty" && (() => {
+                        const parentQ = formQuestions.find(q => q.id === editingQuestion.condition?.questionId)
+                        const parentHasOptions = parentQ && (parentQ.type === "select" || parentQ.type === "multi_select" || parentQ.type === "boolean") && ((parentQ.options && parentQ.options.length > 0) || parentQ.type === "boolean")
+                        if (parentHasOptions) {
+                          const opts = parentQ.type === "boolean" ? ["true", "false"] : (parentQ.options || []).filter(Boolean)
+                          const labels = parentQ.type === "boolean" ? ["Tak", "Nie"] : opts
+                          return (
+                            <Select
+                              value={editingQuestion.condition.value || ""}
+                              onValueChange={v => setEditingQuestion({
+                                ...editingQuestion,
+                                condition: { ...editingQuestion.condition!, value: v as string }
+                              })}
+                            >
+                              <SelectTrigger>
+                                <span data-slot="select-value" className="flex flex-1 text-left truncate text-sm">
+                                  {editingQuestion.condition.value
+                                    ? (parentQ.type === "boolean"
+                                      ? (editingQuestion.condition.value === "true" ? "Tak" : "Nie")
+                                      : editingQuestion.condition.value)
+                                    : "Wybierz opcję..."}
+                                </span>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {opts.map((opt, oi) => (
+                                  <SelectItem key={opt} value={opt}>{labels[oi]}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )
+                        }
+                        return (
+                          <Input
+                            value={editingQuestion.condition.value || ""}
+                            onChange={e => setEditingQuestion({
+                              ...editingQuestion,
+                              condition: { ...editingQuestion.condition!, value: e.target.value }
+                            })}
+                            placeholder="Wartość..."
+                          />
+                        )
+                      })()}
                     </div>
                   )}
                 </div>

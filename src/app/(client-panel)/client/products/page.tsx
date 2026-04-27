@@ -228,16 +228,37 @@ export default function ClientProductsPage() {
                               <option value="select">Lista wyboru</option>
                             </select>
                             {q.type === "select" && (
-                              <Input
-                                value={q.options?.join(", ") || ""}
-                                onChange={(e) =>
-                                  updateQuestion(idx, {
-                                    options: e.target.value.split(",").map((o) => o.trim()).filter(Boolean),
-                                  })
-                                }
-                                placeholder="Opcje (oddzielone przecinkami)"
-                                className="flex-1"
-                              />
+                              <div className="flex-1 space-y-1.5">
+                                <label className="text-xs font-medium" style={{ color: "var(--content-muted)" }}>Opcje wyboru</label>
+                                {(q.options || []).map((opt, oi) => (
+                                  <div key={oi} className="flex gap-1.5 items-center">
+                                    <span className="text-xs font-mono w-4 text-center" style={{ color: "var(--content-muted)" }}>{oi + 1}</span>
+                                    <Input
+                                      value={opt}
+                                      onChange={(e) => {
+                                        const opts = [...(q.options || [])]
+                                        opts[oi] = e.target.value
+                                        updateQuestion(idx, { options: opts })
+                                      }}
+                                      placeholder={`Opcja ${oi + 1}`}
+                                      className="flex-1"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => updateQuestion(idx, { options: (q.options || []).filter((_, j) => j !== oi) })}
+                                      className="text-red-400 hover:text-red-600 p-1"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                ))}
+                                <Button
+                                  type="button" variant="outline" size="sm"
+                                  onClick={() => updateQuestion(idx, { options: [...(q.options || []), ""] })}
+                                >
+                                  <Plus className="w-3 h-3 mr-1" /> Dodaj opcję
+                                </Button>
+                              </div>
                             )}
                           </div>
                         </div>

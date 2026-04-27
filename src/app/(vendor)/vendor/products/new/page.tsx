@@ -34,7 +34,7 @@ export default function ProductWizardPage() {
 
   // Step 2 — Survey questions
   const [questions, setQuestions] = useState<any[]>([])
-  const [newQ, setNewQ] = useState({ text: "", type: "TEXT", isRequired: false, options: "" })
+  const [newQ, setNewQ] = useState({ text: "", type: "TEXT", isRequired: false, options: [] as string[], parentQuestionIdx: null as number | null, triggerValue: "" })
 
   // Step 3 — File groups
   const [fileGroups, setFileGroups] = useState<any[]>([])
@@ -47,12 +47,12 @@ export default function ProductWizardPage() {
       {
         ...newQ,
         options: newQ.type === "SINGLE" || newQ.type === "MULTI"
-          ? newQ.options.split(",").map((o: string) => o.trim()).filter(Boolean)
+          ? newQ.options.filter(Boolean)
           : null,
         sortOrder: questions.length,
       },
     ])
-    setNewQ({ text: "", type: "TEXT", isRequired: false, options: "" })
+    setNewQ({ text: "", type: "TEXT", isRequired: false, options: [], parentQuestionIdx: null, triggerValue: "" })
   }
 
   const addFileGroup = () => {
@@ -157,43 +157,136 @@ export default function ProductWizardPage() {
             {questions.map((q, i) => (
               <div
                 key={i}
-                className="flex items-center justify-between py-2 text-sm"
-                style={{ borderBottom: "1px solid var(--line-subtle)" }}
+                className="py-2 text-sm"
+                style={{ borderBottom: "1px solid var(--line-subtle)", paddingLeft: q.parentQuestionIdx != null ? "1.5rem" : 0 }}
               >
-                <div>
-                  <span className="font-medium">{i + 1}. {q.text}</span>
-                  <Badge variant="outline" className="ml-2 text-[9px]">{q.type}</Badge>
-                  {q.isRequired && <Badge variant="destructive" className="ml-1 text-[9px]">wymagane</Badge>}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-medium">{i + 1}. {q.text}</span>
+                    <Badge variant="outline" className="ml-2 text-[9px]">{q.type}</Badge>
+                    {q.isRequired && <Badge variant="destructive" className="ml-1 text-[9px]">wymagane</Badge>}
+                    {q.parentQuestionIdx != null && (
+                      <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "oklch(0.95 0.04 270)", color: "oklch(0.5 0.15 270)" }}>
+                        ↳ po: &quot;{questions[q.parentQuestionIdx]?.text || "?"}&quot; = {q.triggerValue}
+                      </span>
+                    )}
+                  </div>
+                  <button onClick={() => setQuestions(questions.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-                <button onClick={() => setQuestions(questions.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                {q.options && q.options.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {q.options.map((opt: string, oi: number) => (
+                      <span key={oi} className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "var(--surface-3)", color: "var(--content-muted)" }}>{opt}</span>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-2">
-              <Input placeholder="Treść pytania" value={newQ.text} onChange={(e) => setNewQ({ ...newQ, text: e.target.value })} />
-              <Select value={newQ.type} onValueChange={(v) => setNewQ({ ...newQ, type: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {QUESTION_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            {(newQ.type === "SINGLE" || newQ.type === "MULTI") && (
-              <Input
-                placeholder="Opcje (rozdzielone przecinkami)"
-                value={newQ.options}
-                onChange={(e) => setNewQ({ ...newQ, options: e.target.value })}
-              />
-            )}
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-1.5 text-xs">
-                <input type="checkbox" checked={newQ.isRequired} onChange={(e) => setNewQ({ ...newQ, isRequired: e.target.checked })} />
-                Wymagane
-              </label>
-              <Button size="sm" variant="outline" onClick={addQuestion}>
-                <Plus className="w-3.5 h-3.5 mr-1" /> Dodaj pytanie
-              </Button>
+
+            {/* New question form */}
+            <div className="space-y-2 pt-2 p-3 rounded-lg" style={{ background: "var(--surface-2)" }}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <Input placeholder="Treść pytania" value={newQ.text} onChange={(e) => setNewQ({ ...newQ, text: e.target.value })} />
+                <Select value={newQ.type} onValueChange={(v) => setNewQ({ ...newQ, type: v, options: (v === "SINGLE" || v === "MULTI") ? (newQ.options.length > 0 ? newQ.options : [""]) : [] })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {QUESTION_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Individual option fields for select types */}
+              {(newQ.type === "SINGLE" || newQ.type === "MULTI") && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium" style={{ color: "var(--content-muted)" }}>Opcje wyboru</label>
+                  {newQ.options.map((opt, oi) => (
+                    <div key={oi} className="flex gap-2 items-center">
+                      <span className="text-xs font-mono w-5 text-center" style={{ color: "var(--content-muted)" }}>{oi + 1}</span>
+                      <Input
+                        value={opt}
+                        onChange={(e) => {
+                          const opts = [...newQ.options]
+                          opts[oi] = e.target.value
+                          setNewQ({ ...newQ, options: opts })
+                        }}
+                        placeholder={`Opcja ${oi + 1}`}
+                        className="flex-1"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setNewQ({ ...newQ, options: newQ.options.filter((_, j) => j !== oi) })}
+                        className="text-red-400 hover:text-red-600 p-1"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button" variant="outline" size="sm"
+                    onClick={() => setNewQ({ ...newQ, options: [...newQ.options, ""] })}
+                  >
+                    <Plus className="w-3 h-3 mr-1" /> Dodaj opcję
+                  </Button>
+                </div>
+              )}
+
+              {/* Conditional: link to parent question's option */}
+              {questions.length > 0 && (
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newQ.parentQuestionIdx !== null}
+                      onChange={(e) => setNewQ({ ...newQ, parentQuestionIdx: e.target.checked ? 0 : null, triggerValue: "" })}
+                    />
+                    <span className="font-medium" style={{ color: "var(--content-muted)" }}>Pytanie warunkowe</span>
+                  </label>
+                  {newQ.parentQuestionIdx !== null && (
+                    <div className="grid grid-cols-2 gap-2 pl-5">
+                      <Select
+                        value={String(newQ.parentQuestionIdx)}
+                        onValueChange={(v) => setNewQ({ ...newQ, parentQuestionIdx: Number(v), triggerValue: "" })}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Pytanie nadrzędne" /></SelectTrigger>
+                        <SelectContent>
+                          {questions.map((pq, pi) => (
+                            <SelectItem key={pi} value={String(pi)}>{pq.text || `Pytanie ${pi + 1}`}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {/* If parent is SINGLE/MULTI, show its options as dropdown */}
+                      {questions[newQ.parentQuestionIdx] && (questions[newQ.parentQuestionIdx].type === "SINGLE" || questions[newQ.parentQuestionIdx].type === "MULTI") && questions[newQ.parentQuestionIdx].options?.length > 0 ? (
+                        <Select value={newQ.triggerValue} onValueChange={(v) => setNewQ({ ...newQ, triggerValue: v })}>
+                          <SelectTrigger><SelectValue placeholder="Gdy opcja..." /></SelectTrigger>
+                          <SelectContent>
+                            {questions[newQ.parentQuestionIdx].options.map((opt: string) => (
+                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          placeholder="Gdy odpowiedź ="
+                          value={newQ.triggerValue}
+                          onChange={(e) => setNewQ({ ...newQ, triggerValue: e.target.value })}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-1.5 text-xs">
+                  <input type="checkbox" checked={newQ.isRequired} onChange={(e) => setNewQ({ ...newQ, isRequired: e.target.checked })} />
+                  Wymagane
+                </label>
+                <Button size="sm" variant="outline" onClick={addQuestion}>
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Dodaj pytanie
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
