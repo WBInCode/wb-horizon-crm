@@ -39,6 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 
+# downloaded fonts for PDF generation script
+/scripts/.fonts/
+
 # uploads
 /public/uploads/
 

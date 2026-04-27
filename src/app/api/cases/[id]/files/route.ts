@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
 import { put } from "@vercel/blob"
 import { auditLog } from "@/lib/audit"
+import { assertSafeUpload } from "@/lib/file-safety"
+import { logger } from "@/lib/logger"
+
+const MAX_FILE_BYTES = 50 * 1024 * 1024 // 50 MB
 
 export async function GET(
   request: NextRequest,
@@ -67,8 +71,16 @@ export async function POST(
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
     }
 
+    // Faza 1 hardening: walidacja rozmiaru, rozszerzenia, magic bytes + sanitacja nazwy
+    const validation = await assertSafeUpload(file, { maxBytes: MAX_FILE_BYTES })
+    if (!validation.ok) {
+      logger.warn("File upload rejected", { caseId: id, userId: user.id, reason: validation.error, originalName: file.name })
+      return NextResponse.json({ error: validation.error }, { status: 400 })
+    }
+    const { safeName } = validation
+
     // Upload do Vercel Blob
-    const blob = await put(`cases/${id}/${Date.now()}-${file.name}`, file, {
+    const blob = await put(`cases/${id}/${Date.now()}-${safeName}`, file, {
       access: "public",
       addRandomSuffix: true,
     })
@@ -76,7 +88,7 @@ export async function POST(
     const caseFile = await prisma.caseFile.create({
       data: {
         caseId: id,
-        fileName: file.name,
+        fileName: safeName,
         fileType: file.type,
         filePath: blob.url,
         fileSize: file.size,
@@ -88,7 +100,7 @@ export async function POST(
     await prisma.caseMessage.create({
       data: {
         caseId: id,
-        content: `Dodano plik: ${file.name}`,
+        content: `Dodano plik: ${safeName}`,
         type: "SYSTEM_LOG",
         visibilityScope: "ALL",
         authorId: user.id
@@ -99,14 +111,14 @@ export async function POST(
       action: "UPLOAD",
       entityType: "FILE",
       entityId: caseFile.id,
-      entityLabel: file.name,
+      entityLabel: safeName,
       userId: user.id,
       metadata: { caseId: id, fileSize: file.size, fileType: file.type },
     })
 
     return NextResponse.json(caseFile, { status: 201 })
   } catch (error) {
-    console.error(error)
+    logger.error("File upload failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }

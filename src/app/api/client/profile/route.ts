@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
+import { validatePassword } from "@/lib/password-policy"
 
 // GET — fetch current user profile
 export async function GET() {
@@ -74,6 +75,11 @@ export async function PUT(request: Request) {
 
     if (newPassword.length < 6) {
       return NextResponse.json({ error: "Nowe hasło musi mieć min. 6 znaków" }, { status: 400 })
+    }
+
+    const policy = validatePassword(newPassword, { email: user.email, name: user.name })
+    if (!policy.ok) {
+      return NextResponse.json({ error: policy.errors.join(" ") }, { status: 400 })
     }
 
     updateData.password = await bcrypt.hash(newPassword, 12)

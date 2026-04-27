@@ -191,6 +191,9 @@ model User {
   // Bezpieczeństwo i audyt logowań (PDF A.4.1)
   lastLoginAt    DateTime?
   sessionVersion Int       @default(0)
+  // Account lockout (Faza 1 hardening)
+  failedLoginCount Int      @default(0)
+  lockedUntil      DateTime?
   createdById    String?
   createdBy      User?     @relation("UserCreatedBy", fields: [createdById], references: [id])
   createdUsers   User[]    @relation("UserCreatedBy")

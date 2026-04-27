@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requirePermission } from "@/lib/auth"
+import { requirePermission, invalidatePermissionCache } from "@/lib/auth"
 import bcrypt from "bcryptjs"
 import { auditLog } from "@/lib/audit"
+import { validatePassword } from "@/lib/password-policy"
 
 // GET /api/admin/users - lista użytkowników (admin/dyrektor)
 export async function GET(req: NextRequest) {
@@ -57,6 +58,17 @@ export async function PUT(req: NextRequest) {
 
   // Reset password
   if (resetPassword) {
+    const targetUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, name: true },
+    })
+    const policy = validatePassword(resetPassword, {
+      email: targetUser?.email,
+      name: targetUser?.name,
+    })
+    if (!policy.ok) {
+      return NextResponse.json({ error: policy.errors.join(" ") }, { status: 400 })
+    }
     const hashedPassword = await bcrypt.hash(resetPassword, 12)
     updateData.password = hashedPassword
     updateData.sessionVersion = { increment: 1 }
@@ -88,6 +100,9 @@ export async function PUT(req: NextRequest) {
     changes: Object.keys(changes).length > 0 ? changes : null,
   })
 
+  // Faza 1 hardening: invalidate per-user permission cache po zmianie roli
+  if (role) invalidatePermissionCache(userId)
+
   return NextResponse.json(updated)
 }
 
@@ -103,6 +118,11 @@ export async function POST(req: NextRequest) {
 
   if (!name || !email || !password) {
     return NextResponse.json({ error: "Wymagane pola: name, email, password" }, { status: 400 })
+  }
+
+  const policy = validatePassword(password, { email, name })
+  if (!policy.ok) {
+    return NextResponse.json({ error: policy.errors.join(" ") }, { status: 400 })
   }
 
   // Sprawdź czy email jest unikalny

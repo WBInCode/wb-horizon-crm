@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { prisma } from "@/lib/prisma"
 import { put, del } from "@vercel/blob"
+import { assertSafeUpload } from "@/lib/file-safety"
 
 // POST — upload avatar image
 export async function POST(request: Request) {
@@ -32,10 +33,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Dozwolone formaty: JPG, PNG, WebP, GIF" }, { status: 400 })
   }
 
-  // Validate file size (max 5MB)
-  if (file.size > 5 * 1024 * 1024) {
-    return NextResponse.json({ error: "Maksymalny rozmiar pliku to 5 MB" }, { status: 400 })
+  // Validate file size (max 5MB) + magic bytes + sanitacja nazwy
+  const validation = await assertSafeUpload(file, { maxBytes: 5 * 1024 * 1024 })
+  if (!validation.ok) {
+    return NextResponse.json({ error: validation.error }, { status: 400 })
   }
+  if (!validation.detectedMime?.startsWith("image/")) {
+    return NextResponse.json({ error: "Plik nie jest prawidłowym obrazem." }, { status: 400 })
+  }
+  const safeName = validation.safeName
 
   // Delete old avatar if exists
   if (user.avatarUrl) {
@@ -47,7 +53,7 @@ export async function POST(request: Request) {
   }
 
   // Upload new avatar
-  const blob = await put(`avatars/${user.id}/${Date.now()}-${file.name}`, file, {
+  const blob = await put(`avatars/${user.id}/${Date.now()}-${safeName}`, file, {
     access: "public",
     addRandomSuffix: true,
   })

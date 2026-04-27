@@ -28,12 +28,21 @@ export async function requireRole(allowedRoles: string[]) {
 
 /**
  * Get all permission codes for a user (from their RoleTemplate).
- * Cached per request via static Map to avoid repeated DB hits.
+ * Cached with TTL (60s) — invalidate via `invalidatePermissionCache(userId)`
+ * po każdej zmianie roli/uprawnień (zob. admin/users PATCH, admin/roles).
  */
-const _permCache = new Map<string, string[]>()
+const PERM_CACHE_TTL_MS = 60_000
+type CacheEntry = { codes: string[]; expiresAt: number }
+const _permCache = new Map<string, CacheEntry>()
+
+export function invalidatePermissionCache(userId?: string) {
+  if (userId) _permCache.delete(userId)
+  else _permCache.clear()
+}
 
 export async function getUserPermissions(userId: string): Promise<string[]> {
-  if (_permCache.has(userId)) return _permCache.get(userId)!
+  const cached = _permCache.get(userId)
+  if (cached && cached.expiresAt > Date.now()) return cached.codes
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -49,7 +58,7 @@ export async function getUserPermissions(userId: string): Promise<string[]> {
   })
 
   const codes = user?.roleTemplate?.permissions.map(rp => rp.permission.code) ?? []
-  _permCache.set(userId, codes)
+  _permCache.set(userId, { codes, expiresAt: Date.now() + PERM_CACHE_TTL_MS })
   return codes
 }
 

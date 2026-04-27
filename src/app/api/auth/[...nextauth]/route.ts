@@ -3,8 +3,13 @@ import CredentialsProvider from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
 import crypto from "crypto"
 import { prisma } from "@/lib/prisma"
+import { logger } from "@/lib/logger"
+import { checkRateLimit, resetRateLimit, LIMITS } from "@/lib/rate-limit"
 
 const ADMIN_ROLES = ["ADMIN", "DIRECTOR", "MANAGER", "CARETAKER", "SALESPERSON", "CALL_CENTER", "KONTRAHENT"]
+
+const LOCKOUT_THRESHOLD = 5
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 min
 
 // PDF A.4.1 — zapisy prób logowania (sukces / nieudane / nietypowe)
 async function logLoginAttempt(email: string, success: boolean, userId?: string | null) {
@@ -13,8 +18,37 @@ async function logLoginAttempt(email: string, success: boolean, userId?: string 
       data: { email, success, userId: userId ?? null },
     })
   } catch (e) {
-    console.error("logLoginAttempt failed:", e)
+    logger.error("logLoginAttempt failed", e, { email })
   }
+}
+
+async function registerFailedLogin(userId: string) {
+  // Atomowo zwiększamy licznik i — przy przekroczeniu progu — blokujemy konto.
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: { failedLoginCount: { increment: 1 } },
+    select: { failedLoginCount: true },
+  })
+  if (updated.failedLoginCount >= LOCKOUT_THRESHOLD) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { lockedUntil: new Date(Date.now() + LOCKOUT_DURATION_MS) },
+    })
+  }
+}
+
+async function clearFailedLogins(userId: string) {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() },
+  })
+}
+
+function timingSafeStringEqual(a: string, b: string): boolean {
+  const aBuf = Buffer.from(a, "utf8")
+  const bBuf = Buffer.from(b, "utf8")
+  if (aBuf.length !== bBuf.length) return false
+  return crypto.timingSafeEqual(aBuf, bBuf)
 }
 
 function verifyAdminGateToken(adminGateToken: string): boolean {
@@ -37,7 +71,37 @@ function verifyAdminGateToken(adminGateToken: string): boolean {
     .update(`${adminToken}:${timestamp}`)
     .digest("hex")
 
-  return hash === expectedHash
+  return timingSafeStringEqual(hash, expectedHash)
+}
+
+async function enforceLoginRateLimit(email: string) {
+  const key = `login:${email.toLowerCase()}`
+  const result = await checkRateLimit(key, LIMITS.login)
+  if (!result.allowed) {
+    logger.warn("Login rate limit exceeded", { email, retryAfterSec: result.retryAfterSec })
+    throw new Error(
+      `Zbyt wiele prób logowania. Spróbuj ponownie za ${Math.ceil(result.retryAfterSec / 60)} min.`,
+    )
+  }
+}
+
+async function ensureAccountNotLocked(userId: string, email: string) {
+  const u = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { lockedUntil: true },
+  })
+  if (u?.lockedUntil && u.lockedUntil > new Date()) {
+    const minutesLeft = Math.ceil((u.lockedUntil.getTime() - Date.now()) / 60000)
+    logger.warn("Login attempt on locked account", { email, minutesLeft })
+    throw new Error(`Konto zablokowane na ${minutesLeft} min z powodu zbyt wielu nieudanych prób.`)
+  }
+  // Auto-unlock — czyścimy stary lock (jeśli wygasł) i zerujemy licznik
+  if (u?.lockedUntil && u.lockedUntil <= new Date()) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { lockedUntil: null, failedLoginCount: 0 },
+    })
+  }
 }
 
 export const authOptions: AuthOptions = {
@@ -55,6 +119,8 @@ export const authOptions: AuthOptions = {
           throw new Error("Podaj wszystkie wymagane dane")
         }
 
+        await enforceLoginRateLimit(credentials.email)
+
         // Verify admin gate token first
         if (!verifyAdminGateToken(credentials.adminGateToken)) {
           throw new Error("Nieprawidłowy lub wygasły token bezpieczeństwa. Wróć do bramki.")
@@ -69,6 +135,8 @@ export const authOptions: AuthOptions = {
           throw new Error("Nieprawidłowy email lub hasło")
         }
 
+        await ensureAccountNotLocked(user.id, credentials.email)
+
         if (!ADMIN_ROLES.includes(user.role)) {
           await logLoginAttempt(credentials.email, false, user.id)
           throw new Error("To konto nie ma uprawnień administratora")
@@ -78,6 +146,7 @@ export const authOptions: AuthOptions = {
 
         if (!isValid) {
           await logLoginAttempt(credentials.email, false, user.id)
+          await registerFailedLogin(user.id)
           throw new Error("Nieprawidłowy email lub hasło")
         }
 
@@ -87,10 +156,8 @@ export const authOptions: AuthOptions = {
         }
 
         await logLoginAttempt(credentials.email, true, user.id)
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { lastLoginAt: new Date() },
-        })
+        await clearFailedLogins(user.id)
+        await resetRateLimit(`login:${credentials.email.toLowerCase()}`)
 
         return {
           id: user.id,
@@ -113,6 +180,8 @@ export const authOptions: AuthOptions = {
           throw new Error("Podaj email i hasło")
         }
 
+        await enforceLoginRateLimit(credentials.email)
+
         const user = await prisma.user.findUnique({
           where: { email: credentials.email }
         })
@@ -121,6 +190,8 @@ export const authOptions: AuthOptions = {
           await logLoginAttempt(credentials.email, false, null)
           throw new Error("Nieprawidłowy email lub hasło")
         }
+
+        await ensureAccountNotLocked(user.id, credentials.email)
 
         if (user.role !== "CLIENT") {
           await logLoginAttempt(credentials.email, false, user.id)
@@ -131,6 +202,7 @@ export const authOptions: AuthOptions = {
 
         if (!isValid) {
           await logLoginAttempt(credentials.email, false, user.id)
+          await registerFailedLogin(user.id)
           throw new Error("Nieprawidłowy email lub hasło")
         }
 
@@ -140,10 +212,8 @@ export const authOptions: AuthOptions = {
         }
 
         await logLoginAttempt(credentials.email, true, user.id)
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { lastLoginAt: new Date() },
-        })
+        await clearFailedLogins(user.id)
+        await resetRateLimit(`login:${credentials.email.toLowerCase()}`)
 
         return {
           id: user.id,
