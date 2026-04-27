@@ -39,15 +39,33 @@ export async function PUT(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { userId, role, status } = body
+  const { userId, role, status, resetPassword, forceLogout } = body
 
   if (!userId) {
     return NextResponse.json({ error: "Brak userId" }, { status: 400 })
   }
 
-  const updateData: any = {}
+  // Prevent self-deactivation/deletion
+  if (userId === currentUser.id && (status === "BLOCKED" || status === "INACTIVE")) {
+    return NextResponse.json({ error: "Nie można dezaktywować własnego konta" }, { status: 400 })
+  }
+
+  const updateData: Record<string, unknown> = {}
   if (role) updateData.role = role
   if (status) updateData.status = status
+  if (forceLogout) updateData.sessionVersion = { increment: 1 }
+
+  // Reset password
+  if (resetPassword) {
+    const hashedPassword = await bcrypt.hash(resetPassword, 12)
+    updateData.password = hashedPassword
+    updateData.sessionVersion = { increment: 1 }
+  }
+
+  const before = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, status: true, name: true },
+  })
 
   const updated = await prisma.user.update({
     where: { id: userId },
@@ -55,13 +73,19 @@ export async function PUT(req: NextRequest) {
     select: { id: true, name: true, email: true, role: true, status: true },
   })
 
+  const changes: Record<string, { old?: unknown; new?: unknown }> = {}
+  if (role && before?.role !== role) changes.role = { old: before?.role, new: role }
+  if (status && before?.status !== status) changes.status = { old: before?.status, new: status }
+  if (resetPassword) changes.password = { old: "***", new: "***" }
+  if (forceLogout) changes.forceLogout = { new: true }
+
   await auditLog({
-    action: role ? "ROLE_CHANGE" : "UPDATE",
+    action: role ? "ROLE_CHANGE" : status ? "STATUS_CHANGE" : "UPDATE",
     entityType: "USER",
     entityId: userId,
     entityLabel: updated.name,
     userId: currentUser.id,
-    changes: role ? { role: { old: undefined, new: role } } : status ? { status: { old: undefined, new: status } } : null,
+    changes: Object.keys(changes).length > 0 ? changes : null,
   })
 
   return NextResponse.json(updated)
@@ -110,4 +134,52 @@ export async function POST(req: NextRequest) {
   })
 
   return NextResponse.json(user, { status: 201 })
+}
+
+// DELETE /api/admin/users - usuwanie użytkownika
+export async function DELETE(req: NextRequest) {
+  const currentUser = await requirePermission("admin.users")
+  if (!currentUser) {
+    return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
+  }
+
+  const { userId } = await req.json()
+  if (!userId) return NextResponse.json({ error: "Brak userId" }, { status: 400 })
+
+  if (userId === currentUser.id) {
+    return NextResponse.json({ error: "Nie można usunąć własnego konta" }, { status: 400 })
+  }
+
+  // Check for active assignments
+  const [activeCases, activeClients, activeLeads] = await Promise.all([
+    prisma.case.count({ where: { OR: [{ salesId: userId }, { caretakerId: userId }, { directorId: userId }], status: { notIn: ["CLOSED", "CANCELLED"] } } }),
+    prisma.client.count({ where: { OR: [{ ownerId: userId }, { caretakerId: userId }] } }),
+    prisma.lead.count({ where: { assignedSalesId: userId, status: { notIn: ["TRANSFERRED", "CLOSED", "NOT_QUALIFIED"] } } }),
+  ])
+
+  if (activeCases > 0 || activeClients > 0 || activeLeads > 0) {
+    return NextResponse.json({
+      error: `Nie można usunąć — użytkownik ma przypisane: ${activeCases} aktywnych sprzedaży, ${activeClients} kontrahentów, ${activeLeads} leadów. Najpierw przepisz przypisania.`,
+    }, { status: 409 })
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true } })
+
+  // Delete related data
+  await prisma.$transaction([
+    prisma.notification.deleteMany({ where: { userId } }),
+    prisma.userSession.deleteMany({ where: { userId } }),
+    prisma.user.delete({ where: { id: userId } }),
+  ])
+
+  await auditLog({
+    action: "DELETE",
+    entityType: "USER",
+    entityId: userId,
+    entityLabel: user?.name ?? "Unknown",
+    userId: currentUser.id,
+    metadata: { email: user?.email },
+  })
+
+  return NextResponse.json({ ok: true })
 }
