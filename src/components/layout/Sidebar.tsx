@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LayoutDashboard, Users, Building2, ShoppingCart, Shield, ScrollText, Archive, BookOpen } from "lucide-react"
@@ -20,7 +21,10 @@ export function Sidebar() {
   const pathname = usePathname()
   const { has, loading } = usePermissions()
 
-  const items = allMenuItems.filter(item => has(item.permission))
+  const items = useMemo(
+    () => allMenuItems.filter((item) => has(item.permission)),
+    [has],
+  )
 
   return (
     <aside

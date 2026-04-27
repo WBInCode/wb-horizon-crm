@@ -269,6 +269,12 @@ model Lead {
   // Pozysk z listy zarządzanej przez admina (PDF A.4.2)
   sourceId  String?
   sourceRef LeadSource? @relation("LeadSourceRef", fields: [sourceId], references: [id])
+
+  @@index([assignedSalesId])
+  @@index([sourceId])
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
 }
 
 model Client {
@@ -319,6 +325,13 @@ model Client {
   clientNotes ClientNote[]      @relation("ClientNotes")
   meetings    Meeting[]         @relation("MeetingClient")
   structures  StructureClient[] @relation("StructureClientClient")
+
+  @@index([ownerId])
+  @@index([caretakerId])
+  @@index([sourceId])
+  @@index([stage])
+  @@index([archivedAt])
+  @@index([createdAt])
 }
 
 model ContactPerson {
@@ -421,6 +434,19 @@ model Case {
   surveyAnswers CaseSurveyAnswer[] @relation("CaseSurveyAnswers")
   approvals Approval[]
   meetings  Meeting[]
+
+  @@index([salesId])
+  @@index([caretakerId])
+  @@index([directorId])
+  @@index([clientId])
+  @@index([productId])
+  @@index([sourceId])
+  @@index([status])
+  @@index([processStage])
+  @@index([detailedStatus])
+  @@index([archivedAt])
+  @@index([createdAt])
+  @@index([updatedAt])
 }
 
 model CaseFile {
@@ -451,6 +477,12 @@ model CaseFile {
 
   uploadedById String
   uploadedBy   User   @relation("FileUploader", fields: [uploadedById], references: [id])
+
+  @@index([caseId])
+  @@index([status])
+  @@index([uploadedById])
+  @@index([groupId])
+  @@index([deletedAt])
 }
 
 model CaseChecklistItem {
@@ -490,6 +522,10 @@ model CaseMessage {
 
   authorId String?
   author   User?   @relation("MessageAuthor", fields: [authorId], references: [id])
+
+  @@index([caseId])
+  @@index([authorId])
+  @@index([createdAt])
 }
 
 model CaseSurvey {
@@ -525,6 +561,10 @@ model Quote {
   case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
   lineItems QuoteLineItem[] @relation("QuoteLineItems")
+
+  @@index([caseId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Approval {
@@ -542,6 +582,11 @@ model Approval {
 
   approvedById String
   approvedBy   User   @relation("ApprovalApprover", fields: [approvedById], references: [id])
+
+  @@index([caseId])
+  @@index([approvedById])
+  @@index([status])
+  @@index([targetType, targetId])
 }
 
 model Notification {
@@ -557,6 +602,9 @@ model Notification {
   // Relacje
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([createdAt])
 }
 
 model AuditLog {

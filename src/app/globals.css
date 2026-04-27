@@ -291,12 +291,10 @@
   from {
     opacity: 0;
     transform: translateY(20px);
-    filter: blur(4px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
-    filter: blur(0);
   }
 }
 
@@ -343,38 +341,34 @@
   50% { text-shadow: 0 0 24px var(--brand-muted); }
 }
 
-/* ── Overlay / popup choreography ── */
+/* ── Overlay / popup choreography (bez animowania backdrop-filter — GPU heavy) ── */
 @keyframes overlay-in {
-  from { opacity: 0; backdrop-filter: blur(0px); }
-  to   { opacity: 1; backdrop-filter: blur(12px); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 @keyframes overlay-out {
-  from { opacity: 1; backdrop-filter: blur(12px); }
-  to   { opacity: 0; backdrop-filter: blur(0px); }
+  from { opacity: 1; }
+  to   { opacity: 0; }
 }
 
 @keyframes dialog-in {
   from {
     opacity: 0;
     transform: translate(-50%, -48%) scale(0.96);
-    filter: blur(4px);
   }
   to {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
-    filter: blur(0px);
   }
 }
 @keyframes dialog-out {
   from {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
-    filter: blur(0px);
   }
   to {
     opacity: 0;
     transform: translate(-50%, -48%) scale(0.96);
-    filter: blur(4px);
   }
 }
 
@@ -382,12 +376,10 @@
   from {
     opacity: 0;
     transform: translateY(-4px) scale(0.97);
-    filter: blur(2px);
   }
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
-    filter: blur(0px);
   }
 }
 @keyframes dropdown-out {

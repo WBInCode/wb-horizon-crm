@@ -9,6 +9,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const isPriv = ["CARETAKER", "DIRECTOR", "ADMIN"].includes(user.role)
+
     // Buduj filtr sprzedaży wg roli
     const caseFilter: Record<string, unknown> = {}
     if (user.role === "SALESPERSON") {
@@ -19,201 +21,168 @@ export async function GET(request: NextRequest) {
       caseFilter.client = { ownerId: user.id }
     }
 
-    // Nowe leady (nie dla klientów)
-    let newLeads = 0
-    if (user.role !== "CLIENT") {
-      const leadFilter: Record<string, unknown> = { status: "NEW" }
-      if (user.role === "SALESPERSON") leadFilter.assignedSalesId = user.id
-      newLeads = await prisma.lead.count({ where: leadFilter })
+    // Filtr leadów (jeśli rola pozwala)
+    const leadFilter: Record<string, unknown> = { status: "NEW" }
+    if (user.role === "SALESPERSON") leadFilter.assignedSalesId = user.id
+
+    // Filtr akceptacji
+    const approvalFilter: Record<string, unknown> = { ...caseFilter }
+    if (user.role === "CARETAKER") {
+      approvalFilter.status = "CARETAKER_REVIEW"
+      approvalFilter.caretakerId = user.id
+    } else if (user.role === "DIRECTOR") {
+      approvalFilter.status = "DIRECTOR_REVIEW"
+      approvalFilter.directorId = user.id
+    } else {
+      approvalFilter.status = { in: ["CARETAKER_REVIEW", "DIRECTOR_REVIEW"] }
     }
 
-    // Sprzedaże wymagające akcji
-    const pendingCases = await prisma.case.findMany({
-      where: {
-        ...caseFilter,
-        status: { in: ["IN_PREPARATION", "TO_FIX", "WAITING_CLIENT_DATA"] }
-      },
-      include: {
-        client: { select: { companyName: true } }
-      },
-      take: 5
-    })
-
-    // Sprzedaże do akceptacji (tylko dla CARETAKER/DIRECTOR/ADMIN)
-    let casesForApproval: any[] = []
-    if (["CARETAKER", "DIRECTOR", "ADMIN"].includes(user.role)) {
-      const approvalFilter: Record<string, unknown> = { ...caseFilter }
-      if (user.role === "CARETAKER") {
-        approvalFilter.status = "CARETAKER_REVIEW"
-        approvalFilter.caretakerId = user.id
-      } else if (user.role === "DIRECTOR") {
-        approvalFilter.status = "DIRECTOR_REVIEW"
-        approvalFilter.directorId = user.id
-      } else {
-        approvalFilter.status = { in: ["CARETAKER_REVIEW", "DIRECTOR_REVIEW"] }
-      }
-      casesForApproval = await prisma.case.findMany({
-        where: approvalFilter,
-        include: { client: { select: { companyName: true } } },
-        take: 5
-      })
-    }
-
-    // Sprzedaże z brakami
-    const casesWithMissing = await prisma.case.findMany({
-      where: {
-        ...caseFilter,
-        OR: [
-          { files: { some: { status: "MISSING" } } },
-          { files: { some: { status: "REJECTED" } } },
-          { checklist: { some: { status: "PENDING", isBlocking: true } } }
-        ]
-      },
-      include: {
-        client: { select: { companyName: true } }
-      },
-      take: 5
-    })
-
-    // Najbliższe terminy
-    const upcomingDeadlines = await prisma.case.findMany({
-      where: {
-        ...caseFilter,
-        surveyDeadline: { gte: new Date() },
-        status: { notIn: ["CLOSED", "CANCELLED"] }
-      },
-      include: {
-        client: { select: { companyName: true } }
-      },
-      orderBy: { surveyDeadline: "asc" },
-      take: 5
-    })
-
-    // Ostatnia aktywność
+    // Filtr aktywności
     const activityFilter: Record<string, unknown> = { type: "SYSTEM_LOG" }
-    if (user.role === "SALESPERSON") {
-      activityFilter.case = { salesId: user.id }
-    } else if (user.role === "CARETAKER") {
-      activityFilter.case = { caretakerId: user.id }
-    } else if (user.role === "CLIENT") {
-      activityFilter.case = { client: { ownerId: user.id } }
-    }
+    if (user.role === "SALESPERSON") activityFilter.case = { salesId: user.id }
+    else if (user.role === "CARETAKER") activityFilter.case = { caretakerId: user.id }
+    else if (user.role === "CLIENT") activityFilter.case = { client: { ownerId: user.id } }
 
-    const recentActivity = await prisma.caseMessage.findMany({
-      where: activityFilter,
-      include: {
-        case: { select: { title: true } },
-        author: { select: { name: true } }
-      },
-      orderBy: { createdAt: "desc" },
-      take: 10
-    })
+    // Moje akceptacje
+    const myApprovalFilter: Record<string, unknown> = {}
+    if (user.role === "CARETAKER") { myApprovalFilter.detailedStatus = "CARETAKER_APPROVAL"; myApprovalFilter.caretakerId = user.id }
+    else if (user.role === "DIRECTOR") { myApprovalFilter.detailedStatus = "DIRECTOR_APPROVAL"; myApprovalFilter.directorId = user.id }
+    else if (user.role === "ADMIN") { myApprovalFilter.detailedStatus = { in: ["CARETAKER_APPROVAL", "DIRECTOR_APPROVAL"] } }
 
-    // Nieprzeczytane powiadomienia
-    const unreadNotifications = await prisma.notification.count({
-      where: { userId: user.id, isRead: false }
-    })
-
-    // Moje sprzedaże (aktywne, przypisane do mnie wg roli)
-    const mySalesFilter: Record<string, unknown> = {
-      status: { notIn: ["CLOSED", "CANCELLED"] },
-    }
+    const mySalesFilter: Record<string, unknown> = { status: { notIn: ["CLOSED", "CANCELLED"] } }
     if (user.role === "SALESPERSON") mySalesFilter.salesId = user.id
     else if (user.role === "CARETAKER") mySalesFilter.caretakerId = user.id
     else if (user.role === "CLIENT") mySalesFilter.client = { ownerId: user.id }
 
-    const mySales = await prisma.case.findMany({
-      where: mySalesFilter,
-      include: { client: { select: { companyName: true } } },
-      orderBy: { updatedAt: "desc" },
-      take: 5,
-    })
-
-    // Moje akceptacje
-    let myApprovals: any[] = []
-    if (["CARETAKER", "DIRECTOR", "ADMIN"].includes(user.role)) {
-      const af: Record<string, unknown> = {}
-      if (user.role === "CARETAKER") { af.detailedStatus = "CARETAKER_APPROVAL"; af.caretakerId = user.id }
-      else if (user.role === "DIRECTOR") { af.detailedStatus = "DIRECTOR_APPROVAL"; af.directorId = user.id }
-      else { af.detailedStatus = { in: ["CARETAKER_APPROVAL", "DIRECTOR_APPROVAL"] } }
-      myApprovals = await prisma.case.findMany({
-        where: af,
+    // Wszystkie zapytania równolegle (był sekwencyjny waterfall ~12 round-tripów)
+    const [
+      newLeads,
+      pendingCases,
+      casesForApproval,
+      casesWithMissing,
+      upcomingDeadlines,
+      recentActivity,
+      unreadNotifications,
+      mySales,
+      myApprovals,
+      myMissing,
+      activeCasesCount,
+      myExecutionCount,
+      myTasks,
+      myClients,
+      toFix,
+    ] = await Promise.all([
+      user.role !== "CLIENT"
+        ? prisma.lead.count({ where: leadFilter })
+        : Promise.resolve(0),
+      prisma.case.findMany({
+        where: { ...caseFilter, status: { in: ["IN_PREPARATION", "TO_FIX", "WAITING_CLIENT_DATA"] } },
         include: { client: { select: { companyName: true } } },
         take: 5,
-      })
-    }
-
-    // Moje braki
-    const myMissing = await prisma.case.findMany({
-      where: {
-        ...caseFilter,
-        status: { notIn: ["CLOSED", "CANCELLED"] },
-        OR: [
-          { files: { some: { status: "MISSING" } } },
-          { files: { some: { status: "REJECTED" } } },
-          { checklist: { some: { status: "PENDING", isBlocking: true } } },
-        ],
-      },
-      include: {
-        client: { select: { companyName: true } },
-        files: { where: { status: { in: ["MISSING", "REJECTED"] } }, select: { fileName: true, status: true } },
-      },
-      take: 5,
-    })
-
-    const activeCasesCount = await prisma.case.count({
-      where: { ...caseFilter, status: { notIn: ["CLOSED", "CANCELLED"] } },
-    })
-
-    const myExecutionCount = await prisma.case.count({
-      where: { ...caseFilter, processStage: "EXECUTION" },
-    })
-
-    // PDF B.2 — Zadania (checklisty przypisane do mnie, niezrobione)
-    const myTasks = await prisma.caseChecklistItem.findMany({
-      where: {
-        assignedToId: user.id,
-        status: "PENDING",
-      },
-      include: {
-        case: { select: { id: true, title: true, client: { select: { companyName: true } } } },
-      },
-      orderBy: { createdAt: "asc" },
-      take: 10,
-    })
-
-    // PDF B.2 — Kontakty (klienci których jestem właścicielem)
-    const myClients = await prisma.client.findMany({
-      where: {
-        ownerId: user.id,
-        stage: { notIn: ["INACTIVE"] },
-      },
-      select: {
-        id: true,
-        companyName: true,
-        industry: true,
-        stage: true,
-        contacts: { where: { isMain: true }, select: { name: true, phone: true, email: true }, take: 1 },
-        source: { select: { name: true } },
-        caretaker: { select: { name: true } },
-      },
-      orderBy: { updatedAt: "desc" },
-      take: 10,
-    })
-
-    // PDF B.2 — Do poprawy (case ze statusem TO_FIX przypisane do mnie)
-    const toFix = await prisma.case.findMany({
-      where: {
-        ...caseFilter,
-        detailedStatus: "TO_FIX",
-        status: { notIn: ["CLOSED", "CANCELLED"] },
-      },
-      include: {
-        client: { select: { companyName: true } },
-      },
-      orderBy: { updatedAt: "desc" },
-      take: 5,
-    })
+      }),
+      isPriv
+        ? prisma.case.findMany({
+            where: approvalFilter,
+            include: { client: { select: { companyName: true } } },
+            take: 5,
+          })
+        : Promise.resolve([] as any[]),
+      prisma.case.findMany({
+        where: {
+          ...caseFilter,
+          OR: [
+            { files: { some: { status: "MISSING" } } },
+            { files: { some: { status: "REJECTED" } } },
+            { checklist: { some: { status: "PENDING", isBlocking: true } } },
+          ],
+        },
+        include: { client: { select: { companyName: true } } },
+        take: 5,
+      }),
+      prisma.case.findMany({
+        where: {
+          ...caseFilter,
+          surveyDeadline: { gte: new Date() },
+          status: { notIn: ["CLOSED", "CANCELLED"] },
+        },
+        include: { client: { select: { companyName: true } } },
+        orderBy: { surveyDeadline: "asc" },
+        take: 5,
+      }),
+      prisma.caseMessage.findMany({
+        where: activityFilter,
+        include: {
+          case: { select: { title: true } },
+          author: { select: { name: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      }),
+      prisma.notification.count({ where: { userId: user.id, isRead: false } }),
+      prisma.case.findMany({
+        where: mySalesFilter,
+        include: { client: { select: { companyName: true } } },
+        orderBy: { updatedAt: "desc" },
+        take: 5,
+      }),
+      isPriv
+        ? prisma.case.findMany({
+            where: myApprovalFilter,
+            include: { client: { select: { companyName: true } } },
+            take: 5,
+          })
+        : Promise.resolve([] as any[]),
+      prisma.case.findMany({
+        where: {
+          ...caseFilter,
+          status: { notIn: ["CLOSED", "CANCELLED"] },
+          OR: [
+            { files: { some: { status: "MISSING" } } },
+            { files: { some: { status: "REJECTED" } } },
+            { checklist: { some: { status: "PENDING", isBlocking: true } } },
+          ],
+        },
+        include: {
+          client: { select: { companyName: true } },
+          files: { where: { status: { in: ["MISSING", "REJECTED"] } }, select: { fileName: true, status: true } },
+        },
+        take: 5,
+      }),
+      prisma.case.count({ where: { ...caseFilter, status: { notIn: ["CLOSED", "CANCELLED"] } } }),
+      prisma.case.count({ where: { ...caseFilter, processStage: "EXECUTION" } }),
+      prisma.caseChecklistItem.findMany({
+        where: { assignedToId: user.id, status: "PENDING" },
+        include: {
+          case: { select: { id: true, title: true, client: { select: { companyName: true } } } },
+        },
+        orderBy: { createdAt: "asc" },
+        take: 10,
+      }),
+      prisma.client.findMany({
+        where: { ownerId: user.id, stage: { notIn: ["INACTIVE"] } },
+        select: {
+          id: true,
+          companyName: true,
+          industry: true,
+          stage: true,
+          contacts: { where: { isMain: true }, select: { name: true, phone: true, email: true }, take: 1 },
+          source: { select: { name: true } },
+          caretaker: { select: { name: true } },
+        },
+        orderBy: { updatedAt: "desc" },
+        take: 10,
+      }),
+      prisma.case.findMany({
+        where: {
+          ...caseFilter,
+          detailedStatus: "TO_FIX",
+          status: { notIn: ["CLOSED", "CANCELLED"] },
+        },
+        include: { client: { select: { companyName: true } } },
+        orderBy: { updatedAt: "desc" },
+        take: 5,
+      }),
+    ])
 
     return NextResponse.json({
       newLeads,

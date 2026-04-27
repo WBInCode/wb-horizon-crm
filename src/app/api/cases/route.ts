@@ -128,25 +128,28 @@ export async function GET(request: NextRequest) {
           select: { id: true },
         },
         approvals: {
+          where: { status: "PENDING" },
           select: { id: true, status: true },
         },
-        _count: { 
-          select: { 
-            files: true, 
+        _count: {
+          select: {
+            files: true,
             checklist: true,
-            messages: true 
-          } 
-        }
+            messages: true,
+            approvals: true,
+          },
+        },
       },
-      orderBy: { updatedAt: "desc" }
+      orderBy: { updatedAt: "desc" },
+      take: 200,
     })
 
     // Dodaj obliczone pola statusów do odpowiedzi
     const casesWithStatus = cases.map((c) => {
       const missingFiles = c.files.length
       const blockingChecklist = c.checklist.length
-      const pendingApprovals = c.approvals.filter((a) => a.status === "PENDING").length
-      const allApproved = c.approvals.length > 0 && c.approvals.every((a) => a.status === "APPROVED")
+      const pendingApprovals = c.approvals.length
+      const allApproved = c._count.approvals > 0 && pendingApprovals === 0
       return {
         ...c,
         _status: { missingFiles, blockingChecklist, pendingApprovals, allApproved },
