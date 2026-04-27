@@ -1,0 +1,116 @@
+{
+  "common": {
+    "save": "Zapisz",
+    "cancel": "Anuluj",
+    "delete": "Usuń",
+    "edit": "Edytuj",
+    "add": "Dodaj",
+    "create": "Utwórz",
+    "close": "Zamknij",
+    "search": "Szukaj",
+    "loading": "Ładowanie...",
+    "saving": "Zapisywanie...",
+    "noData": "Brak danych",
+    "error": "Błąd",
+    "success": "Sukces",
+    "confirm": "Potwierdź",
+    "yes": "Tak",
+    "no": "Nie",
+    "back": "Wstecz",
+    "next": "Dalej",
+    "previous": "Poprzedni",
+    "submit": "Wyślij",
+    "actions": "Akcje",
+    "name": "Nazwa",
+    "email": "E-mail",
+    "phone": "Telefon",
+    "status": "Status",
+    "createdAt": "Utworzono",
+    "updatedAt": "Zaktualizowano",
+    "active": "Aktywny",
+    "inactive": "Nieaktywny",
+    "all": "Wszystkie",
+    "filter": "Filtruj",
+    "export": "Eksportuj",
+    "import": "Importuj",
+    "refresh": "Odśwież"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "leads": "Leady",
+    "clients": "Kontrahenci",
+    "cases": "Sprzedaże",
+    "archive": "Archiwum",
+    "admin": "Administracja",
+    "logout": "Wyloguj",
+    "profile": "Profil",
+    "settings": "Ustawienia",
+    "notifications": "Powiadomienia",
+    "docs": "Dokumentacja"
+  },
+  "auth": {
+    "login": "Zaloguj się",
+    "loginTitle": "Zaloguj się do systemu",
+    "logout": "Wyloguj",
+    "password": "Hasło",
+    "rememberMe": "Zapamiętaj mnie",
+    "forgotPassword": "Zapomniałem hasła",
+    "loginFailed": "Niepoprawny e-mail lub hasło",
+    "sessionExpired": "Sesja wygasła, zaloguj się ponownie"
+  },
+  "leads": {
+    "title": "Leady",
+    "newLead": "Nowy lead",
+    "companyName": "Nazwa firmy",
+    "contactPerson": "Osoba kontaktowa",
+    "industry": "Branża",
+    "source": "Źródło",
+    "priority": "Priorytet",
+    "status": {
+      "NEW": "Nowy",
+      "TO_CONTACT": "Do kontaktu",
+      "IN_CONTACT": "W kontakcie",
+      "MEETING_SCHEDULED": "Spotkanie umówione",
+      "AFTER_MEETING": "Po spotkaniu",
+      "QUALIFIED": "Zakwalifikowany",
+      "NOT_QUALIFIED": "Niezakwalifikowany",
+      "TRANSFERRED": "Przekazany",
+      "CLOSED": "Zamknięty"
+    },
+    "priorities": {
+      "LOW": "Niski",
+      "MEDIUM": "Średni",
+      "HIGH": "Wysoki",
+      "CRITICAL": "Krytyczny"
+    }
+  },
+  "clients": {
+    "title": "Kontrahenci",
+    "newClient": "Nowy kontrahent",
+    "stage": {
+      "LEAD": "Lead",
+      "PROSPECT": "Prospekt",
+      "QUOTATION": "Wycena",
+      "SALE": "Sprzedaż",
+      "CLIENT": "Klient",
+      "INACTIVE": "Nieaktywny"
+    }
+  },
+  "cases": {
+    "title": "Sprzedaże",
+    "newCase": "Nowa sprzedaż",
+    "process": "Proces",
+    "files": "Pliki",
+    "checklist": "Checklista",
+    "messages": "Wiadomości",
+    "approvals": "Akceptacje",
+    "quotes": "Wyceny"
+  },
+  "errors": {
+    "unauthorized": "Brak uprawnień",
+    "notFound": "Nie znaleziono",
+    "serverError": "Błąd serwera",
+    "validation": "Błąd walidacji",
+    "network": "Błąd połączenia"
+  }
+}

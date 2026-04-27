@@ -1,0 +1,116 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "create": "Create",
+    "close": "Close",
+    "search": "Search",
+    "loading": "Loading...",
+    "saving": "Saving...",
+    "noData": "No data",
+    "error": "Error",
+    "success": "Success",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit",
+    "actions": "Actions",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "status": "Status",
+    "createdAt": "Created",
+    "updatedAt": "Updated",
+    "active": "Active",
+    "inactive": "Inactive",
+    "all": "All",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "refresh": "Refresh"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "leads": "Leads",
+    "clients": "Clients",
+    "cases": "Sales",
+    "archive": "Archive",
+    "admin": "Admin",
+    "logout": "Logout",
+    "profile": "Profile",
+    "settings": "Settings",
+    "notifications": "Notifications",
+    "docs": "Documentation"
+  },
+  "auth": {
+    "login": "Sign in",
+    "loginTitle": "Sign in to the system",
+    "logout": "Sign out",
+    "password": "Password",
+    "rememberMe": "Remember me",
+    "forgotPassword": "Forgot password",
+    "loginFailed": "Incorrect email or password",
+    "sessionExpired": "Session expired, please sign in again"
+  },
+  "leads": {
+    "title": "Leads",
+    "newLead": "New lead",
+    "companyName": "Company name",
+    "contactPerson": "Contact person",
+    "industry": "Industry",
+    "source": "Source",
+    "priority": "Priority",
+    "status": {
+      "NEW": "New",
+      "TO_CONTACT": "To contact",
+      "IN_CONTACT": "In contact",
+      "MEETING_SCHEDULED": "Meeting scheduled",
+      "AFTER_MEETING": "After meeting",
+      "QUALIFIED": "Qualified",
+      "NOT_QUALIFIED": "Not qualified",
+      "TRANSFERRED": "Transferred",
+      "CLOSED": "Closed"
+    },
+    "priorities": {
+      "LOW": "Low",
+      "MEDIUM": "Medium",
+      "HIGH": "High",
+      "CRITICAL": "Critical"
+    }
+  },
+  "clients": {
+    "title": "Clients",
+    "newClient": "New client",
+    "stage": {
+      "LEAD": "Lead",
+      "PROSPECT": "Prospect",
+      "QUOTATION": "Quotation",
+      "SALE": "Sale",
+      "CLIENT": "Client",
+      "INACTIVE": "Inactive"
+    }
+  },
+  "cases": {
+    "title": "Sales",
+    "newCase": "New sale",
+    "process": "Process",
+    "files": "Files",
+    "checklist": "Checklist",
+    "messages": "Messages",
+    "approvals": "Approvals",
+    "quotes": "Quotes"
+  },
+  "errors": {
+    "unauthorized": "Unauthorized",
+    "notFound": "Not found",
+    "serverError": "Server error",
+    "validation": "Validation error",
+    "network": "Network error"
+  }
+}

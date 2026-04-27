@@ -5,6 +5,7 @@ import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { LogOut, Bell, Search } from "lucide-react"
+import { LangSwitcher } from "./LangSwitcher"
 
 const roleLabels: Record<string, string> = {
   ADMIN: "Administrator",
@@ -135,6 +136,7 @@ export function Header() {
 
       {/* Right */}
       <div className="flex items-center gap-3">
+        <LangSwitcher />
         {/* Notifications */}
         <div className="relative" ref={dropdownRef}>
           <button
