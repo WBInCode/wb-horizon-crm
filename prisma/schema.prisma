@@ -181,6 +181,8 @@ model User {
   email     String     @unique
   password  String
   name      String
+  phone     String?
+  avatarUrl String?
   role      Role       @default(SALESPERSON)
   status    UserStatus @default(ACTIVE)
   createdAt DateTime   @default(now())

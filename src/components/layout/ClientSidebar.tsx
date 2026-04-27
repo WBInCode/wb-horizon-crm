@@ -12,7 +12,10 @@ import {
   ClipboardList,
   Package,
   BookOpen,
+  UserCircle,
+  Settings,
 } from "lucide-react"
+import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 
 const clientMenuItems = [
@@ -29,6 +32,16 @@ export function ClientSidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
   const user = session?.user as any
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (user?.email) {
+      fetch("/api/client/profile")
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data?.avatarUrl) setAvatarUrl(data.avatarUrl) })
+        .catch(() => {})
+    }
+  }, [user?.email])
 
   const initials = user?.name
     ? user.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
@@ -137,16 +150,23 @@ export function ClientSidebar() {
       {/* User info */}
       {user && (
         <div className="px-4 py-4" style={{ borderTop: "1px solid var(--sidebar-border)" }}>
-          <div className="flex items-center gap-3">
+          <Link
+            href="/client/profile"
+            className="flex items-center gap-3 group rounded-lg px-1 py-1 -mx-1 transition-colors hover:bg-[var(--sidebar-accent)]"
+          >
             <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold overflow-hidden flex-shrink-0"
               style={{
-                background: "var(--sidebar-accent)",
+                background: avatarUrl ? "transparent" : "var(--sidebar-accent)",
                 color: "var(--sidebar-accent-foreground)",
                 fontFamily: "var(--font-display)",
               }}
             >
-              {initials}
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+              ) : (
+                initials
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p
@@ -162,7 +182,11 @@ export function ClientSidebar() {
                 {user.email}
               </p>
             </div>
-          </div>
+            <Settings
+              className="w-4 h-4 flex-shrink-0 opacity-0 group-hover:opacity-70 transition-opacity"
+              style={{ color: "var(--sidebar-foreground)" }}
+            />
+          </Link>
         </div>
       )}
     </aside>
