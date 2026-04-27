@@ -11,6 +11,8 @@ import { ArrowLeft, ArrowRight, Check, Upload, FileText, ClipboardList, Package,
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import AddProductInlineForm from "@/components/cases/AddProductInlineForm"
+import type { SurveySchema, SurveyQuestion as UnifiedSurveyQuestion, SurveyAnswers, QuestionType } from "@/types/survey"
+import { migrateToSchema, isConditionMet, QUESTION_TYPE_LABELS } from "@/types/survey"
 
 interface SurveyQuestion {
   question: string
@@ -64,20 +66,50 @@ export default function NewCasePage() {
     productId: "",
     title: "",
   })
-  const [surveyAnswers, setSurveyAnswers] = useState<Record<string, string>>({})
+  const [surveyAnswers, setSurveyAnswers] = useState<SurveyAnswers>({})
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, File>>({})
   const [showAddProduct, setShowAddProduct] = useState(false)
+  const [surveyTemplates, setSurveyTemplates] = useState<any[]>([])
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
 
   const selectedClient = clients.find((c) => c.id === form.clientId)
   const selectedProduct = products.find((p) => p.id === form.productId)
   const surveyQuestions: SurveyQuestion[] = (selectedProduct?.surveySchema as SurveyQuestion[] | null) || []
   const requiredFiles: RequiredFile[] = (selectedProduct?.requiredFiles as RequiredFile[] | null) || []
 
+  // Compute unified schema for step 3
+  const getUnifiedSchema = (): SurveySchema | null => {
+    // If a template is selected, use it
+    if (selectedTemplateId && surveyTemplates.length > 0) {
+      const tpl = surveyTemplates.find(t => t.id === selectedTemplateId)
+      if (tpl?.schema) {
+        const raw = tpl.schema
+        if (raw.version && raw.questions) return raw as SurveySchema
+        if (Array.isArray(raw)) return migrateToSchema(raw)
+      }
+    }
+    // Otherwise use product survey schema
+    if (surveyQuestions.length > 0) {
+      return migrateToSchema(surveyQuestions.map((q, i) => ({
+        id: `pq_${i}`,
+        label: q.question,
+        type: q.type,
+        options: q.options,
+      })))
+    }
+    return null
+  }
+
   useEffect(() => {
     fetch("/api/clients")
       .then((res) => res.json())
       .then((data) => setClients(Array.isArray(data) ? data : []))
       .catch(() => setClients([]))
+    // Fetch survey templates
+    fetch("/api/admin/survey-templates")
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setSurveyTemplates((data || []).filter((t: any) => t.isActive)))
+      .catch(() => setSurveyTemplates([]))
   }, [])
 
   const fetchProducts = (clientId: string) => {
@@ -150,12 +182,13 @@ export default function NewCasePage() {
       const newCase = await res.json()
 
       // 2. Save survey answers if any
-      if (Object.keys(surveyAnswers).length > 0 && surveyQuestions.length > 0) {
+      const unifiedSchema = getUnifiedSchema()
+      if (Object.keys(surveyAnswers).length > 0 && (unifiedSchema || surveyQuestions.length > 0)) {
         await fetch(`/api/cases/${newCase.id}/survey`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            schemaJson: { questions: surveyQuestions },
+            schemaJson: unifiedSchema || { questions: surveyQuestions },
             answersJson: surveyAnswers,
           }),
         })
@@ -177,6 +210,61 @@ export default function NewCasePage() {
       alert("Błąd połączenia z serwerem")
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  // Render a unified survey question in the wizard
+  const renderWizardField = (q: UnifiedSurveyQuestion, ans: SurveyAnswers, setAns: (a: SurveyAnswers) => void) => {
+    const val = ans[q.id]
+    switch (q.type) {
+      case "text": case "email": case "phone": case "nip":
+        return <Input type={q.type === "email" ? "email" : q.type === "phone" ? "tel" : "text"} value={(val as string) || ""} onChange={e => setAns({ ...ans, [q.id]: e.target.value })} placeholder={q.placeholder || `Wpisz...`} />
+      case "textarea": case "address":
+        return <Textarea value={(val as string) || ""} onChange={e => setAns({ ...ans, [q.id]: e.target.value })} placeholder={q.placeholder || ""} rows={q.type === "address" ? 2 : 3} />
+      case "number":
+        return <Input type="number" value={(val as string) || ""} onChange={e => setAns({ ...ans, [q.id]: e.target.value })} placeholder={q.placeholder || "0"} />
+      case "date":
+        return <Input type="date" value={(val as string) || ""} onChange={e => setAns({ ...ans, [q.id]: e.target.value })} />
+      case "select":
+        return (
+          <Select value={(val as string) || ""} onValueChange={v => setAns({ ...ans, [q.id]: v as string })}>
+            <SelectTrigger><SelectValue placeholder="Wybierz...">{(val as string) || "Wybierz..."}</SelectValue></SelectTrigger>
+            <SelectContent>{(q.options || []).filter(Boolean).map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent>
+          </Select>
+        )
+      case "multi_select": {
+        const sel = Array.isArray(val) ? val as string[] : []
+        return (
+          <div className="space-y-1.5">{(q.options || []).filter(Boolean).map(opt => (
+            <label key={opt} className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={sel.includes(opt)} onChange={e => setAns({ ...ans, [q.id]: e.target.checked ? [...sel, opt] : sel.filter(s => s !== opt) })} className="rounded" />
+              <span className="text-sm">{opt}</span>
+            </label>
+          ))}</div>
+        )
+      }
+      case "boolean":
+        return (
+          <div className="flex gap-2">
+            {["Tak", "Nie"].map(opt => (
+              <button key={opt} type="button" onClick={() => setAns({ ...ans, [q.id]: opt === "Tak" ? "true" : "false" })} className="px-4 py-2 rounded-lg text-sm font-medium transition-colors" style={{ background: (val === "true" && opt === "Tak") || (val === "false" && opt === "Nie") ? "var(--brand)" : "var(--surface-2)", color: (val === "true" && opt === "Tak") || (val === "false" && opt === "Nie") ? "white" : "var(--content-default)", border: "1px solid var(--line-subtle)" }}>{opt}</button>
+            ))}
+          </div>
+        )
+      case "scale": {
+        const min = q.scaleMin ?? 1; const max = q.scaleMax ?? 5
+        return (
+          <div className="flex gap-1.5">
+            {Array.from({ length: max - min + 1 }, (_, i) => min + i).map(n => (
+              <button key={n} type="button" onClick={() => setAns({ ...ans, [q.id]: String(n) })} className="w-10 h-10 rounded-lg text-sm font-medium" style={{ background: val === String(n) ? "var(--brand)" : "var(--surface-2)", color: val === String(n) ? "white" : "var(--content-default)", border: "1px solid var(--line-subtle)" }}>{n}</button>
+            ))}
+          </div>
+        )
+      }
+      case "file":
+        return <p className="text-sm" style={{ color: "var(--content-muted)" }}>Pliki dodawaj w następnym kroku</p>
+      default:
+        return <Input value={(val as string) || ""} onChange={e => setAns({ ...ans, [q.id]: e.target.value })} />
     }
   }
 
@@ -353,21 +441,81 @@ export default function NewCasePage() {
             <CardTitle>Ankieta produktu</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {surveyQuestions.length === 0 ? (
-              <p className="text-gray-500">Ten produkt nie ma zdefiniowanej ankiety. Możesz przejść dalej.</p>
-            ) : (
-              surveyQuestions.map((q, idx) => (
+            {/* Template selector */}
+            {surveyTemplates.length > 0 && surveyQuestions.length === 0 && (
+              <div className="p-3 rounded-lg" style={{ background: "var(--surface-2)", border: "1px solid var(--line-subtle)" }}>
+                <Label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--content-muted)" }}>Użyj szablonu ankiety</Label>
+                <Select
+                  value={selectedTemplateId}
+                  onValueChange={(val: string | null) => {
+                    setSelectedTemplateId(val ?? "")
+                    setSurveyAnswers({})
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Wybierz szablon (opcjonalnie)...">
+                      {selectedTemplateId
+                        ? surveyTemplates.find(t => t.id === selectedTemplateId)?.name || "Wybierz..."
+                        : "Wybierz szablon (opcjonalnie)..."}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {surveyTemplates.map(t => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {(() => {
+              const unifiedSchema = getUnifiedSchema()
+              if (!unifiedSchema && surveyQuestions.length === 0) {
+                return <p className="text-sm" style={{ color: "var(--content-muted)" }}>Ten produkt nie ma zdefiniowanej ankiety. Możesz wybrać szablon lub przejść dalej.</p>
+              }
+
+              // Render from unified schema if available
+              if (unifiedSchema) {
+                return unifiedSchema.questions.map((q) => {
+                  if (q.condition && !isConditionMet(q.condition, surveyAnswers)) return null
+
+                  if (q.type === "heading") {
+                    return (
+                      <div key={q.id} className="pt-3 pb-1 border-b" style={{ borderColor: "var(--line-subtle)" }}>
+                        <h3 className="font-semibold text-sm" style={{ color: "var(--content-strong)" }}>{q.label}</h3>
+                        {q.description && <p className="text-xs mt-0.5" style={{ color: "var(--content-muted)" }}>{q.description}</p>}
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <div key={q.id}>
+                      <Label>
+                        {q.label}
+                        {q.required && <span className="ml-0.5" style={{ color: "var(--danger)" }}>*</span>}
+                      </Label>
+                      {q.description && <p className="text-xs mb-1" style={{ color: "var(--content-muted)" }}>{q.description}</p>}
+                      <div className="mt-1">
+                        {renderWizardField(q, surveyAnswers, setSurveyAnswers)}
+                      </div>
+                    </div>
+                  )
+                })
+              }
+
+              // Fallback: legacy product questions
+              return surveyQuestions.map((q, idx) => (
                 <div key={idx}>
                   <Label>{q.question}</Label>
                   {q.type === "select" && q.options?.length ? (
                     <Select
-                      value={surveyAnswers[q.question] || ""}
+                      value={(surveyAnswers[q.question] as string) || ""}
                       onValueChange={(val: string | null) =>
                         setSurveyAnswers({ ...surveyAnswers, [q.question]: val ?? "" })
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Wybierz...">{surveyAnswers[q.question]}</SelectValue>
+                        <SelectValue placeholder="Wybierz...">{(surveyAnswers[q.question] as string) || ""}</SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {q.options.map((opt) => (
@@ -378,7 +526,7 @@ export default function NewCasePage() {
                   ) : (
                     <Input
                       type={q.type === "number" ? "number" : "text"}
-                      value={surveyAnswers[q.question] || ""}
+                      value={(surveyAnswers[q.question] as string) || ""}
                       onChange={(e) =>
                         setSurveyAnswers({ ...surveyAnswers, [q.question]: e.target.value })
                       }
@@ -387,7 +535,7 @@ export default function NewCasePage() {
                   )}
                 </div>
               ))
-            )}
+            })()}
           </CardContent>
         </Card>
       )}
@@ -481,12 +629,13 @@ export default function NewCasePage() {
                 <p className="text-gray-500 text-sm mb-2">Ankieta</p>
                 <div className="space-y-1 text-sm">
                   {surveyQuestions.map((q, idx) => {
-                    const answered = !!surveyAnswers[q.question]?.trim()
+                    const rawVal = surveyAnswers[q.question]
+                    const answered = typeof rawVal === 'string' ? !!rawVal.trim() : Array.isArray(rawVal) ? rawVal.length > 0 : !!rawVal
                     return (
                       <div key={idx} className="flex gap-2">
                         <span className="text-gray-500">{q.question}:</span>
                         {answered ? (
-                          <span className="font-medium">{surveyAnswers[q.question]}</span>
+                          <span className="font-medium">{Array.isArray(rawVal) ? rawVal.join(", ") : String(rawVal)}</span>
                         ) : (
                           <span className="text-red-500 flex items-center gap-1">
                             <AlertCircle className="w-3 h-3" /> Brak odpowiedzi
@@ -530,7 +679,7 @@ export default function NewCasePage() {
               const missing: string[] = []
               if (!selectedClient) missing.push("kontrahent")
               if (!selectedProduct) missing.push("produkt")
-              const unansweredSurvey = surveyQuestions.filter((q) => !surveyAnswers[q.question]?.trim()).length
+              const unansweredSurvey = surveyQuestions.filter((q) => { const v = surveyAnswers[q.question]; return typeof v === 'string' ? !v.trim() : !v; }).length
               if (unansweredSurvey > 0) missing.push(`${unansweredSurvey} pytań ankiety`)
               const missingFiles = requiredFiles.filter((rf) => !uploadedFiles[rf.name]).length
               if (missingFiles > 0) missing.push(`${missingFiles} plików`)

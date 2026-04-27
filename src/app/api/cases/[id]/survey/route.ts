@@ -29,6 +29,38 @@ export async function GET(
       orderBy: { updatedAt: "desc" }
     })
 
+    // Calculate progress if survey has schema
+    if (survey?.schemaJson && survey?.answersJson) {
+      const schema = survey.schemaJson as any
+      const answers = survey.answersJson as Record<string, any>
+      if (schema.version && schema.questions) {
+        const questions = (schema.questions as any[]).filter((q: any) => q.type !== "heading")
+        const total = questions.length
+        const required = questions.filter((q: any) => q.required).length
+        const answered = questions.filter((q: any) => {
+          const val = answers[q.id]
+          return val !== undefined && val !== null && val !== "" && !(Array.isArray(val) && val.length === 0)
+        }).length
+        const requiredAnswered = questions.filter((q: any) => {
+          if (!q.required) return false
+          const val = answers[q.id]
+          return val !== undefined && val !== null && val !== "" && !(Array.isArray(val) && val.length === 0)
+        }).length
+
+        return NextResponse.json({
+          ...survey,
+          progress: {
+            total,
+            answered,
+            required,
+            requiredAnswered,
+            percentage: total > 0 ? Math.round((answered / total) * 100) : 100,
+            isComplete: requiredAnswered >= required,
+          }
+        })
+      }
+    }
+
     return NextResponse.json(survey)
   } catch (error) {
     console.error(error)
