@@ -20,7 +20,7 @@ Status:
 | 6 | Mobile PWA + offline-first | HIGH | `[ ]` | Autonomiczne â€” Sprint H |
 | 7 | SSO Google + Microsoft (NextAuth) | MEDIUM | `[!]` | Te same OAuth credentials |
 | 8 | Reporting builder + eksport PDF/Excel | HIGH | `[ ]` | Autonomiczne â€” Sprint G |
-| 9 | CSV import wizard (mapping fields) | MEDIUM | `[ ]` | Autonomiczne â€” Sprint C |
+| 9 | CSV import wizard (mapping fields) | MEDIUM | `[x]` | Sprint C: 3-step wizard, auto-mapping po label/name, dry-run preview, commit z `createMany skipDuplicates`. Wsparcie dla `,` i `;` (PL Excel), cudzysÅ‚owÃ³w, BOM, CRLF. Limit 5MB / 50k wierszy. Resources: leads + clients. |
 | 10 | Refaktor 100+ any â†’ strict types + 50 testÃ³w | HIGH | `[ ]` | Autonomiczne â€” Sprint D (267 any w 80 plikach) |
 | 11 | i18n setup (next-intl) PL/EN | MEDIUM | `[ ]` | Autonomiczne â€” Sprint E |
 | 12 | Refaktor 4 admin tabs â†’ generic AdminCRUD<T> | LOW | `[~]` | Sprint A: AdminCRUD.tsx + 2/4 tabs zmigrowane (CooperationTerms, LeadSources). GlobalProducts/ChecklistTemplates wymagajÄ… rozszerzeÅ„ (async options, custom builders) â€” follow-up. |
@@ -106,3 +106,11 @@ Status:
 - Build: 98/98 static pages, 4.6s compile.
 </content>
 </invoke>
+### 2026-04-27 — Sprint C done
+- `src/lib/csv-import.ts` — RFC-4180 parser (cudzyslowy, escape, BOM, CRLF, auto-detect `,`/`;`), limit 5MB / 50k wierszy, `CsvParseError` z lini¹.
+- `src/lib/import-schemas.ts` — definicje pól dla leads (13 pól) + clients (9 pól) z transformerami i walidatorami enum.
+- `src/app/api/admin/import/route.ts` — GET (schema), POST (dry-run + commit) z `createMany skipDuplicates`.
+- `src/components/admin/CsvImportTab.tsx` — 3-step wizard z auto-mappingiem i podgl¹dem walidacji.
+- Audit: action `CREATE` z metadata.source=`csv-import`.
+- Test: `tests/lib/csv-import.test.ts` (14 nowych) — razem 73/73 zielone, 367ms.
+- Build: 99/99 static pages, 4.6s compile. Integration: 51/51 OK.
