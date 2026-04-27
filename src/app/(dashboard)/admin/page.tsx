@@ -20,6 +20,7 @@ import ArchiveManagementTab from "@/components/admin/ArchiveManagementTab"
 import RolesPermissionsTab from "@/components/admin/RolesPermissionsTab"
 import LeadSourcesTab from "@/components/admin/LeadSourcesTab"
 import StructuresTab from "@/components/admin/StructuresTab"
+import ApiKeysTab from "@/components/admin/ApiKeysTab"
 
 const roleLabels: Record<string, string> = {
   ADMIN: "Administrator",
@@ -255,6 +256,7 @@ export default function AdminPage() {
           <TabsTrigger value="sources">Sposoby pozysku</TabsTrigger>
           <TabsTrigger value="structures">Struktury</TabsTrigger>
           <TabsTrigger value="archive">Archiwum</TabsTrigger>
+          <TabsTrigger value="api-keys">Klucze API</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users">
@@ -591,6 +593,10 @@ export default function AdminPage() {
 
         <TabsContent value="archive">
           <ArchiveManagementTab />
+        </TabsContent>
+
+        <TabsContent value="api-keys">
+          <ApiKeysTab />
         </TabsContent>
       </Tabs>
 

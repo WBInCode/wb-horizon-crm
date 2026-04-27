@@ -15,6 +15,8 @@ export type AuditAction =
   | "UPLOAD"
   | "APPROVE"
   | "REJECT"
+  | "API_KEY_CREATED"
+  | "API_KEY_REVOKED"
 
 export type AuditEntityType =
   | "CASE"
@@ -29,6 +31,7 @@ export type AuditEntityType =
   | "SURVEY"
   | "MESSAGE"
   | "PRODUCT"
+  | "ApiKey"
 
 interface AuditLogParams {
   action: AuditAction

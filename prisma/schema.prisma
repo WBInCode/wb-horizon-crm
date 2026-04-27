@@ -239,6 +239,30 @@ model User {
 
   // Zapisane widoki (PDF A.5)
   savedViews SavedView[] @relation("UserSavedViews")
+
+  // Public REST API keys (Faza 2 / Sprint B)
+  apiKeys ApiKey[] @relation("ApiKeyOwner")
+}
+
+/// API key for the Public REST API (/api/v1/*).
+/// `hashedKey` stores the SHA-256 hex digest; the plaintext key is shown to the user
+/// exactly once at creation and then discarded. Format: `wbh_<24bytes-base64url>`.
+model ApiKey {
+  id          String    @id @default(cuid())
+  name        String
+  hashedKey   String    @unique
+  prefix      String // first 12 chars of plaintext, shown for identification (e.g. "wbh_abc123…")
+  scopes      String[] // e.g. ["leads:read", "clients:write", "cases:read"]
+  ownerId     String
+  owner       User      @relation("ApiKeyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([ownerId])
+  @@index([hashedKey])
 }
 
 model Lead {

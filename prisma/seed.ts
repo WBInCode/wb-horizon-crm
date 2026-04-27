@@ -67,6 +67,7 @@ const PERMISSIONS = [
   { code: "admin.archive.purge",category: "admin",    label: "Trwałe usuwanie z archiwum",   sortOrder: 87 },
   { code: "admin.audit",        category: "admin",    label: "Przeglądanie logów audytu",    sortOrder: 88 },
   { code: "admin.reassign",     category: "admin",    label: "Przenoszenie spraw/klientów",  sortOrder: 89 },
+  { code: "admin.api-keys",     category: "admin",    label: "Zarządzanie kluczami API",     sortOrder: 89 },
 
   // --- Approvals ---
   { code: "approvals.approve",  category: "approvals", label: "Zatwierdzanie",              sortOrder: 90 },
