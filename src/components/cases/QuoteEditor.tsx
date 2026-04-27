@@ -29,9 +29,28 @@ const STATUS_COLORS: Record<string, string> = {
   TO_FIX: "bg-orange-100 text-orange-700",
 }
 
+interface QuoteLineItem {
+  id: string
+  name: string
+  unitPrice: number | null
+  qty: number
+  total: number | null
+  isOptional?: boolean
+}
+
+interface QuoteData {
+  id: string
+  status: string
+  kind?: string
+  scope?: string | null
+  price?: number | null
+  notes?: string | null
+  lineItems?: QuoteLineItem[]
+}
+
 interface QuoteEditorProps {
   caseId: string
-  quote: any
+  quote: QuoteData
   onUpdate: () => void
   userRole: string
 }
@@ -43,7 +62,7 @@ export default function QuoteEditor({ caseId, quote, onUpdate, userRole }: Quote
     notes: quote.notes || "",
     status: quote.status,
   })
-  const [lineItems, setLineItems] = useState<any[]>(quote.lineItems || [])
+  const [lineItems, setLineItems] = useState<QuoteLineItem[]>(quote.lineItems || [])
   const [saving, setSaving] = useState(false)
   const [newItem, setNewItem] = useState({ name: "", unitPrice: "", qty: "1" })
 
@@ -91,11 +110,11 @@ export default function QuoteEditor({ caseId, quote, onUpdate, userRole }: Quote
     const res = await fetch(`/api/cases/${caseId}/quotes/${quote.id}/line-items/${itemId}`, {
       method: "DELETE",
     })
-    if (res.ok) setLineItems(lineItems.filter((i: any) => i.id !== itemId))
+    if (res.ok) setLineItems(lineItems.filter((i) => i.id !== itemId))
     else toast.error("Błąd usuwania")
   }
 
-  const totalSum = lineItems.reduce((sum: number, li: any) => sum + (li.total || 0), 0)
+  const totalSum = lineItems.reduce((sum: number, li) => sum + (li.total || 0), 0)
 
   return (
     <Card>
@@ -158,7 +177,7 @@ export default function QuoteEditor({ caseId, quote, onUpdate, userRole }: Quote
                 </tr>
               </thead>
               <tbody>
-                {lineItems.map((li: any) => (
+                {lineItems.map((li) => (
                   <tr key={li.id} className="border-b" style={{ borderColor: "var(--line-subtle)" }}>
                     <td className="py-1.5 px-1">
                       {li.name}

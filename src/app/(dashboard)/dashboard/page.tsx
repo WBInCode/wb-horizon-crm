@@ -9,7 +9,9 @@ import {
   Calendar, Plus, ArrowRight, CheckCircle2, ArrowUpRight,
   TrendingUp, Inbox, Activity,
 } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 import { StageBadge } from "@/components/ui/status-badge"
+import type { DashboardData, DashboardCaseSummary, DashboardActivity, DashboardTaskItem } from "@/types/api"
 
 /* ═══════════════════════════════════════════════════════
    Hook: Animated count-up
@@ -45,12 +47,12 @@ function useCountUp(target: number, duration = 1200) {
    ═══════════════════════════════════════════════════════ */
 export default function DashboardPage() {
   const router = useRouter()
-  const [data, setData] = useState<any>(null)
+  const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetch("/api/dashboard")
-      .then((r) => r.json())
+      .then((r) => r.json() as Promise<DashboardData>)
       .then((d) => setData(d))
       .catch(console.error)
       .finally(() => setLoading(false))
@@ -141,7 +143,7 @@ export default function DashboardPage() {
           />
         ) : (
           <div className="space-y-1">
-            {data.mySales.map((c: any, i: number) => (
+            {data.mySales.map((c: DashboardCaseSummary, i: number) => (
               <ListRow
                 key={c.id}
                 onClick={() => router.push(`/cases/${c.id}`)}
@@ -180,7 +182,7 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="space-y-1">
-              {data.myApprovals.map((c: any, i: number) => (
+              {data.myApprovals.map((c: DashboardCaseSummary, i: number) => (
                 <ListRow key={c.id} onClick={() => router.push(`/cases/${c.id}`)} delay={i * 40}>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate" style={{ color: "var(--content-strong)" }}>{c.title}</p>
@@ -210,14 +212,14 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="space-y-1">
-              {data.myMissing.map((c: any, i: number) => (
+              {data.myMissing.map((c: DashboardCaseSummary & { files?: { fileName: string }[] }, i: number) => (
                 <ListRow key={c.id} onClick={() => router.push(`/cases/${c.id}`)} delay={i * 40}>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate" style={{ color: "var(--content-strong)" }}>{c.title}</p>
                     <p className="text-xs mt-0.5" style={{ color: "var(--content-muted)" }}>
                       {c.client?.companyName}
-                      {c.files?.length > 0 && (
-                        <> — <span style={{ color: "var(--danger)" }}>Brak: {c.files.map((f: any) => f.fileName).join(", ")}</span></>
+                      {(c.files?.length ?? 0) > 0 && (
+                        <> — <span style={{ color: "var(--danger)" }}>Brak: {c.files?.map((f: { fileName: string }) => f.fileName).join(", ")}</span></>
                       )}
                     </p>
                   </div>
@@ -242,7 +244,7 @@ export default function DashboardPage() {
             />
           ) : (
             <div className="space-y-1">
-              {data.upcomingDeadlines.map((c: any, i: number) => (
+              {data.upcomingDeadlines.map((c: DashboardCaseSummary, i: number) => (
                 <ListRow key={c.id} onClick={() => router.push(`/cases/${c.id}`)} delay={i * 40}>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate" style={{ color: "var(--content-strong)" }}>{c.title}</p>
@@ -256,7 +258,7 @@ export default function DashboardPage() {
                       color: "var(--content-muted)",
                     }}
                   >
-                    {new Date(c.surveyDeadline).toLocaleDateString("pl-PL")}
+                    {c.surveyDeadline ? new Date(c.surveyDeadline).toLocaleDateString("pl-PL") : "—"}
                   </span>
                 </ListRow>
               ))}
@@ -276,7 +278,7 @@ export default function DashboardPage() {
             />
           ) : (
             <div className="space-y-0">
-              {data.recentActivity.map((a: any, i: number) => (
+              {data.recentActivity.map((a: DashboardActivity, i: number) => (
                 <div
                   key={a.id}
                   className="py-3 transition-colors duration-150"
@@ -314,7 +316,7 @@ export default function DashboardPage() {
             <EmptyState icon={CheckCircle2} message="Brak otwartych zadań" />
           ) : (
             <div className="space-y-1">
-              {data.myTasks.map((t: any, i: number) => (
+              {data.myTasks.map((t: DashboardTaskItem, i: number) => (
                 <ListRow
                   key={t.id}
                   onClick={() => router.push(`/cases/${t.case?.id}`)}
@@ -343,7 +345,7 @@ export default function DashboardPage() {
             <EmptyState icon={CheckCircle2} message="Brak spraw do poprawy" />
           ) : (
             <div className="space-y-1">
-              {data.toFix.map((c: any, i: number) => (
+              {data.toFix.map((c: DashboardCaseSummary, i: number) => (
                 <ListRow
                   key={c.id}
                   onClick={() => router.push(`/cases/${c.id}`)}
@@ -373,7 +375,7 @@ export default function DashboardPage() {
             <EmptyState icon={Users} message="Brak przypisanych kontrahentów" />
           ) : (
             <div className="space-y-1">
-              {data.myClients.map((cl: any, i: number) => (
+              {data.myClients.map((cl, i: number) => (
                 <ListRow
                   key={cl.id}
                   onClick={() => router.push(`/clients/${cl.id}`)}
@@ -404,7 +406,7 @@ export default function DashboardPage() {
    ═══════════════════════════════════════════════════════ */
 
 function QuickAction({ icon: Icon, label, onClick, accent }: {
-  icon: any; label: string; onClick: () => void; accent?: boolean
+  icon: LucideIcon; label: string; onClick: () => void; accent?: boolean
 }) {
   return (
     <button
@@ -433,7 +435,7 @@ function QuickAction({ icon: Icon, label, onClick, accent }: {
 }
 
 function KPICard({ icon: Icon, value, label, trend, color, onClick, urgent }: {
-  icon: any; value: number; label: string; trend?: string; color: string;
+  icon: LucideIcon; value: number; label: string; trend?: string; color: string;
   onClick: () => void; urgent?: boolean
 }) {
   const animatedValue = useCountUp(value)
@@ -494,7 +496,7 @@ function KPICard({ icon: Icon, value, label, trend, color, onClick, urgent }: {
 }
 
 function DashboardCard({ title, icon: Icon, action, delay = 0, children }: {
-  title: string; icon: any; action?: { label: string; onClick: () => void };
+  title: string; icon: LucideIcon; action?: { label: string; onClick: () => void };
   delay?: number; children: React.ReactNode
 }) {
   return (
@@ -558,7 +560,7 @@ function ListRow({ children, onClick, delay = 0 }: {
 }
 
 function EmptyState({ icon: Icon, message, cta, onClick }: {
-  icon: any; message: string; cta?: string; onClick?: () => void
+  icon: LucideIcon; message: string; cta?: string; onClick?: () => void
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-8">

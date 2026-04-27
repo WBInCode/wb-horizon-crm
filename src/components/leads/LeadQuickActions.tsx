@@ -17,6 +17,7 @@ import {
   UserRoundCog, RefreshCw, Zap, NotebookPen, FileText,
 } from "lucide-react"
 import { toast } from "sonner"
+import type { LeadDTO, UserDTO, Role } from "@/types/api"
 
 const STATUS_LABELS: Record<string, string> = {
   NEW: "Nowy",
@@ -31,9 +32,14 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 interface Props {
-  lead: any
+  lead: LeadDTO & {
+    meetingDate?: string | null
+    nextStep?: string | null
+    nextStepDate?: string | null
+    convertedToClientId?: string | null
+  }
   leadId: string
-  users: any[]
+  users: UserDTO[]
   currentUserRole: string
   onUpdate: () => void
 }
@@ -55,7 +61,7 @@ export default function LeadQuickActions({ lead, leadId, users, currentUserRole,
   // Activity modal state
   const [activityText, setActivityText] = useState("")
 
-  const salespersons = users.filter((u: any) => ["SALESPERSON", "ADMIN"].includes(u.role))
+  const salespersons = users.filter((u) => (["SALESPERSON", "ADMIN"] as Role[]).includes(u.role))
   const canChangeSalesperson = ["ADMIN", "DIRECTOR"].includes(currentUserRole)
   const canCreateContractor = lead.status !== "TRANSFERRED" && !lead.convertedToClientId
   const canCreateSale = !!lead.convertedToClientId
@@ -222,7 +228,7 @@ export default function LeadQuickActions({ lead, leadId, users, currentUserRole,
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {salespersons.map((u: any) => (
+                    {salespersons.map((u) => (
                       <SelectItem key={u.id} value={u.id} label={u.name}>{u.name}</SelectItem>
                     ))}
                   </SelectContent>

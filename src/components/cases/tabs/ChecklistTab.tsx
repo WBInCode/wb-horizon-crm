@@ -7,10 +7,15 @@ import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Trash2 } from "lucide-react"
+import type { CaseChecklistDTO } from "@/types/api"
+
+type ChecklistItemWithAssignee = CaseChecklistDTO & {
+  assignedTo?: { id: string; name: string } | null
+}
 
 interface Props {
   caseId: string
-  items: any[]
+  items: ChecklistItemWithAssignee[]
   onUpdate: () => void
 }
 
@@ -19,7 +24,7 @@ export function ChecklistTab({ caseId, items, onUpdate }: Props) {
   const [adding, setAdding] = useState(false)
 
   const safeItems = Array.isArray(items) ? items : []
-  const completedCount = safeItems.filter((i: any) => i.status === "COMPLETED").length
+  const completedCount = safeItems.filter((i) => i.status === "COMPLETED").length
   const totalCount = safeItems.length
   const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
 
@@ -95,7 +100,7 @@ export function ChecklistTab({ caseId, items, onUpdate }: Props) {
           {safeItems.length === 0 ? (
             <p className="text-center text-gray-500 py-4">Brak elementów</p>
           ) : (
-            safeItems.map((item: any) => (
+            safeItems.map((item) => (
               <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex items-center gap-3">
                   <Checkbox

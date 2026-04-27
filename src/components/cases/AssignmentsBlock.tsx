@@ -5,11 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Users } from "lucide-react"
 import { toast } from "sonner"
+import type { UserDTO, Role } from "@/types/api"
+
+interface CaseAssignmentData {
+  salesId?: string | null
+  caretakerId?: string | null
+  directorId?: string | null
+  salesperson?: { name: string } | null
+  caretaker?: { name: string } | null
+  director?: { name: string } | null
+}
 
 interface Props {
   caseId: string
-  caseData: any
-  users: any[]
+  caseData: CaseAssignmentData
+  users: UserDTO[]
   currentUserRole: string
   onUpdate: () => void
 }
@@ -21,8 +31,8 @@ export default function AssignmentsBlock({ caseId, caseData, users, currentUserR
   const canEditCaretaker = ["ADMIN", "DIRECTOR"].includes(currentUserRole)
   const canEditDirector  = currentUserRole === "ADMIN"
 
-  const safeUsers = Array.isArray(users) ? users : []
-  const salespersons = safeUsers.filter((u) => ["SALESPERSON", "ADMIN", "DIRECTOR"].includes(u.role))
+  const safeUsers: UserDTO[] = Array.isArray(users) ? users : []
+  const salespersons = safeUsers.filter((u) => (["SALESPERSON", "ADMIN", "DIRECTOR"] as Role[]).includes(u.role))
   const caretakers   = safeUsers.filter((u) => u.role === "CARETAKER")
   const directors    = safeUsers.filter((u) => u.role === "DIRECTOR")
 
@@ -91,9 +101,9 @@ function AssignRow({
   label, value, displayName, options, canEdit, saving, onChange,
 }: {
   label: string
-  value?: string
+  value?: string | null
   displayName?: string
-  options: any[]
+  options: UserDTO[]
   canEdit: boolean
   saving: boolean
   onChange: (v: string) => void

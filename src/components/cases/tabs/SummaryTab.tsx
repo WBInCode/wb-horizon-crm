@@ -9,9 +9,17 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Send, Check, RotateCcw, Plus } from "lucide-react"
+import type { CaseDTO, UserDTO, CaseMessageDTO, QuoteDTO, ApprovalDTO } from "@/types/api"
+
+interface CaseSummaryData extends Omit<CaseDTO, "salesId" | "caretakerId"> {
+  caretakerId?: string | null
+  directorId?: string | null
+  salesId?: string | null
+  director?: { name: string } | null
+}
 
 interface Props {
-  caseData: any
+  caseData: CaseSummaryData
   onUpdate: () => void
 }
 
@@ -28,11 +36,11 @@ const quoteStatusLabels: Record<string, string> = {
 
 export function SummaryTab({ caseData, onUpdate }: Props) {
   const { data: session } = useSession()
-  const currentUser = session?.user as any
+  const currentUser = session?.user as { id: string; role?: string; name?: string | null } | undefined
   const [newMessage, setNewMessage] = useState("")
   const [sending, setSending] = useState(false)
   const [msgFilter, setMsgFilter] = useState("ALL")
-  const [users, setUsers] = useState<any[]>([])
+  const [users, setUsers] = useState<UserDTO[]>([])
   
   // Quote form
   const [showQuoteForm, setShowQuoteForm] = useState(false)
@@ -51,7 +59,7 @@ export function SummaryTab({ caseData, onUpdate }: Props) {
       .catch(() => {})
   }, [])
 
-  const role = currentUser?.role
+  const role = currentUser?.role ?? ""
   const isAdminOrDirector = role === "ADMIN" || role === "DIRECTOR"
 
   // --- Send message ---
@@ -165,10 +173,10 @@ export function SummaryTab({ caseData, onUpdate }: Props) {
   const filteredMessages = msgFilter === "ALL"
     ? messages
     : msgFilter === "CHAT"
-    ? messages.filter((m: any) => m.type === "CHAT")
+    ? messages.filter((m: CaseMessageDTO) => m.type === "CHAT")
     : msgFilter === "NOTES"
-    ? messages.filter((m: any) => ["CARETAKER_NOTE", "DIRECTOR_NOTE", "CLIENT_NOTE"].includes(m.type))
-    : messages.filter((m: any) => m.type === "SYSTEM_LOG")
+    ? messages.filter((m: CaseMessageDTO) => ["CARETAKER_NOTE", "DIRECTOR_NOTE", "CLIENT_NOTE"].includes(m.type))
+    : messages.filter((m: CaseMessageDTO) => m.type === "SYSTEM_LOG")
 
   const quotes = caseData.quotes || []
   const approvals = caseData.approvals || []
@@ -292,7 +300,7 @@ export function SummaryTab({ caseData, onUpdate }: Props) {
               {filteredMessages.length === 0 ? (
                 <p className="text-center text-gray-500">Brak wiadomości</p>
               ) : (
-                [...filteredMessages].reverse().map((msg: any) => (
+                [...filteredMessages].reverse().map((msg: CaseMessageDTO) => (
                   <div 
                     key={msg.id} 
                     className={`p-3 rounded-lg ${
@@ -387,7 +395,7 @@ export function SummaryTab({ caseData, onUpdate }: Props) {
             <p className="text-gray-500 text-center py-4">Brak wycen</p>
           ) : (
             <div className="space-y-3">
-              {quotes.map((q: any) => (
+              {quotes.map((q: QuoteDTO) => (
                 <div key={q.id} className="border rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-medium">{q.scope}</span>
@@ -423,7 +431,7 @@ export function SummaryTab({ caseData, onUpdate }: Props) {
           <CardHeader><CardTitle>Historia akceptacji</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {approvals.map((a: any) => (
+              {approvals.map((a: ApprovalDTO) => (
                 <div key={a.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
                     <span className="text-sm font-medium">{a.targetType}</span>

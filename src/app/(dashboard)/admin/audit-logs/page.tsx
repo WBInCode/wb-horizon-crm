@@ -82,7 +82,7 @@ interface Pagination {
 export default function AuditLogsPage() {
   const { data: session, status: sessionStatus } = useSession()
   const router = useRouter()
-  const role = (session?.user as any)?.role
+  const role = (session?.user as { role?: string } | undefined)?.role
 
   const [logs, setLogs] = useState<AuditLogEntry[]>([])
   const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 50, total: 0, pages: 0 })
@@ -97,9 +97,9 @@ export default function AuditLogsPage() {
   const [userFilter, setUserFilter] = useState("")
   const [caseFilter, setCaseFilter] = useState("")
   const [clientFilter, setClientFilter] = useState("")
-  const [users, setUsers] = useState<any[]>([])
-  const [cases, setCases] = useState<any[]>([])
-  const [clients, setClients] = useState<any[]>([])
+  const [users, setUsers] = useState<{ id: string; name: string }[]>([])
+  const [cases, setCases] = useState<{ id: string; title: string }[]>([])
+  const [clients, setClients] = useState<{ id: string; companyName: string }[]>([])
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
 
   const fetchLogs = useCallback(async (page = 1) => {
@@ -130,7 +130,7 @@ export default function AuditLogsPage() {
 
   useEffect(() => {
     if (sessionStatus === "loading") return
-    if (!session || !["ADMIN", "DIRECTOR", "CARETAKER"].includes(role)) {
+    if (!session || !role || !["ADMIN", "DIRECTOR", "CARETAKER"].includes(role)) {
       router.push("/dashboard")
       return
     }
@@ -218,7 +218,7 @@ export default function AuditLogsPage() {
                 <SelectTrigger><SelectValue placeholder="Wszyscy">{users.find((u) => u.id === userFilter)?.name || undefined}</SelectValue></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all" label="Wszyscy">Wszyscy</SelectItem>
-                  {users.map((u: any) => (
+                  {users.map((u) => (
                     <SelectItem key={u.id} value={u.id} label={u.name}>{u.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -227,10 +227,10 @@ export default function AuditLogsPage() {
             <div className="w-52">
               <label className="text-xs font-medium text-gray-500 mb-1 block">Sprzedaż</label>
               <Select value={caseFilter} onValueChange={(v) => setCaseFilter((v as string) ?? "")}>
-                <SelectTrigger><SelectValue placeholder="Wszystkie">{cases.find((c: any) => c.id === caseFilter)?.title || undefined}</SelectValue></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Wszystkie">{cases.find((c) => c.id === caseFilter)?.title || undefined}</SelectValue></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all" label="Wszystkie">Wszystkie</SelectItem>
-                  {cases.map((c: any) => (
+                  {cases.map((c) => (
                     <SelectItem key={c.id} value={c.id} label={c.title}>{c.title}</SelectItem>
                   ))}
                 </SelectContent>
@@ -239,10 +239,10 @@ export default function AuditLogsPage() {
             <div className="w-52">
               <label className="text-xs font-medium text-gray-500 mb-1 block">Kontrahent</label>
               <Select value={clientFilter} onValueChange={(v) => setClientFilter((v as string) ?? "")}>
-                <SelectTrigger><SelectValue placeholder="Wszyscy">{clients.find((c: any) => c.id === clientFilter)?.companyName || undefined}</SelectValue></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Wszyscy">{clients.find((c) => c.id === clientFilter)?.companyName || undefined}</SelectValue></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all" label="Wszyscy">Wszyscy</SelectItem>
-                  {clients.map((c: any) => (
+                  {clients.map((c) => (
                     <SelectItem key={c.id} value={c.id} label={c.companyName}>{c.companyName}</SelectItem>
                   ))}
                 </SelectContent>

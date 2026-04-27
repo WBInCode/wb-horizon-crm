@@ -6,24 +6,31 @@ import { ArrowLeft, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import ProcessStepper from "./ProcessStepper"
+import type { CaseDTO, ContactDTO, CaseFileDTO, CaseChecklistDTO, ApprovalDTO } from "@/types/api"
 
-function formatDate(d: string) {
+function formatDate(d: string | Date) {
   return new Date(d).toLocaleDateString("pl-PL", { day: "2-digit", month: "2-digit", year: "numeric" })
 }
 
+interface CaseHeaderData extends CaseDTO {
+  product?: { name: string } | null
+  director?: { name: string } | null
+  client?: { id: string; companyName: string; contacts?: ContactDTO[] }
+}
+
 interface Props {
-  caseData: any
+  caseData: CaseHeaderData
 }
 
 export default function SaleContextHeader({ caseData }: Props) {
   const router = useRouter()
 
-  const mainContact = caseData.client?.contacts?.find((c: any) => c.isMain) || caseData.client?.contacts?.[0]
+  const mainContact = caseData.client?.contacts?.find((c: ContactDTO) => c.isMain) || caseData.client?.contacts?.[0]
 
-  const missingFiles = caseData.files?.filter((f: any) => f.status === "MISSING" || f.status === "REJECTED").length || 0
-  const blockingChecklist = caseData.checklist?.filter((c: any) => c.isBlocking && c.status === "PENDING").length || 0
-  const pendingApprovals = caseData.approvals?.filter((a: any) => a.status === "PENDING").length || 0
-  const allApprovalsApproved = caseData.approvals?.length > 0 && caseData.approvals.every((a: any) => a.status === "APPROVED")
+  const missingFiles = caseData.files?.filter((f: CaseFileDTO) => f.status === "MISSING" || f.status === "REJECTED").length || 0
+  const blockingChecklist = caseData.checklist?.filter((c: CaseChecklistDTO) => c.isBlocking && c.status === "PENDING").length || 0
+  const pendingApprovals = caseData.approvals?.filter((a: ApprovalDTO) => a.status === "PENDING").length || 0
+  const allApprovalsApproved = (caseData.approvals?.length ?? 0) > 0 && (caseData.approvals ?? []).every((a: ApprovalDTO) => a.status === "APPROVED")
   const isToFix = caseData.detailedStatus === "TO_FIX"
 
   return (
