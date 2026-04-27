@@ -33,15 +33,21 @@ function buildItemsMap(children: React.ReactNode): Record<string, React.ReactNod
   return Object.keys(map).length > 0 ? map : undefined
 }
 
-type SelectRootProps = React.ComponentProps<typeof SelectPrimitive.Root>
+type SelectRootProps = Omit<React.ComponentProps<typeof SelectPrimitive.Root>, "onValueChange"> & {
+  onValueChange?: (value: string) => void
+}
 
-function Select({ children, items, ...props }: SelectRootProps) {
+function Select({ children, items, onValueChange, ...props }: SelectRootProps) {
   const computedItems = React.useMemo(
     () => items ?? buildItemsMap(children),
     [items, children],
   )
   return (
-    <SelectPrimitive.Root items={computedItems as SelectRootProps["items"]} {...props}>
+    <SelectPrimitive.Root
+      items={computedItems as React.ComponentProps<typeof SelectPrimitive.Root>["items"]}
+      onValueChange={onValueChange as React.ComponentProps<typeof SelectPrimitive.Root>["onValueChange"]}
+      {...props}
+    >
       {children}
     </SelectPrimitive.Root>
   )

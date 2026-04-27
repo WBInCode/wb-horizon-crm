@@ -167,7 +167,7 @@ export default function AdminPage() {
                   <TableCell>
                     <Select
                       value={user.role}
-                      onValueChange={(value) => updateUser(user.id, "role", value)}
+                      onValueChange={(value) => updateUser(user.id, "role", value as string)}
                     >
                       <SelectTrigger className="w-40">
                         <span data-slot="select-value" className="flex flex-1 text-left truncate">
@@ -184,7 +184,7 @@ export default function AdminPage() {
                   <TableCell>
                     <Select
                       value={user.status}
-                      onValueChange={(value) => updateUser(user.id, "status", value)}
+                      onValueChange={(value) => updateUser(user.id, "status", value as string)}
                     >
                       <SelectTrigger className="w-36">
                         <span data-slot="select-value" className="flex flex-1 text-left truncate">
@@ -321,7 +321,7 @@ export default function AdminPage() {
             <div><label className="text-sm font-medium">Hasło *</label><Input type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} /></div>
             <div>
               <label className="text-sm font-medium">Rola</label>
-              <Select value={newUser.role} onValueChange={(v: string | null) => setNewUser({ ...newUser, role: v ?? "SALESPERSON" })}>
+              <Select value={newUser.role} onValueChange={(v) => setNewUser({ ...newUser, role: (v as string) ?? "SALESPERSON" })}>
                 <SelectTrigger>
                   <span data-slot="select-value" className="flex flex-1 text-left truncate">
                     {roleLabels[newUser.role] || newUser.role}

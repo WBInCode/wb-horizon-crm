@@ -21,11 +21,11 @@ export async function GET() {
   const userIds = await getStructureUserIds(user.id, user.role)
 
   const cases = await prisma.case.findMany({
-    where: { salespersonId: { in: userIds } },
+    where: { salesId: { in: userIds } },
     include: {
       client: { select: { companyName: true } },
       product: { select: { name: true } },
-      assignedTo: { select: { name: true } },
+      salesperson: { select: { name: true } },
     },
     orderBy: { updatedAt: "desc" },
     take: 50,

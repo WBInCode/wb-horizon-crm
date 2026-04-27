@@ -17,12 +17,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   const approval = await prisma.approval.findUnique({ where: { id } })
   if (!approval) return NextResponse.json({ error: "Not found" }, { status: 404 })
-  if (approval.approverId !== user.id && user.role !== "ADMIN")
+  if (approval.approvedById !== user.id && user.role !== "ADMIN")
     return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
 
   const updated = await prisma.approval.update({
     where: { id },
-    data: { status, decidedAt: new Date() },
+    data: { status },
   })
   return NextResponse.json(updated)
 }

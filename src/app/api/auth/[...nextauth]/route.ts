@@ -169,10 +169,10 @@ export const authOptions: AuthOptions = {
           select: { sessionVersion: true, status: true },
         })
         if (!dbUser || dbUser.status !== "ACTIVE") {
-          return {}
+          return { ...token, id: "", role: "" }
         }
         if ((token.sessionVersion as number ?? 0) !== dbUser.sessionVersion) {
-          return {}
+          return { ...token, id: "", role: "" }
         }
       }
       return token

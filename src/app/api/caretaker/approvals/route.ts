@@ -9,7 +9,7 @@ export async function GET() {
     return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
 
   const approvals = await prisma.approval.findMany({
-    where: { approverId: user.id },
+    where: { approvedById: user.id },
     include: {
       case: { select: { client: { select: { companyName: true } } } },
     },

@@ -17,7 +17,8 @@ export async function POST(req: NextRequest) {
       description: description || null,
       vendorId: user.id,
       lifecycleStatus: "DRAFT",
-    },
+      client: { connect: { id: "" } },
+    } as any,
   })
   return NextResponse.json(product, { status: 201 })
 }

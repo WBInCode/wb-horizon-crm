@@ -138,4 +138,4 @@ export default function ProcessStepper({ currentStage, detailedStatus, missingFi
   )
 }
 
-export { STAGES }
+export { LEGACY_STAGES as STAGES }

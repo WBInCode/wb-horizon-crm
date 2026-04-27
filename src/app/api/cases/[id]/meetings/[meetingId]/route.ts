@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
 
@@ -80,7 +81,7 @@ export async function PATCH(
       entityId: meetingId,
       entityLabel: updated.topic,
       userId: user.id,
-      changes,
+      changes: changes as Prisma.InputJsonValue,
       metadata: { caseId: id },
     },
   })

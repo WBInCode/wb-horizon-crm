@@ -10,11 +10,11 @@ export async function GET() {
 
   const [clientsCount, activeCases, pendingApprovals, pendingFiles, recentApprovals] = await Promise.all([
     prisma.client.count({ where: { caretakerId: user.id } }),
-    prisma.case.count({ where: { caretakerId: user.id, status: "IN_PROGRESS" } }),
-    prisma.approval.count({ where: { approverId: user.id, status: "PENDING" } }),
+    prisma.case.count({ where: { caretakerId: user.id, status: { notIn: ["CLOSED", "CANCELLED"] } } }),
+    prisma.approval.count({ where: { approvedById: user.id, status: "PENDING" } }),
     prisma.caseFile.count({ where: { case: { caretakerId: user.id }, status: "PENDING" } }),
     prisma.approval.findMany({
-      where: { approverId: user.id },
+      where: { approvedById: user.id },
       include: { case: { select: { client: { select: { companyName: true } } } } },
       orderBy: { createdAt: "desc" },
       take: 10,

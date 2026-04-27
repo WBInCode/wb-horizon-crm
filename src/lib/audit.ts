@@ -10,6 +10,7 @@ export type AuditAction =
   | "STATUS_CHANGE"
   | "ROLE_CHANGE"
   | "REASSIGN"
+  | "ASSIGN_CARETAKER"
   | "LOGIN"
   | "UPLOAD"
   | "APPROVE"

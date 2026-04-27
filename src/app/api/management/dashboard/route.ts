@@ -26,14 +26,14 @@ export async function GET() {
   const [usersCount, clientsCount, activeCases, pendingQuotes, recentCases] = await Promise.all([
     prisma.user.count({ where: { id: { in: userIds } } }),
     prisma.client.count({ where: { ownerId: { in: userIds } } }),
-    prisma.case.count({ where: { salespersonId: { in: userIds }, status: "IN_PROGRESS" } }),
-    prisma.quote.count({ where: { case: { salespersonId: { in: userIds } }, status: { in: ["SENT", "CONSULTATION"] } } }),
+    prisma.case.count({ where: { salesId: { in: userIds }, status: { notIn: ["CLOSED", "CANCELLED"] } } }),
+    prisma.quote.count({ where: { case: { salesId: { in: userIds } }, status: { in: ["SENT", "CONSULTATION"] } } }),
     prisma.case.findMany({
-      where: { salespersonId: { in: userIds } },
+      where: { salesId: { in: userIds } },
       include: {
         client: { select: { companyName: true } },
         product: { select: { name: true } },
-        assignedTo: { select: { name: true } },
+        salesperson: { select: { name: true } },
       },
       orderBy: { updatedAt: "desc" },
       take: 10,

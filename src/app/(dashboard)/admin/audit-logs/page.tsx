@@ -169,7 +169,7 @@ export default function AuditLogsPage() {
           <div className="flex gap-3 flex-wrap items-end">
             <div className="w-40">
               <label className="text-xs font-medium text-gray-500 mb-1 block">Akcja</label>
-              <Select value={actionFilter} onValueChange={(v: string | null) => setActionFilter(v ?? "")}>
+              <Select value={actionFilter} onValueChange={(v) => setActionFilter((v as string) ?? "")}>
                 <SelectTrigger><SelectValue placeholder="Wszystkie">{actionFilter && actionFilter !== "all" ? actionLabels[actionFilter] : undefined}</SelectValue></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all" label="Wszystkie">Wszystkie</SelectItem>
@@ -181,7 +181,7 @@ export default function AuditLogsPage() {
             </div>
             <div className="w-40">
               <label className="text-xs font-medium text-gray-500 mb-1 block">Typ obiektu</label>
-              <Select value={entityFilter} onValueChange={(v: string | null) => setEntityFilter(v ?? "")}>
+              <Select value={entityFilter} onValueChange={(v) => setEntityFilter((v as string) ?? "")}>
                 <SelectTrigger><SelectValue placeholder="Wszystkie">{entityFilter && entityFilter !== "all" ? entityLabels[entityFilter] : undefined}</SelectValue></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all" label="Wszystkie">Wszystkie</SelectItem>
@@ -214,7 +214,7 @@ export default function AuditLogsPage() {
             </div>
             <div className="w-44">
               <label className="text-xs font-medium text-gray-500 mb-1 block">Użytkownik</label>
-              <Select value={userFilter} onValueChange={(v: string | null) => setUserFilter(v ?? "")}>
+              <Select value={userFilter} onValueChange={(v) => setUserFilter((v as string) ?? "")}>
                 <SelectTrigger><SelectValue placeholder="Wszyscy">{users.find((u) => u.id === userFilter)?.name || undefined}</SelectValue></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all" label="Wszyscy">Wszyscy</SelectItem>
@@ -226,7 +226,7 @@ export default function AuditLogsPage() {
             </div>
             <div className="w-52">
               <label className="text-xs font-medium text-gray-500 mb-1 block">Sprzedaż</label>
-              <Select value={caseFilter} onValueChange={(v: string | null) => setCaseFilter(v ?? "")}>
+              <Select value={caseFilter} onValueChange={(v) => setCaseFilter((v as string) ?? "")}>
                 <SelectTrigger><SelectValue placeholder="Wszystkie">{cases.find((c: any) => c.id === caseFilter)?.title || undefined}</SelectValue></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all" label="Wszystkie">Wszystkie</SelectItem>
@@ -238,7 +238,7 @@ export default function AuditLogsPage() {
             </div>
             <div className="w-52">
               <label className="text-xs font-medium text-gray-500 mb-1 block">Kontrahent</label>
-              <Select value={clientFilter} onValueChange={(v: string | null) => setClientFilter(v ?? "")}>
+              <Select value={clientFilter} onValueChange={(v) => setClientFilter((v as string) ?? "")}>
                 <SelectTrigger><SelectValue placeholder="Wszyscy">{clients.find((c: any) => c.id === clientFilter)?.companyName || undefined}</SelectValue></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all" label="Wszyscy">Wszyscy</SelectItem>
