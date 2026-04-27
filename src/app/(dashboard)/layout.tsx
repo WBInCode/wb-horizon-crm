@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { getServerSession } from "next-auth"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
+import { CommandPalette } from "@/components/layout/CommandPalette"
 import { PermissionProvider } from "@/components/providers/PermissionProvider"
 
 export default async function DashboardLayout({
@@ -31,6 +32,7 @@ export default async function DashboardLayout({
           </main>
         </div>
       </div>
+      <CommandPalette />
     </PermissionProvider>
   )
 }

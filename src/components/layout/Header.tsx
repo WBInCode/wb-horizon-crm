@@ -114,7 +114,10 @@ export function Header() {
           color: "var(--content-muted)",
           border: "1px solid var(--line-subtle)",
         }}
-        onClick={() => {}}
+        onClick={() => {
+          // Dispatch Ctrl+K to trigger CommandPalette
+          document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }))
+        }}
       >
         <Search className="w-3.5 h-3.5" strokeWidth={1.5} />
         <span className="text-[0.8125rem]">Szukaj...</span>
@@ -126,7 +129,7 @@ export function Header() {
             color: "var(--content-subtle)",
           }}
         >
-          ⌘K
+          ⌃K
         </kbd>
       </button>
 
