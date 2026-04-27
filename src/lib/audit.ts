@@ -17,6 +17,9 @@ export type AuditAction =
   | "REJECT"
   | "API_KEY_CREATED"
   | "API_KEY_REVOKED"
+  | "WEBHOOK_CREATED"
+  | "WEBHOOK_UPDATED"
+  | "WEBHOOK_DELETED"
 
 export type AuditEntityType =
   | "CASE"
@@ -32,6 +35,7 @@ export type AuditEntityType =
   | "MESSAGE"
   | "PRODUCT"
   | "ApiKey"
+  | "Webhook"
 
 interface AuditLogParams {
   action: AuditAction

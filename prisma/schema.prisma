@@ -242,6 +242,9 @@ model User {
 
   // Public REST API keys (Faza 2 / Sprint B)
   apiKeys ApiKey[] @relation("ApiKeyOwner")
+
+  // Outbound webhooks (Faza 2 / Sprint F)
+  webhooks Webhook[] @relation("WebhookOwner")
 }
 
 /// API key for the Public REST API (/api/v1/*).
@@ -263,6 +266,50 @@ model ApiKey {
 
   @@index([ownerId])
   @@index([hashedKey])
+}
+
+/// Outbound webhook subscription. Events are JSON strings (e.g. "lead.created").
+/// `secret` is used to sign payloads with HMAC SHA-256 (sent in `X-Webhook-Signature` header).
+model Webhook {
+  id          String           @id @default(cuid())
+  name        String
+  url         String
+  secret      String
+  events      String[] // ["lead.created", "case.stage_changed", "*"]
+  ownerId     String
+  owner       User             @relation("WebhookOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  isActive    Boolean          @default(true)
+  lastSuccessAt DateTime?
+  lastErrorAt   DateTime?
+  lastError     String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  deliveries  WebhookDelivery[]
+
+  @@index([ownerId])
+  @@index([isActive])
+}
+
+/// Single attempt to deliver a webhook payload. Failed deliveries are retried with
+/// exponential backoff (1m, 5m, 30m, 2h, 12h) up to 5 attempts.
+model WebhookDelivery {
+  id          String    @id @default(cuid())
+  webhookId   String
+  webhook     Webhook   @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  event       String
+  payload     Json
+  status      String    @default("PENDING") // PENDING | SUCCESS | FAILED | DEAD
+  attempts    Int       @default(0)
+  nextAttemptAt DateTime @default(now())
+  responseStatus Int?
+  responseBody String?
+  errorMessage String?
+  createdAt   DateTime  @default(now())
+  deliveredAt DateTime?
+
+  @@index([webhookId])
+  @@index([status, nextAttemptAt])
 }
 
 model Lead {

@@ -22,6 +22,7 @@ import LeadSourcesTab from "@/components/admin/LeadSourcesTab"
 import StructuresTab from "@/components/admin/StructuresTab"
 import ApiKeysTab from "@/components/admin/ApiKeysTab"
 import CsvImportTab from "@/components/admin/CsvImportTab"
+import { WebhooksTab } from "@/components/admin/WebhooksTab"
 
 const roleLabels: Record<string, string> = {
   ADMIN: "Administrator",
@@ -259,6 +260,7 @@ export default function AdminPage() {
           <TabsTrigger value="archive">Archiwum</TabsTrigger>
           <TabsTrigger value="api-keys">Klucze API</TabsTrigger>
           <TabsTrigger value="import">Import CSV</TabsTrigger>
+          <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users">
@@ -603,6 +605,10 @@ export default function AdminPage() {
 
         <TabsContent value="import">
           <CsvImportTab />
+        </TabsContent>
+
+        <TabsContent value="webhooks">
+          <WebhooksTab />
         </TabsContent>
       </Tabs>
 
