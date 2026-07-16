@@ -27,10 +27,8 @@ const securityHeaders = [
     ].join(", "),
   },
   { key: "X-XSS-Protection", value: "0" }, // legacy nagłówek — nowoczesne CSP zastępuje
-  // CSP w trybie Report-Only — najpierw monitorujemy naruszenia, potem zacieśnimy.
-  // Po stabilizacji zamień na "Content-Security-Policy" (enforcing).
   {
-    key: "Content-Security-Policy-Report-Only",
+    key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
       // Next.js wymaga unsafe-inline/unsafe-eval w runtime; w fazie 2 zastąpimy nonce.

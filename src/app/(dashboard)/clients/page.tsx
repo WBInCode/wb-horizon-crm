@@ -5,20 +5,23 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Plus, Search, Archive, X } from "lucide-react"
+import { Plus, Search, Archive, X, Building2, Download } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
+import { ToneBadge, type Tone } from "@/components/ui/status-badge"
+import { TableSkeleton } from "@/components/ui/skeleton"
+import { EmptyState } from "@/components/shared/EmptyState"
+import { exportToCsv } from "@/lib/export-csv"
 
-const STAGE_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; className?: string }> = {
-  LEAD: { label: "Pozysk", variant: "outline", className: "border-blue-300 text-blue-700 bg-blue-50" },
-  PROSPECT: { label: "Kwalifikowany", variant: "outline", className: "border-purple-300 text-purple-700 bg-purple-50" },
-  QUOTATION: { label: "Wycena", variant: "outline", className: "border-yellow-400 text-yellow-800 bg-yellow-50" },
-  SALE: { label: "Sprzedaż", variant: "outline", className: "border-orange-300 text-orange-700 bg-orange-50" },
-  CLIENT: { label: "Klient", variant: "outline", className: "border-green-300 text-green-700 bg-green-50" },
-  INACTIVE: { label: "Nieaktywny", variant: "outline", className: "border-gray-300 text-gray-500 bg-gray-50" },
+const STAGE_CONFIG: Record<string, { label: string; tone: Tone }> = {
+  LEAD: { label: "Pozysk", tone: "info" },
+  PROSPECT: { label: "Kwalifikowany", tone: "violet" },
+  QUOTATION: { label: "Wycena", tone: "amber" },
+  SALE: { label: "Sprzedaż", tone: "warning" },
+  CLIENT: { label: "Klient", tone: "success" },
+  INACTIVE: { label: "Nieaktywny", tone: "neutral" },
 }
 
 export default function ClientsPage() {
@@ -122,12 +125,31 @@ export default function ClientsPage() {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6 gap-3 flex-wrap">
         <h1 className="text-2xl font-bold">Kontrahenci</h1>
-        <Button onClick={() => router.push("/clients/new")}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nowy kontrahent
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() =>
+              exportToCsv("kontrahenci", [
+                { header: "Nazwa firmy", value: (c: any) => c.companyName },
+                { header: "NIP", value: (c: any) => c.nip },
+                { header: "Branża", value: (c: any) => c.industry },
+                { header: "Etap", value: (c: any) => STAGE_CONFIG[c.stage]?.label ?? c.stage },
+                { header: "Kontakt\u00f3w", value: (c: any) => c.contacts?.length ?? 0 },
+                { header: "Sprzedaży", value: (c: any) => c._count?.cases ?? 0 },
+              ], clients)
+            }
+            disabled={clients.length === 0}
+            title="Eksport do CSV"
+          >
+            <Download className="w-4 h-4 mr-2" /> Eksport
+          </Button>
+          <Button onClick={() => router.push("/clients/new")}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nowy kontrahent
+          </Button>
+        </div>
       </div>
 
       <div className="flex gap-4 mb-6">
@@ -156,15 +178,21 @@ export default function ClientsPage() {
       </div>
 
       {selected.size > 0 && (
-        <div className="flex items-center gap-3 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <span className="text-sm font-medium text-blue-800">
+        <div
+          className="flex items-center gap-3 mb-4 p-3 rounded-lg"
+          style={{
+            background: "color-mix(in oklab, var(--brand) 8%, transparent)",
+            border: "1px solid color-mix(in oklab, var(--brand) 25%, transparent)",
+          }}
+        >
+          <span className="text-sm font-medium" style={{ color: "var(--content-strong)" }}>
             Zaznaczono: {selected.size}
           </span>
           <div className="flex-1" />
           <Button
             variant="outline"
             size="sm"
-            className="border-red-300 text-red-700 hover:bg-red-50"
+            style={{ color: "var(--danger)", borderColor: "color-mix(in oklab, var(--danger) 35%, transparent)" }}
             onClick={() => setShowBulkArchive(true)}
           >
             <Archive className="w-4 h-4 mr-1" />
@@ -198,17 +226,29 @@ export default function ClientsPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">Ładowanie...</TableCell>
+                <TableCell colSpan={8} className="p-0">
+                  <TableSkeleton rows={6} />
+                </TableCell>
               </TableRow>
             ) : clients.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">Brak kontrahentów</TableCell>
+                <TableCell colSpan={8}>
+                  <EmptyState
+                    icon={Building2}
+                    title="Brak kontrahentów"
+                    description={search || stageFilter ? "Zmień filtry lub wyczyść wyszukiwanie." : "Dodaj pierwszego kontrahenta lub skonwertuj leada."}
+                    actionLabel={search || stageFilter ? undefined : "Nowy kontrahent"}
+                    onAction={() => router.push("/clients/new")}
+                    compact
+                  />
+                </TableCell>
               </TableRow>
             ) : (
               clients.map((client) => (
                 <TableRow 
                   key={client.id}
-                  className={`cursor-pointer hover:bg-gray-50 ${selected.has(client.id) ? "bg-blue-50/50" : ""}`}
+                  className="cursor-pointer hover:bg-[var(--surface-2)]"
+                  style={selected.has(client.id) ? { background: "color-mix(in oklab, var(--brand) 6%, transparent)" } : undefined}
                   onClick={() => router.push(`/clients/${client.id}`)}
                 >
                   <TableCell onClick={(e) => e.stopPropagation()}>
@@ -223,7 +263,7 @@ export default function ClientsPage() {
                   <TableCell>
                     {(() => {
                       const cfg = STAGE_CONFIG[client.stage] || STAGE_CONFIG.LEAD
-                      return <Badge variant={cfg.variant} className={cfg.className}>{cfg.label}</Badge>
+                      return <ToneBadge tone={cfg.tone}>{cfg.label}</ToneBadge>
                     })()}
                   </TableCell>
                   <TableCell>{client.contacts?.length || 0}</TableCell>

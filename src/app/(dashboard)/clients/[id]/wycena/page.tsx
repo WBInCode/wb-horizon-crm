@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import { Plus, Trash2, GripVertical } from "lucide-react"
+import { Plus, Trash2, GripVertical, Download } from "lucide-react"
 import ProductSwitcher from "@/components/contractors/ProductSwitcher"
 
 const STATUS_LABELS: Record<string, string> = {
@@ -166,6 +166,13 @@ export default function ClientWycenaPage() {
               </div>
             )}
             <div className="flex gap-2 pt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => window.open(`/api/cases/${activeCase?.id}/quotes/${q.id}/pdf`, "_blank")}
+              >
+                <Download className="w-3.5 h-3.5 mr-1" /> Pobierz PDF
+              </Button>
               <Button
                 size="sm"
                 variant="ghost"

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
 import { auditLog, diffChanges } from "@/lib/audit"
+import { logger } from "@/lib/logger"
 
 export async function GET(
   request: NextRequest,
@@ -33,7 +34,7 @@ export async function GET(
 
     return NextResponse.json(lead)
   } catch (error) {
-    console.error(error)
+    logger.error("GET failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
@@ -100,7 +101,7 @@ export async function PUT(
 
     return NextResponse.json(lead)
   } catch (error) {
-    console.error(error)
+    logger.error("PUT failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
@@ -128,7 +129,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error(error)
+    logger.error("DELETE failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }

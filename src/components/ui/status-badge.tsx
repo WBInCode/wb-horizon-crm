@@ -2,15 +2,75 @@
 
 import { Badge } from "@/components/ui/badge"
 import { AlertCircle, Clock, CheckCircle, RefreshCw, Ban } from "lucide-react"
+import { PROCESS_STAGE_LABELS, DETAILED_STATUS_LABELS } from "@/lib/dictionaries"
+
+/* ═══════════════════════════════════════════════════════
+   Tony semantyczne (audyt F3) — kolory statusów wyłącznie
+   z tokenów design systemu → spójność + dark mode za darmo.
+   ═══════════════════════════════════════════════════════ */
+
+export type Tone =
+  | "neutral"
+  | "info"      // chart-2 (niebieski)
+  | "success"
+  | "warning"
+  | "danger"
+  | "brand"     // emerald
+  | "violet"    // chart-4
+  | "teal"      // chart-1
+  | "amber"     // chart-3
+  | "rose"      // chart-5
+
+const TONE_VARS: Record<Tone, string> = {
+  neutral: "var(--content-muted)",
+  info: "var(--chart-2)",
+  success: "var(--success)",
+  warning: "var(--warning)",
+  danger: "var(--danger)",
+  brand: "var(--brand)",
+  violet: "var(--chart-4)",
+  teal: "var(--chart-1)",
+  amber: "var(--chart-3)",
+  rose: "var(--chart-5)",
+}
+
+/** Styl inline dla tonu — tło/obramowanie przez color-mix na tokenie. */
+export function toneStyle(tone: Tone): React.CSSProperties {
+  const c = TONE_VARS[tone] ?? TONE_VARS.neutral
+  return {
+    color: c,
+    background: `color-mix(in oklab, ${c} 10%, transparent)`,
+    borderColor: `color-mix(in oklab, ${c} 32%, transparent)`,
+  }
+}
+
+/** Uniwersalny badge tonalny — podstawa wszystkich oznaczeń statusów. */
+export function ToneBadge({
+  tone,
+  children,
+  className = "",
+}: {
+  tone: Tone
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <Badge variant="outline" className={`${className} text-xs font-normal`} style={toneStyle(tone)}>
+      {children}
+    </Badge>
+  )
+}
+
+/* ─── Statusy operacyjne (braki / blokady / akceptacje) ── */
 
 type StatusType = "deficiency" | "blocked" | "awaiting" | "approved" | "to_fix"
 
-const CONFIG: Record<StatusType, { icon: typeof AlertCircle; className: string }> = {
-  deficiency: { icon: AlertCircle, className: "border-red-300 text-red-700 bg-red-50" },
-  blocked:    { icon: Ban,         className: "border-orange-300 text-orange-700 bg-orange-50" },
-  awaiting:   { icon: Clock,       className: "border-yellow-300 text-yellow-800 bg-yellow-50" },
-  approved:   { icon: CheckCircle, className: "border-green-300 text-green-700 bg-green-50" },
-  to_fix:     { icon: RefreshCw,   className: "border-blue-300 text-blue-700 bg-blue-50" },
+const STATUS_CONFIG: Record<StatusType, { icon: typeof AlertCircle; tone: Tone }> = {
+  deficiency: { icon: AlertCircle, tone: "danger" },
+  blocked:    { icon: Ban,         tone: "warning" },
+  awaiting:   { icon: Clock,       tone: "amber" },
+  approved:   { icon: CheckCircle, tone: "success" },
+  to_fix:     { icon: RefreshCw,   tone: "info" },
 }
 
 interface Props {
@@ -20,76 +80,77 @@ interface Props {
 }
 
 export function StatusBadge({ type, text, className = "" }: Props) {
-  const cfg = CONFIG[type]
+  const cfg = STATUS_CONFIG[type]
   const Icon = cfg.icon
   return (
-    <Badge variant="outline" className={`${cfg.className} ${className} gap-1 text-xs font-normal`}>
-      <Icon className="w-3 h-3" />
+    <ToneBadge tone={cfg.tone} className={`${className} gap-1`}>
+      <Icon className="w-3 h-3" aria-hidden="true" />
       {text}
-    </Badge>
+    </ToneBadge>
   )
 }
 
-// ─── Process stage badges ────────────────────────────────────────────────────
+/* ─── Etapy procesu sprzedaży ──────────────────────────── */
 
-const STAGE_LABELS: Record<string, string> = {
-  NEW:             "Nowa",
-  DATA_COLLECTION: "Zbieranie danych",
-  DOCUMENTS:       "Dokumenty",
-  VERIFICATION:    "Weryfikacja",
-  APPROVAL:        "Akceptacja",
-  EXECUTION:       "Realizacja",
-  CLOSED:          "Zamknięta",
-}
+// Pełny słownik z lib/dictionaries (etapy legacy + PDF v1)
+const STAGE_LABELS: Record<string, string> = { ...PROCESS_STAGE_LABELS }
 
-const STAGE_COLORS: Record<string, string> = {
-  NEW:             "border-gray-300 text-gray-700 bg-gray-50",
-  DATA_COLLECTION: "border-blue-300 text-blue-700 bg-blue-50",
-  DOCUMENTS:       "border-indigo-300 text-indigo-700 bg-indigo-50",
-  VERIFICATION:    "border-purple-300 text-purple-700 bg-purple-50",
-  APPROVAL:        "border-yellow-300 text-yellow-800 bg-yellow-50",
-  EXECUTION:       "border-orange-300 text-orange-700 bg-orange-50",
-  CLOSED:          "border-green-300 text-green-700 bg-green-50",
+const STAGE_TONES: Record<string, Tone> = {
+  NEW:                 "neutral",
+  LEAD:                "neutral",
+  DATA_COLLECTION:     "info",
+  QUOTATION:           "amber",
+  SALES_ARRANGEMENTS:  "info",
+  DOCUMENTS:           "violet",
+  MATERIAL_COMPLETION: "violet",
+  VERIFICATION:        "violet",
+  APPROVAL:            "warning",
+  HANDED_TO_EXECUTION: "teal",
+  ORDER_ACCEPTANCE:    "teal",
+  EXECUTION:           "brand",
+  MAINTENANCE:         "teal",
+  CLOSED:              "success",
+  COMPLETED:           "success",
+  UNREALIZED:          "danger",
 }
 
 export function StageBadge({ stage, className = "" }: { stage: string; className?: string }) {
   return (
-    <Badge variant="outline" className={`${STAGE_COLORS[stage] || ""} ${className} text-xs`}>
+    <ToneBadge tone={STAGE_TONES[stage] ?? "neutral"} className={className}>
       {STAGE_LABELS[stage] || stage}
-    </Badge>
+    </ToneBadge>
   )
 }
 
-const DETAILED_LABELS: Record<string, string> = {
-  WAITING_SURVEY:      "Czeka na ankietę",
-  WAITING_FILES:       "Czeka na pliki",
-  FORMAL_DEFICIENCIES: "Braki formalne",
-  CARETAKER_APPROVAL:  "Akceptacja opiekuna",
-  DIRECTOR_APPROVAL:   "Akceptacja dyrektora",
-  TO_FIX:              "Do poprawy",
-  READY_TO_START:      "Gotowe do startu",
-  IN_PROGRESS:         "W realizacji",
-  COMPLETED:           "Zakończone",
-}
+/* ─── Statusy szczegółowe ──────────────────────────────── */
 
-const DETAILED_COLORS: Record<string, string> = {
-  WAITING_SURVEY:      "border-yellow-300 text-yellow-800 bg-yellow-50",
-  WAITING_FILES:       "border-orange-300 text-orange-700 bg-orange-50",
-  FORMAL_DEFICIENCIES: "border-red-300 text-red-700 bg-red-50",
-  CARETAKER_APPROVAL:  "border-purple-300 text-purple-700 bg-purple-50",
-  DIRECTOR_APPROVAL:   "border-pink-300 text-pink-700 bg-pink-50",
-  TO_FIX:              "border-blue-300 text-blue-700 bg-blue-50",
-  READY_TO_START:      "border-teal-300 text-teal-700 bg-teal-50",
-  IN_PROGRESS:         "border-orange-300 text-orange-700 bg-orange-50",
-  COMPLETED:           "border-green-300 text-green-700 bg-green-50",
+const DETAILED_LABELS: Record<string, string> = { ...DETAILED_STATUS_LABELS }
+
+const DETAILED_TONES: Record<string, Tone> = {
+  WAITING_SURVEY:      "amber",
+  WAITING_FILES:       "warning",
+  FORMAL_DEFICIENCIES: "danger",
+  CARETAKER_APPROVAL:  "violet",
+  DIRECTOR_APPROVAL:   "rose",
+  TO_FIX:              "info",
+  READY_TO_START:      "teal",
+  IN_PROGRESS:         "brand",
+  COMPLETED:           "success",
+  DRAFT:               "neutral",
+  SENT_TO_CLIENT:      "info",
+  CLIENT_ACCEPTED:     "success",
+  CLIENT_REJECTED:     "danger",
+  AWAITING_DECISION:   "amber",
+  ON_HOLD:             "warning",
+  CANCELLED:           "neutral",
 }
 
 export function DetailedStatusBadge({ status, className = "" }: { status: string; className?: string }) {
   return (
-    <Badge variant="outline" className={`${DETAILED_COLORS[status] || ""} ${className} text-xs`}>
+    <ToneBadge tone={DETAILED_TONES[status] ?? "neutral"} className={className}>
       {DETAILED_LABELS[status] || status}
-    </Badge>
+    </ToneBadge>
   )
 }
 
-export { STAGE_LABELS, DETAILED_LABELS, STAGE_COLORS, DETAILED_COLORS }
+export { STAGE_LABELS, DETAILED_LABELS, STAGE_TONES, DETAILED_TONES }

@@ -5,6 +5,7 @@ import { notifyCaseAssigned } from "@/lib/notifications"
 import { auditLog } from "@/lib/audit"
 import { getVisibleUserIds, getVisibleClientIds } from "@/lib/structure"
 import type { Role } from "@prisma/client"
+import { logger } from "@/lib/logger"
 
 async function findCaretakerWithLeastCases() {
   const caretakers = await prisma.user.findMany({
@@ -158,7 +159,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(casesWithStatus)
   } catch (error) {
-    console.error(error)
+    logger.error("GET failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
@@ -246,7 +247,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(newCase, { status: 201 })
   } catch (error) {
-    console.error(error)
+    logger.error("POST failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }

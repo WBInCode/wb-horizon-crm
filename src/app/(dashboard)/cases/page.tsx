@@ -1,16 +1,21 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { Suspense, useEffect, useMemo, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Plus, Search, X, Archive } from "lucide-react"
+import { Plus, Search, X, Archive, ShoppingCart, LayoutGrid, List, Download } from "lucide-react"
 import { StageBadge, DetailedStatusBadge, StatusBadge, STAGE_LABELS, DETAILED_LABELS } from "@/components/ui/status-badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
+import { CasesKanban } from "@/components/cases/CasesKanban"
+import { ALLOWED_STATUS_PER_STAGE, PROCESS_STAGE_LABELS } from "@/lib/dictionaries"
+import { TableSkeleton } from "@/components/ui/skeleton"
+import { exportToCsv } from "@/lib/export-csv"
+import { EmptyState } from "@/components/shared/EmptyState"
 
 const statusLabels: Record<string, string> = {
   DRAFT: "Robocza",
@@ -26,8 +31,27 @@ const statusLabels: Record<string, string> = {
   CANCELLED: "Anulowana",
 }
 
+// Kolumny kanbana — główny pipeline (legacy chain, spójny z canTransition)
+const CASE_KANBAN_STAGES = ["NEW", "DATA_COLLECTION", "DOCUMENTS", "VERIFICATION", "APPROVAL", "EXECUTION", "CLOSED"]
+
 export default function CasesPage() {
+  return (
+    <Suspense fallback={<div className="p-6"><div className="skeleton h-96 rounded-xl" /></div>}>
+      <CasesContent />
+    </Suspense>
+  )
+}
+
+function CasesContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const view = searchParams.get("view") === "kanban" ? "kanban" : "table"
+  const setView = (v: "table" | "kanban") => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (v === "kanban") params.set("view", "kanban")
+    else params.delete("view")
+    router.replace(`/cases?${params.toString()}`, { scroll: false })
+  }
   const [cases, setCases] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
@@ -133,6 +157,31 @@ export default function CasesPage() {
   const selectedItems = cases.filter((c) => selected.has(c.id))
   const nonClosedCases = selectedItems.filter((c) => !["CLOSED", "CANCELLED"].includes(c.status))
 
+  // Zmiana etapu z kanbana — wysyłamy processStage + zgodny detailedStatus
+  // (pierwszy dozwolony dla etapu docelowego), inaczej PUT odrzuci status.
+  const handleStageChange = async (caseId: string, targetStage: string) => {
+    const prev = cases
+    const allowedStatuses = ALLOWED_STATUS_PER_STAGE[targetStage] ?? []
+    const detailedStatus = allowedStatuses[0]
+    // optymistycznie
+    setCases((cs) => cs.map((c) => (c.id === caseId ? { ...c, processStage: targetStage, ...(detailedStatus ? { detailedStatus } : {}) } : c)))
+    try {
+      const res = await fetch(`/api/cases/${caseId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ processStage: targetStage, ...(detailedStatus ? { detailedStatus } : {}) }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || "Błąd zmiany etapu")
+      }
+      toast.success(`Przeniesiono do: ${PROCESS_STAGE_LABELS[targetStage] ?? targetStage}`)
+    } catch (e) {
+      setCases(prev) // rollback
+      toast.error(e instanceof Error ? e.message : "Błąd zmiany etapu")
+    }
+  }
+
   const handleBulkArchive = async () => {
     if (selectedItems.length === 0) return
     setBulkArchiving(true)
@@ -161,12 +210,64 @@ export default function CasesPage() {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6 gap-3 flex-wrap">
         <h1 className="text-2xl font-bold">Sprzedaże</h1>
-        <Button onClick={() => router.push("/cases/new")}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nowa sprzedaż
-        </Button>
+        <div className="flex items-center gap-2">
+          <div
+            className="flex items-center rounded-lg p-0.5"
+            style={{ background: "var(--surface-2)", border: "1px solid var(--line-subtle)" }}
+            role="group"
+            aria-label="Widok listy"
+          >
+            <button
+              type="button"
+              onClick={() => setView("table")}
+              aria-pressed={view === "table"}
+              aria-label="Widok tabeli"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors"
+              style={view === "table"
+                ? { background: "var(--card)", color: "var(--content-strong)", boxShadow: "0 1px 2px oklch(0.16 0.015 55 / 0.08)" }
+                : { color: "var(--content-muted)" }}
+            >
+              <List className="w-3.5 h-3.5" aria-hidden="true" /> Tabela
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("kanban")}
+              aria-pressed={view === "kanban"}
+              aria-label="Widok kanban"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors"
+              style={view === "kanban"
+                ? { background: "var(--card)", color: "var(--content-strong)", boxShadow: "0 1px 2px oklch(0.16 0.015 55 / 0.08)" }
+                : { color: "var(--content-muted)" }}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" aria-hidden="true" /> Kanban
+            </button>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() =>
+              exportToCsv("sprzedaze", [
+                { header: "Tytuł", value: (c: any) => c.title },
+                { header: "Kontrahent", value: (c: any) => c.client?.companyName },
+                { header: "Etap", value: (c: any) => PROCESS_STAGE_LABELS[c.processStage] ?? c.processStage },
+                { header: "Status szczegółowy", value: (c: any) => (c.detailedStatus ? DETAILED_LABELS[c.detailedStatus] ?? c.detailedStatus : "") },
+                { header: "Budżet", value: (c: any) => c.surveyBudget },
+                { header: "Handlowiec", value: (c: any) => c.salesperson?.name },
+                { header: "Opiekun", value: (c: any) => c.caretaker?.name },
+                { header: "Aktualizacja", value: (c: any) => new Date(c.updatedAt).toLocaleDateString("pl-PL") },
+              ], cases)
+            }
+            disabled={cases.length === 0}
+            title="Eksport do CSV"
+          >
+            <Download className="w-4 h-4 mr-2" /> Eksport
+          </Button>
+          <Button onClick={() => router.push("/cases/new")}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nowa sprzedaż
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3 mb-6">
@@ -251,15 +352,21 @@ export default function CasesPage() {
       </div>
 
       {selected.size > 0 && (
-        <div className="flex items-center gap-3 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <span className="text-sm font-medium text-blue-800">
+        <div
+          className="flex items-center gap-3 mb-4 p-3 rounded-lg"
+          style={{
+            background: "color-mix(in oklab, var(--brand) 8%, transparent)",
+            border: "1px solid color-mix(in oklab, var(--brand) 25%, transparent)",
+          }}
+        >
+          <span className="text-sm font-medium" style={{ color: "var(--content-strong)" }}>
             Zaznaczono: {selected.size}
           </span>
           <div className="flex-1" />
           <Button
             variant="outline"
             size="sm"
-            className="border-red-300 text-red-700 hover:bg-red-50"
+            style={{ color: "var(--danger)", borderColor: "color-mix(in oklab, var(--danger) 35%, transparent)" }}
             onClick={() => setShowBulkArchive(true)}
           >
             <Archive className="w-4 h-4 mr-1" />
@@ -271,6 +378,24 @@ export default function CasesPage() {
         </div>
       )}
 
+      {view === "kanban" ? (
+        loading ? (
+          <div className="flex gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="skeleton h-72 w-[264px] shrink-0 rounded-xl" />
+            ))}
+          </div>
+        ) : (
+          <CasesKanban
+            cases={cases}
+            columns={CASE_KANBAN_STAGES}
+            onStageChange={handleStageChange}
+            onInvalid={(from, to) =>
+              toast.error(`Nie można przejść z „${PROCESS_STAGE_LABELS[from] ?? from}" do „${PROCESS_STAGE_LABELS[to] ?? to}"`)
+            }
+          />
+        )
+      ) : (
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
@@ -295,17 +420,29 @@ export default function CasesPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8">Ładowanie...</TableCell>
+                <TableCell colSpan={10} className="p-0">
+                  <TableSkeleton rows={6} />
+                </TableCell>
               </TableRow>
             ) : cases.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8">Brak sprzedaży</TableCell>
+                <TableCell colSpan={10}>
+                  <EmptyState
+                    icon={ShoppingCart}
+                    title="Brak sprzedaży"
+                    description={hasActiveFilters || search ? "Zmień filtry lub wyczyść wyszukiwanie." : "Utwórz pierwszą sprzedaż, aby uruchomić proces."}
+                    actionLabel={hasActiveFilters || search ? undefined : "Nowa sprzedaż"}
+                    onAction={() => router.push("/cases/new")}
+                    compact
+                  />
+                </TableCell>
               </TableRow>
             ) : (
               cases.map((c) => (
                 <TableRow 
                   key={c.id}
-                  className={`cursor-pointer hover:bg-gray-50 ${selected.has(c.id) ? "bg-blue-50/50" : ""}`}
+                  className="cursor-pointer hover:bg-[var(--surface-2)]"
+                  style={selected.has(c.id) ? { background: "color-mix(in oklab, var(--brand) 6%, transparent)" } : undefined}
                   onClick={() => router.push(`/cases/${c.id}`)}
                 >
                   <TableCell onClick={(e) => e.stopPropagation()}>
@@ -366,6 +503,7 @@ export default function CasesPage() {
           </TableBody>
         </Table>
       </div>
+      )}
 
       <Dialog open={!!archiveTarget} onOpenChange={(open) => { if (!open) setArchiveTarget(null) }}>
         <DialogContent>

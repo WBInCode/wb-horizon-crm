@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { getServerSession } from "next-auth"
+import { getCurrentUser } from "@/lib/auth"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
 import { CommandPalette } from "@/components/layout/CommandPalette"
@@ -10,15 +10,17 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const session = await getServerSession()
-  
-  if (!session) {
+  const user = await getCurrentUser()
+
+  if (!user) {
     redirect("/login")
   }
 
-  const role = (session.user as any)?.role
-  if (role === "CLIENT") {
+  if (user.role === "CLIENT") {
     redirect("/client")
+  }
+  if (user.role === "KONTRAHENT") {
+    redirect("/vendor")
   }
 
   return (

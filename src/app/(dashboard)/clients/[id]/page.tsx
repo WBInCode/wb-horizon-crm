@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -19,9 +20,14 @@ import NotesSection       from "@/components/contractors/NotesSection"
 import AuditSection       from "@/components/contractors/AuditSection"
 import AssignmentsSection from "@/components/contractors/AssignmentsSection"
 import LeadInfoSection    from "@/components/contractors/LeadInfoSection"
+import TimelineSection    from "@/components/contractors/TimelineSection"
+import { InlineEditField } from "@/components/shared/InlineEditField"
+import { usePermissions } from "@/components/providers/PermissionProvider"
 
 export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
+  const queryClient = useQueryClient()
+  const { has } = usePermissions()
   const [clientId, setClientId] = useState<string>("")
 
   // Data
@@ -134,6 +140,27 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     } finally {
       setSaving(false)
     }
+  }
+
+  const saveInline = async (field: "companyName" | "nip" | "industry" | "website", value: string) => {
+    if (field === "companyName" && !value) {
+      toast.error("Nazwa firmy nie może być pusta")
+      throw new Error("Nazwa firmy nie może być pusta")
+    }
+    const response = await fetch(`/api/clients/${clientId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [field]: value || null }),
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      toast.error(error.error || "Nie udało się zapisać pola")
+      throw new Error(error.error || "Nie udało się zapisać pola")
+    }
+    const updated = await response.json()
+    setClient((current: any) => ({ ...current, [field]: updated[field] }))
+    queryClient.invalidateQueries({ queryKey: ["client-timeline", clientId] })
+    toast.success("Pole zaktualizowane")
   }
 
   // ─── Stage ────────────────────────────────────────────────────────────────
@@ -272,10 +299,10 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 </>
               ) : (
                 <dl className="space-y-2 text-sm">
-                  <DataRow label="Firma"     value={client.companyName} />
-                  <DataRow label="NIP"       value={client.nip}      fallback="-" />
-                  <DataRow label="Branża"    value={client.industry} fallback="-" />
-                  <DataRow label="WWW"       value={client.website}  fallback="-" link />
+                  <InlineEditField label="Firma" value={client.companyName} canEdit={has("clients.edit") && !isInactive} onSave={(value) => saveInline("companyName", value)} />
+                  <InlineEditField label="NIP" value={client.nip} fallback="-" canEdit={has("clients.edit") && !isInactive} onSave={(value) => saveInline("nip", value.replace(/\D/g, "").slice(0, 10))} />
+                  <InlineEditField label="Branża" value={client.industry} fallback="-" canEdit={has("clients.edit") && !isInactive} onSave={(value) => saveInline("industry", value)} />
+                  <InlineEditField label="WWW" value={client.website} fallback="-" type="url" canEdit={has("clients.edit") && !isInactive} onSave={(value) => saveInline("website", value)} />
                   <DataRow label="Konto klienta" value={client.owner ? `${client.owner.name} (${client.owner.email})` : undefined} fallback="Nie przypisano" warn />
                   {client.interestedProducts && <DataRow label="Produkty / usługi"  value={client.interestedProducts} pre />}
                   {client.keyFindings        && <DataRow label="Kluczowe ustalenia" value={client.keyFindings} pre />}
@@ -322,6 +349,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         {showSales && (
           <SalesSection cases={client.cases || []} stage={stage} clientId={clientId} />
         )}
+
+        {/* ─── Timeline 360°: aktywność z klienta i wszystkich jego spraw ── */}
+        <TimelineSection clientId={clientId} />
 
         {/* ─── Row 4: Notatki + Historia ─────────────────────────────────── */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

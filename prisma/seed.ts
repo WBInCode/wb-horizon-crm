@@ -14,6 +14,7 @@ const PERMISSIONS = [
   { code: "pages.cases",        category: "pages",    label: "Dostęp do spraw",             sortOrder: 4 },
   { code: "pages.admin",        category: "pages",    label: "Dostęp do panelu admina",     sortOrder: 5 },
   { code: "pages.archive",      category: "pages",    label: "Dostęp do archiwum",          sortOrder: 6 },
+  { code: "pages.reports",      category: "pages",    label: "Dostęp do raportów",           sortOrder: 7 },
 
   // --- Leads ---
   { code: "leads.view",         category: "leads",    label: "Przeglądanie leadów",         sortOrder: 10 },
@@ -82,7 +83,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
   ADMIN: PERMISSIONS.map(p => p.code), // Admin gets everything
 
   DIRECTOR: [
-    "pages.dashboard", "pages.leads", "pages.clients", "pages.cases", "pages.admin", "pages.archive",
+    "pages.dashboard", "pages.leads", "pages.clients", "pages.cases", "pages.admin", "pages.archive", "pages.reports",
     "leads.view", "leads.view_all", "leads.create", "leads.edit", "leads.delete", "leads.convert",
     "clients.view", "clients.view_all", "clients.create", "clients.edit", "clients.delete",
     "cases.view", "cases.view_all", "cases.create", "cases.edit", "cases.delete", "cases.change_stage",
@@ -96,7 +97,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
   ],
 
   CARETAKER: [
-    "pages.dashboard", "pages.leads", "pages.clients", "pages.cases",
+    "pages.dashboard", "pages.leads", "pages.clients", "pages.cases", "pages.reports",
     "leads.view", "leads.view_all", "leads.create", "leads.edit", "leads.convert",
     "clients.view", "clients.view_all", "clients.create", "clients.edit",
     "cases.view", "cases.view_all", "cases.edit", "cases.change_stage",

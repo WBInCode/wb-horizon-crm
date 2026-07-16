@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
+import { logger } from "@/lib/logger"
 
 // POST /api/cases/[id]/approvals - tworzenie akceptacji
 export async function POST(
@@ -72,7 +73,7 @@ export async function POST(
 
     return NextResponse.json(approval, { status: 201 })
   } catch (error) {
-    console.error(error)
+    logger.error("POST failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
@@ -105,7 +106,7 @@ export async function GET(
 
     return NextResponse.json(approvals)
   } catch (error) {
-    console.error(error)
+    logger.error("GET failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }

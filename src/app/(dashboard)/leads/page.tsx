@@ -1,30 +1,33 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { Suspense, useEffect, useMemo, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useDebounce } from "@/lib/use-debounce"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { 
-  Table, TableBody, TableCell, TableHead, 
-  TableHeader, TableRow 
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
+import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Plus, Search, X, Trash2 } from "lucide-react"
+import { Plus, Search, X, Trash2, Users, LayoutGrid, List, Download } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
+import { ToneBadge, type Tone } from "@/components/ui/status-badge"
+import { EmptyState } from "@/components/shared/EmptyState"
+import { LeadsKanban } from "@/components/leads/LeadsKanban"
+import { exportToCsv } from "@/lib/export-csv"
 
-const statusColors: Record<string, string> = {
-  NEW: "bg-blue-100 text-blue-800",
-  TO_CONTACT: "bg-yellow-100 text-yellow-800",
-  IN_CONTACT: "bg-orange-100 text-orange-800",
-  MEETING_SCHEDULED: "bg-purple-100 text-purple-800",
-  AFTER_MEETING: "bg-indigo-100 text-indigo-800",
-  QUALIFIED: "bg-green-100 text-green-800",
-  NOT_QUALIFIED: "bg-red-100 text-red-800",
-  TRANSFERRED: "bg-gray-100 text-gray-800",
-  CLOSED: "bg-gray-200 text-gray-600",
+// Audyt F3: tony semantyczne z tokenów zamiast surowych klas bg-*-100
+const statusTones: Record<string, Tone> = {
+  NEW: "info",
+  TO_CONTACT: "amber",
+  IN_CONTACT: "warning",
+  MEETING_SCHEDULED: "violet",
+  AFTER_MEETING: "teal",
+  QUALIFIED: "success",
+  NOT_QUALIFIED: "danger",
+  TRANSFERRED: "brand",
+  CLOSED: "neutral",
 }
 
 const statusLabels: Record<string, string> = {
@@ -39,11 +42,11 @@ const statusLabels: Record<string, string> = {
   CLOSED: "Zamknięty",
 }
 
-const PRIORITY_CONFIG: Record<string, { label: string; className: string }> = {
-  LOW: { label: "Niski", className: "border-gray-300 text-gray-600 bg-gray-50" },
-  MEDIUM: { label: "Średni", className: "border-blue-300 text-blue-700 bg-blue-50" },
-  HIGH: { label: "Wysoki", className: "border-orange-300 text-orange-700 bg-orange-50" },
-  CRITICAL: { label: "Krytyczny", className: "border-red-300 text-red-700 bg-red-50" },
+const PRIORITY_CONFIG: Record<string, { label: string; tone: Tone }> = {
+  LOW: { label: "Niski", tone: "neutral" },
+  MEDIUM: { label: "Średni", tone: "info" },
+  HIGH: { label: "Wysoki", tone: "warning" },
+  CRITICAL: { label: "Krytyczny", tone: "danger" },
 }
 
 const priorityLabels: Record<string, string> = {
@@ -53,55 +56,83 @@ const priorityLabels: Record<string, string> = {
   CRITICAL: "Krytyczny",
 }
 
+// Stabilna referencja — `data = []` w destrukturyzacji tworzyłoby nową tablicę
+// co render podczas ładowania → pętla useEffect (Maximum update depth).
+const EMPTY_LEADS: any[] = []
+
 export default function LeadsPage() {
+  return (
+    <Suspense fallback={<div className="p-6"><div className="skeleton h-96 rounded-xl" /></div>}>
+      <LeadsContent />
+    </Suspense>
+  )
+}
+
+function LeadsContent() {
   const router = useRouter()
-  const [leads, setLeads] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const searchParams = useSearchParams()
+  const queryClient = useQueryClient()
+  // Audyt F4: widok w URL — deep-linki i refresh zachowują kontekst
+  const view = searchParams.get("view") === "kanban" ? "kanban" : "table"
+  const setView = (v: "table" | "kanban") => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (v === "kanban") params.set("view", "kanban")
+    else params.delete("view")
+    router.replace(`/leads?${params.toString()}`, { scroll: false })
+  }
   const [search, setSearch] = useState("")
+  const debouncedSearch = useDebounce(search, 300)
   const [statusFilter, setStatusFilter] = useState("")
   const [salesFilter, setSalesFilter] = useState("")
   const [priorityFilter, setPriorityFilter] = useState("")
-  const [users, setUsers] = useState<any[]>([])
 
   // Selection
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [showBulkDelete, setShowBulkDelete] = useState(false)
-  const [bulkDeleting, setBulkDeleting] = useState(false)
-  const [currentUser, setCurrentUser] = useState<any>(null)
 
-  useEffect(() => {
-    fetch("/api/admin/users")
-      .then((r) => r.ok ? r.json() : [])
-      .then((data) => setUsers(Array.isArray(data) ? data : []))
-      .catch(() => {})
-    fetch("/api/auth/session")
-      .then((r) => r.ok ? r.json() : null)
-      .then((session) => setCurrentUser(session?.user))
-      .catch(() => {})
-  }, [])
+  const { data: users = [] } = useQuery<any[]>({
+    queryKey: ["admin-users"],
+    queryFn: async () => {
+      const r = await fetch("/api/admin/users")
+      if (!r.ok) return []
+      const data = await r.json()
+      return Array.isArray(data) ? data : []
+    },
+    staleTime: 5 * 60_000,
+  })
 
-  const fetchLeads = async () => {
-    try {
+  const { data: currentUser } = useQuery<any>({
+    queryKey: ["session-user"],
+    queryFn: async () => {
+      const r = await fetch("/api/auth/session")
+      if (!r.ok) return null
+      const session = await r.json()
+      return session?.user ?? null
+    },
+    staleTime: 5 * 60_000,
+  })
+
+  const { data: leadsData, isLoading: loading } = useQuery<any[]>({
+    queryKey: ["leads", { search: debouncedSearch, status: statusFilter, sales: salesFilter, priority: priorityFilter }],
+    queryFn: async () => {
       const params = new URLSearchParams()
-      if (search) params.set("search", search)
+      if (debouncedSearch) params.set("search", debouncedSearch)
       if (statusFilter) params.set("status", statusFilter)
       if (salesFilter) params.set("salesId", salesFilter)
       if (priorityFilter) params.set("priority", priorityFilter)
-      
-      const res = await fetch(`/api/leads?${params}`)
-      const data = await res.json()
-      setLeads(Array.isArray(data) ? data : [])
-      setSelected(new Set())
-    } catch (error) {
-      console.error("Błąd pobierania leadów:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
+      const res = await fetch(`/api/leads?${params}`)
+      if (!res.ok) throw new Error("Błąd pobierania leadów")
+      const data = await res.json()
+      return Array.isArray(data) ? data : []
+    },
+  })
+  const leads = leadsData ?? EMPTY_LEADS
+
+  // Reset zaznaczenia przy zmianie zbioru wyników (bez zmiany stanu gdy puste — anty-pętla)
   useEffect(() => {
-    fetchLeads()
-  }, [search, statusFilter, salesFilter, priorityFilter])
+    setSelected((prev) => (prev.size === 0 ? prev : new Set()))
+  }, [leads])
 
   const salespersons = users.filter((u) => u.role === "SALESPERSON" || u.role === "ADMIN")
   const hasActiveFilters = statusFilter || salesFilter || priorityFilter
@@ -128,40 +159,207 @@ export default function LeadsPage() {
   const selectedItems = leads.filter((l) => selected.has(l.id))
   const convertedLeads = selectedItems.filter((l) => l.convertedToClientId)
 
-  const handleBulkDelete = async () => {
-    if (selectedItems.length === 0) return
-    setBulkDeleting(true)
-    try {
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
       const res = await fetch("/api/leads/bulk-delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: selectedItems.map((l) => l.id) }),
+        body: JSON.stringify({ ids }),
       })
-      if (res.ok) {
-        const data = await res.json()
-        toast.success(data.message)
-        setShowBulkDelete(false)
-        setSelected(new Set())
-        fetchLeads()
-      } else {
-        const err = await res.json()
-        toast.error(err.error || "Błąd usuwania")
-      }
-    } catch {
-      toast.error("Błąd połączenia")
-    } finally {
-      setBulkDeleting(false)
-    }
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Błąd usuwania")
+      return data
+    },
+    onSuccess: (data) => {
+      toast.success(data.message)
+      setShowBulkDelete(false)
+      setSelected(new Set())
+      queryClient.invalidateQueries({ queryKey: ["leads"] })
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Błąd połączenia")
+    },
+  })
+
+  const bulkDeleting = bulkDeleteMutation.isPending
+  const handleBulkDelete = () => {
+    if (selectedItems.length === 0) return
+    bulkDeleteMutation.mutate(selectedItems.map((l) => l.id))
   }
+
+  // Audyt F4: zmiana statusu z kanbana — optymistycznie, rollback przy błędzie
+  const statusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const res = await fetch(`/api/leads/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || "Błąd zmiany statusu")
+      }
+      return res.json()
+    },
+    onMutate: async ({ id, status }) => {
+      await queryClient.cancelQueries({ queryKey: ["leads"] })
+      const previous = queryClient.getQueriesData<any[]>({ queryKey: ["leads"] })
+      queryClient.setQueriesData<any[]>({ queryKey: ["leads"] }, (old) =>
+        Array.isArray(old) ? old.map((l) => (l.id === id ? { ...l, status } : l)) : old,
+      )
+      return { previous }
+    },
+    onError: (err: Error, _vars, ctx) => {
+      ctx?.previous?.forEach(([key, data]) => queryClient.setQueryData(key, data))
+      toast.error(err.message || "Błąd zmiany statusu")
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] })
+    },
+  })
+
+  const kanbanColumns = useMemo(
+    () =>
+      Object.entries(statusLabels).map(([key, label]) => ({
+        key,
+        label,
+        tone: statusTones[key] ?? ("neutral" as Tone),
+      })),
+    [],
+  )
+
+  // Kolumny DataTable (audyt F3: sortowanie + paginacja)
+  const columns = useMemo<ColumnDef<any, unknown>[]>(() => [
+    {
+      id: "select",
+      size: 40,
+      enableSorting: false,
+      header: () => (
+        <Checkbox
+          checked={leads.length > 0 && selected.size === leads.length}
+          onCheckedChange={toggleSelectAll}
+          aria-label="Zaznacz wszystkie"
+        />
+      ),
+      cell: ({ row }) => (
+        <span onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={selected.has(row.original.id)}
+            onCheckedChange={() => toggleSelect(row.original.id)}
+            aria-label={`Zaznacz: ${row.original.companyName}`}
+          />
+        </span>
+      ),
+    },
+    {
+      accessorKey: "companyName",
+      header: "Firma",
+      cell: ({ getValue }) => <span className="font-medium">{getValue<string>()}</span>,
+    },
+    { accessorKey: "contactPerson", header: "Osoba kontaktowa" },
+    { accessorKey: "phone", header: "Telefon", enableSorting: false },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ getValue }) => {
+        const status = getValue<string>()
+        return <ToneBadge tone={statusTones[status] ?? "neutral"}>{statusLabels[status]}</ToneBadge>
+      },
+    },
+    {
+      accessorKey: "priority",
+      header: "Priorytet",
+      cell: ({ getValue }) => {
+        const priority = getValue<string | null>()
+        return priority && PRIORITY_CONFIG[priority] ? (
+          <ToneBadge tone={PRIORITY_CONFIG[priority].tone}>{PRIORITY_CONFIG[priority].label}</ToneBadge>
+        ) : "-"
+      },
+    },
+    {
+      id: "assignedSales",
+      accessorFn: (row) => row.assignedSales?.name ?? "",
+      header: "Handlowiec",
+      cell: ({ getValue }) => getValue<string>() || "-",
+    },
+    {
+      accessorKey: "nextStepDate",
+      header: "Follow-up",
+      cell: ({ getValue }) => {
+        const v = getValue<string | null>()
+        return v ? new Date(v).toLocaleDateString("pl-PL") : "-"
+      },
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Data utworzenia",
+      cell: ({ getValue }) => new Date(getValue<string>()).toLocaleDateString("pl-PL"),
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [leads, selected])
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6 gap-3 flex-wrap">
         <h1 className="text-2xl font-bold">Leady</h1>
-        <Button onClick={() => router.push("/leads/new")}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nowy lead
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Przełącznik widoku (audyt F4) */}
+          <div
+            className="flex items-center rounded-lg p-0.5"
+            style={{ background: "var(--surface-2)", border: "1px solid var(--line-subtle)" }}
+            role="group"
+            aria-label="Widok listy"
+          >
+            <button
+              type="button"
+              onClick={() => setView("table")}
+              aria-pressed={view === "table"}
+              aria-label="Widok tabeli"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors"
+              style={view === "table"
+                ? { background: "var(--card)", color: "var(--content-strong)", boxShadow: "0 1px 2px oklch(0.16 0.015 55 / 0.08)" }
+                : { color: "var(--content-muted)" }}
+            >
+              <List className="w-3.5 h-3.5" aria-hidden="true" /> Tabela
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("kanban")}
+              aria-pressed={view === "kanban"}
+              aria-label="Widok kanban"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors"
+              style={view === "kanban"
+                ? { background: "var(--card)", color: "var(--content-strong)", boxShadow: "0 1px 2px oklch(0.16 0.015 55 / 0.08)" }
+                : { color: "var(--content-muted)" }}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" aria-hidden="true" /> Kanban
+            </button>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() =>
+              exportToCsv("leady", [
+                { header: "Firma", value: (l: any) => l.companyName },
+                { header: "Osoba kontaktowa", value: (l: any) => l.contactPerson },
+                { header: "Telefon", value: (l: any) => l.phone },
+                { header: "E-mail", value: (l: any) => l.email },
+                { header: "Status", value: (l: any) => statusLabels[l.status] ?? l.status },
+                { header: "Priorytet", value: (l: any) => (l.priority ? priorityLabels[l.priority] : "") },
+                { header: "Handlowiec", value: (l: any) => l.assignedSales?.name },
+                { header: "źródło", value: (l: any) => l.source },
+                { header: "Utworzono", value: (l: any) => new Date(l.createdAt).toLocaleDateString("pl-PL") },
+              ], leads)
+            }
+            disabled={leads.length === 0}
+            title="Eksport do CSV"
+          >
+            <Download className="w-4 h-4 mr-2" /> Eksport
+          </Button>
+          <Button onClick={() => router.push("/leads/new")}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nowy lead
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3 mb-6">
@@ -213,8 +411,14 @@ export default function LeadsPage() {
 
       {/* Bulk action bar */}
       {selected.size > 0 && (
-        <div className="flex items-center gap-3 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <span className="text-sm font-medium text-blue-800">
+        <div
+          className="flex items-center gap-3 mb-4 p-3 rounded-lg"
+          style={{
+            background: "color-mix(in oklab, var(--brand) 8%, transparent)",
+            border: "1px solid color-mix(in oklab, var(--brand) 25%, transparent)",
+          }}
+        >
+          <span className="text-sm font-medium" style={{ color: "var(--content-strong)" }}>
             Zaznaczono: {selected.size}
           </span>
           <div className="flex-1" />
@@ -235,80 +439,52 @@ export default function LeadsPage() {
         </div>
       )}
 
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-10">
-                <Checkbox
-                  checked={leads.length > 0 && selected.size === leads.length}
-                  onCheckedChange={toggleSelectAll}
-                />
-              </TableHead>
-              <TableHead>Firma</TableHead>
-              <TableHead>Osoba kontaktowa</TableHead>
-              <TableHead>Telefon</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Priorytet</TableHead>
-              <TableHead>Handlowiec</TableHead>
-              <TableHead>Follow-up</TableHead>
-              <TableHead>Data utworzenia</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center py-8">
-                  Ładowanie...
-                </TableCell>
-              </TableRow>
-            ) : leads.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center py-8">
-                  Brak leadów
-                </TableCell>
-              </TableRow>
-            ) : (
-              leads.map((lead) => (
-                <TableRow 
-                  key={lead.id} 
-                  className={`cursor-pointer hover:bg-gray-50 ${selected.has(lead.id) ? "bg-blue-50/50" : ""}`}
-                  onClick={() => router.push(`/leads/${lead.id}`)}
-                >
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                      checked={selected.has(lead.id)}
-                      onCheckedChange={() => toggleSelect(lead.id)}
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">{lead.companyName}</TableCell>
-                  <TableCell>{lead.contactPerson}</TableCell>
-                  <TableCell>{lead.phone}</TableCell>
-                  <TableCell>
-                    <Badge className={statusColors[lead.status]}>
-                      {statusLabels[lead.status]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {lead.priority && PRIORITY_CONFIG[lead.priority] ? (
-                      <Badge variant="outline" className={PRIORITY_CONFIG[lead.priority].className}>
-                        {PRIORITY_CONFIG[lead.priority].label}
-                      </Badge>
-                    ) : "-"}
-                  </TableCell>
-                  <TableCell>{lead.assignedSales?.name || "-"}</TableCell>
-                  <TableCell>
-                    {lead.nextStepDate ? new Date(lead.nextStepDate).toLocaleDateString("pl-PL") : "-"}
-                  </TableCell>
-                  <TableCell>
-                    {new Date(lead.createdAt).toLocaleDateString("pl-PL")}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      {view === "kanban" ? (
+        loading ? (
+          <div className="flex gap-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="skeleton h-72 w-[264px] shrink-0 rounded-xl" />
+            ))}
+          </div>
+        ) : leads.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title="Brak leadów"
+            description={hasActiveFilters || debouncedSearch ? "Zmień filtry lub wyczyść wyszukiwanie." : "Dodaj pierwszy lead, aby zacząć budować lejek sprzedaży."}
+            actionLabel={hasActiveFilters || debouncedSearch ? undefined : "Nowy lead"}
+            onAction={() => router.push("/leads/new")}
+          />
+        ) : (
+          <LeadsKanban
+            leads={leads}
+            columns={kanbanColumns}
+            onStatusChange={(id, status) => statusMutation.mutate({ id, status })}
+          />
+        )
+      ) : (
+      <DataTable
+        columns={columns}
+        data={leads}
+        loading={loading}
+        pageSize={25}
+        onRowClick={(lead) => router.push(`/leads/${lead.id}`)}
+        rowStyle={(lead) =>
+          selected.has(lead.id)
+            ? { background: "color-mix(in oklab, var(--brand) 6%, transparent)" }
+            : undefined
+        }
+        empty={
+          <EmptyState
+            icon={Users}
+            title="Brak leadów"
+            description={hasActiveFilters || debouncedSearch ? "Zmień filtry lub wyczyść wyszukiwanie." : "Dodaj pierwszy lead, aby zacząć budować lejek sprzedaży."}
+            actionLabel={hasActiveFilters || debouncedSearch ? undefined : "Nowy lead"}
+            onAction={() => router.push("/leads/new")}
+            compact
+          />
+        }
+      />
+      )}
 
       {/* Dialog masowego usuwania */}
       <Dialog open={showBulkDelete} onOpenChange={setShowBulkDelete}>

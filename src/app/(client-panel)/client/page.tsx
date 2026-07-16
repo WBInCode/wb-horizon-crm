@@ -143,10 +143,7 @@ export default async function ClientDashboardPage() {
                 <Link
                   key={c.id}
                   href={`/client/cases/${c.id}`}
-                  className="flex items-center justify-between p-3 rounded-lg transition-colors duration-150 group"
-                  style={{ background: "var(--surface-2)" }}
-                  onMouseEnter={(e: any) => (e.currentTarget.style.background = "var(--brand-muted)")}
-                  onMouseLeave={(e: any) => (e.currentTarget.style.background = "var(--surface-2)")}
+                  className="flex items-center justify-between p-3 rounded-lg transition-colors duration-150 group bg-[var(--surface-2)] hover:bg-[var(--brand-muted)]"
                 >
                   <div>
                     <p className="font-medium text-sm" style={{ color: "var(--content-strong)" }}>

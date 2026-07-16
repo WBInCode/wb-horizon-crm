@@ -15,6 +15,7 @@
 
 import { createHmac, timingSafeEqual } from "node:crypto"
 import { prisma } from "@/lib/prisma"
+import { logger } from "@/lib/logger"
 
 export const ALL_WEBHOOK_EVENTS = [
   "lead.created",
@@ -81,6 +82,21 @@ export async function enqueueWebhook(
   return matching.length
 }
 
+function isAllowedWebhookUrl(urlStr: string): boolean {
+  try {
+    const url = new URL(urlStr)
+    if (url.protocol !== "https:") return false
+    const host = url.hostname.toLowerCase()
+    if (host === "localhost" || host === "127.0.0.1" || host === "[::1]" || host === "0.0.0.0") return false
+    if (host.startsWith("127.") || host.startsWith("10.") || host.startsWith("0.")) return false
+    if (host.startsWith("192.168.") || host.startsWith("172.16.") || host.startsWith("169.254.")) return false
+    if (host.endsWith(".local") || host.endsWith(".internal") || host === "metadata.google.internal") return false
+    return true
+  } catch {
+    return false
+  }
+}
+
 interface DeliverOptions {
   /** Maximum number of pending deliveries to process per tick. */
   batchSize?: number
@@ -122,6 +138,23 @@ export async function processPendingDeliveries(
       continue
     }
 
+    const attempts = delivery.attempts + 1
+
+    if (!isAllowedWebhookUrl(delivery.webhook.url)) {
+      await prisma.$transaction([
+        prisma.webhookDelivery.update({
+          where: { id: delivery.id },
+          data: { status: "DEAD", attempts, errorMessage: "SSRF: webhook URL targets internal network" },
+        }),
+        prisma.webhook.update({
+          where: { id: delivery.webhook.id },
+          data: { lastErrorAt: new Date(), lastError: "SSRF: webhook URL targets internal network" },
+        }),
+      ])
+      dead++
+      continue
+    }
+
     const body = JSON.stringify({
       event: delivery.event,
       deliveryId: delivery.id,
@@ -129,7 +162,6 @@ export async function processPendingDeliveries(
       data: delivery.payload,
     })
     const signature = signPayload(delivery.webhook.secret, body)
-    const attempts = delivery.attempts + 1
 
     let responseStatus: number | null = null
     let responseBody: string | null = null

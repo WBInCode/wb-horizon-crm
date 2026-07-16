@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto"
 import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
@@ -20,11 +21,18 @@ async function isAdminSession(): Promise<boolean> {
   return user?.role === "ADMIN"
 }
 
+function timingSafeStringEqual(a: string, b: string): boolean {
+  const aBuf = Buffer.from(a, "utf8")
+  const bBuf = Buffer.from(b, "utf8")
+  if (aBuf.length !== bBuf.length) return false
+  return timingSafeEqual(aBuf, bBuf)
+}
+
 function hasCronSecret(req: Request): boolean {
   if (!CRON_SECRET) return false
   const header = req.headers.get("authorization") ?? ""
   const provided = header.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() : null
-  return !!provided && provided === CRON_SECRET
+  return !!provided && timingSafeStringEqual(provided, CRON_SECRET)
 }
 
 export async function GET() {

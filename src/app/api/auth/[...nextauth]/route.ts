@@ -5,6 +5,7 @@ import crypto from "crypto"
 import { prisma } from "@/lib/prisma"
 import { logger } from "@/lib/logger"
 import { checkRateLimit, resetRateLimit, LIMITS } from "@/lib/rate-limit"
+import { verifyTotp } from "@/lib/totp"
 
 const ADMIN_ROLES = ["ADMIN", "DIRECTOR", "MANAGER", "CARETAKER", "SALESPERSON", "CALL_CENTER", "KONTRAHENT"]
 
@@ -53,7 +54,11 @@ function timingSafeStringEqual(a: string, b: string): boolean {
 
 function verifyAdminGateToken(adminGateToken: string): boolean {
   const adminToken = process.env.ADMIN_SECRET_TOKEN
-  const secret = process.env.NEXTAUTH_SECRET || "secret"
+  const secret = process.env.NEXTAUTH_SECRET
+  if (!secret) {
+    logger.error("NEXTAUTH_SECRET is not configured — admin gate token verification will fail")
+    return false
+  }
   if (!adminToken) return false
 
   const parts = adminGateToken.split(":")
@@ -113,6 +118,7 @@ export const authOptions: AuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Hasło", type: "password" },
         adminGateToken: { label: "Admin Gate Token", type: "text" },
+        totpCode: { label: "Kod 2FA", type: "text" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password || !credentials?.adminGateToken) {
@@ -155,6 +161,19 @@ export const authOptions: AuthOptions = {
           throw new Error("Konto jest nieaktywne")
         }
 
+        // 2FA TOTP (audyt F2) — wymagany jeśli włączony na koncie
+        if (user.totpEnabled && user.totpSecret) {
+          if (!credentials.totpCode) {
+            // Sygnał dla UI: pokaż pole na kod — hasło było poprawne
+            throw new Error("TOTP_REQUIRED")
+          }
+          if (!verifyTotp(user.totpSecret, credentials.totpCode)) {
+            await logLoginAttempt(credentials.email, false, user.id)
+            await registerFailedLogin(user.id)
+            throw new Error("Nieprawidłowy kod uwierzytelniania (2FA)")
+          }
+        }
+
         await logLoginAttempt(credentials.email, true, user.id)
         await clearFailedLogins(user.id)
         await resetRateLimit(`login:${credentials.email.toLowerCase()}`)
@@ -165,6 +184,46 @@ export const authOptions: AuthOptions = {
           name: user.name,
           role: user.role,
           sessionVersion: user.sessionVersion,
+          totpEnabled: user.totpEnabled,
+        }
+      }
+    }),
+    CredentialsProvider({
+      id: "hub-sso",
+      name: "WB Platform SSO",
+      credentials: {
+        ticket: { label: "Ticket", type: "text" },
+      },
+      async authorize(credentials) {
+        // Faza 6: jednorazowy ticket wystawiony przez /sso/callback (redeem w Hubie).
+        if (!credentials?.ticket) throw new Error("Brak ticketu SSO")
+
+        const tokenHash = crypto.createHash("sha256").update(credentials.ticket).digest("hex")
+        // Atomowa konsumpcja — tylko pierwsze użycie przechodzi (replay protection)
+        const consumed = await prisma.userSession.updateMany({
+          where: { tokenHash, revokedAt: null, expiresAt: { gt: new Date() } },
+          data: { revokedAt: new Date() },
+        })
+        if (consumed.count === 0) throw new Error("Ticket SSO nieważny lub użyty")
+
+        const session = await prisma.userSession.findUnique({
+          where: { tokenHash },
+          include: { user: true },
+        })
+        const user = session?.user
+        if (!user || user.status !== "ACTIVE") throw new Error("Konto nieaktywne")
+
+        await logLoginAttempt(user.email, true, user.id)
+        await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          sessionVersion: user.sessionVersion,
+          totpEnabled: user.totpEnabled,
+          ssoProvider: "hub",
         }
       }
     }),
@@ -232,11 +291,14 @@ export const authOptions: AuthOptions = {
         token.role = user.role
         // PDF A.4.1 — sessionVersion pozwala wymusić ponowne logowanie
         token.sessionVersion = (user as { sessionVersion?: number }).sessionVersion ?? 0
+        token.totpEnabled = (user as { totpEnabled?: boolean }).totpEnabled ?? false
+        // Faza 6: sesje z Huba (IdP z własnym 2FA) nie podlegają wymuszeniu TOTP w CRM
+        token.ssoProvider = (user as { ssoProvider?: string }).ssoProvider ?? null
       } else if (token?.id) {
         // Walidacja: jeśli admin podbił sessionVersion, token jest nieważny
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id as string },
-          select: { sessionVersion: true, status: true },
+          select: { sessionVersion: true, status: true, totpEnabled: true },
         })
         if (!dbUser || dbUser.status !== "ACTIVE") {
           return { ...token, id: "", role: "" }
@@ -244,6 +306,8 @@ export const authOptions: AuthOptions = {
         if ((token.sessionVersion as number ?? 0) !== dbUser.sessionVersion) {
           return { ...token, id: "", role: "" }
         }
+        // Odśwież claim 2FA (używany przez middleware do wymuszenia dla ADMIN/DIRECTOR)
+        token.totpEnabled = dbUser.totpEnabled
       }
       return token
     },
@@ -260,6 +324,9 @@ export const authOptions: AuthOptions = {
   },
   session: {
     strategy: "jwt",
+    // Audyt F0: krótsza sesja — 8h ważności, odświeżanie tokena co 1h aktywności
+    maxAge: 8 * 60 * 60,
+    updateAge: 60 * 60,
   },
 }
 

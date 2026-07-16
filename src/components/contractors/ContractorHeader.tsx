@@ -1,18 +1,19 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Plus, Pencil, Save, X, UserPlus, StickyNote, Package, TrendingUp, Archive } from "lucide-react"
+import { ArrowLeft, Plus, Pencil, Save, X, UserPlus, StickyNote, Package, TrendingUp, Archive, Download } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { usePermissions } from "@/components/providers/PermissionProvider"
+import { ToneBadge, type Tone } from "@/components/ui/status-badge"
 
-const STAGE_CONFIG: Record<string, { label: string; className: string }> = {
-  LEAD:     { label: "Pozysk",        className: "border-blue-300 text-blue-700 bg-blue-50" },
-  PROSPECT: { label: "Kwalifikowany", className: "border-purple-300 text-purple-700 bg-purple-50" },
-  QUOTATION:{ label: "Wycena",        className: "border-yellow-400 text-yellow-800 bg-yellow-50" },
-  SALE:     { label: "Sprzedaż",      className: "border-orange-300 text-orange-700 bg-orange-50" },
-  CLIENT:   { label: "Klient",        className: "border-green-300 text-green-700 bg-green-50" },
-  INACTIVE: { label: "Nieaktywny",    className: "border-gray-300 text-gray-500 bg-gray-50" },
+const STAGE_CONFIG: Record<string, { label: string; tone: Tone }> = {
+  LEAD:     { label: "Pozysk",        tone: "info" },
+  PROSPECT: { label: "Kwalifikowany", tone: "violet" },
+  QUOTATION:{ label: "Wycena",        tone: "amber" },
+  SALE:     { label: "Sprzedaż",      tone: "warning" },
+  CLIENT:   { label: "Klient",        tone: "success" },
+  INACTIVE: { label: "Nieaktywny",    tone: "neutral" },
 }
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
@@ -57,6 +58,7 @@ export default function ContractorHeader({
   onAddContact, onAddProduct, onAddNote, onArchive, clientId,
 }: Props) {
   const router = useRouter()
+  const { has } = usePermissions()
   const stage = client.stage || "LEAD"
   const stageConfig = STAGE_CONFIG[stage] || STAGE_CONFIG.LEAD
   const allowedNext = ALLOWED_TRANSITIONS[stage] || []
@@ -70,9 +72,9 @@ export default function ContractorHeader({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-2xl font-bold truncate">{client.companyName}</h1>
-          <Badge variant="outline" className={stageConfig.className}>
+          <ToneBadge tone={stageConfig.tone}>
             {stageConfig.label}
-          </Badge>
+          </ToneBadge>
         </div>
         <div className="flex gap-4 text-sm text-gray-500 mt-0.5 flex-wrap">
           {client.nip     && <span>NIP: {client.nip}</span>}
@@ -111,6 +113,18 @@ export default function ContractorHeader({
             title="Przenieś do archiwum"
           >
             <Archive className="w-4 h-4 mr-1" /> Archiwizuj
+          </Button>
+        )}
+
+        {has("pages.admin") && clientId && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open(`/api/clients/${clientId}/export`, "_blank")}
+            title="Eksport danych klienta (RODO art. 20)"
+            aria-label="Eksport danych klienta (RODO)"
+          >
+            <Download className="w-4 h-4 mr-1" /> Eksport
           </Button>
         )}
 

@@ -1,8 +1,32 @@
 ﻿import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
+import { CaseStatus, SaleProcessStage, SaleDetailedStatus } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
 import { notifyCaseAssigned, notifyCaseForApproval, notifyCaseReturned, notifyCaretakerChanged } from "@/lib/notifications"
 import { auditLog, diffChanges } from "@/lib/audit"
+import { logger } from "@/lib/logger"
+
+// Audyt F0: partial update — pola nieobecne w body NIE są modyfikowane
+const updateCaseSchema = z.object({
+  title: z.string().min(1).max(300).optional(),
+  serviceName: z.string().max(300).nullable().optional(),
+  status: z.enum(CaseStatus).optional(),
+  salesId: z.string().nullable().optional(),
+  caretakerId: z.string().nullable().optional(),
+  directorId: z.string().nullable().optional(),
+  surveyNeeds: z.string().max(10_000).nullable().optional(),
+  surveyBudget: z.coerce.number().nullable().optional(),
+  surveyDeadline: z
+    .string()
+    .refine((v) => !Number.isNaN(Date.parse(v)), "Nieprawidłowa data")
+    .nullable()
+    .optional(),
+  surveyClientNotes: z.string().max(10_000).nullable().optional(),
+  surveySalesNotes: z.string().max(10_000).nullable().optional(),
+  processStage: z.enum(SaleProcessStage).optional(),
+  detailedStatus: z.enum(SaleDetailedStatus).optional(),
+})
 
 export async function GET(
   request: NextRequest,
@@ -73,7 +97,7 @@ export async function GET(
 
     return NextResponse.json(caseData)
   } catch (error) {
-    console.error(error)
+    logger.error("GET failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
@@ -96,27 +120,35 @@ export async function PUT(
       return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
     }
 
-    const body = await request.json()
+    const json = await request.json()
+    const result = updateCaseSchema.safeParse(json)
+    if (!result.success) {
+      return NextResponse.json(
+        { error: "Nieprawidłowe dane", details: result.error.flatten() },
+        { status: 400 }
+      )
+    }
+    const parsed = result.data
     const oldCase = await prisma.case.findUnique({ where: { id } })
 
     // Tylko ADMIN/DIRECTOR może zmieniać przypisania ról
-    if ((body.caretakerId || body.directorId || body.salesId) && 
+    if ((parsed.caretakerId || parsed.directorId || parsed.salesId) &&
         !["ADMIN", "DIRECTOR"].includes(user.role)) {
-      delete body.caretakerId
-      delete body.directorId
-      delete body.salesId
+      delete parsed.caretakerId
+      delete parsed.directorId
+      delete parsed.salesId
     }
 
     // Tylko ADMIN/DIRECTOR/CARETAKER może zmieniać status
-    if (body.status && !["ADMIN", "DIRECTOR", "CARETAKER"].includes(user.role)) {
-      delete body.status
+    if (parsed.status && !["ADMIN", "DIRECTOR", "CARETAKER"].includes(user.role)) {
+      delete parsed.status
     }
 
     // Walidacja processStage / detailedStatus
-    if (body.processStage || body.detailedStatus) {
+    if (parsed.processStage || parsed.detailedStatus) {
       if (!["ADMIN", "DIRECTOR", "CARETAKER"].includes(user.role)) {
-        delete body.processStage
-        delete body.detailedStatus
+        delete parsed.processStage
+        delete parsed.detailedStatus
       } else {
         const ALLOWED_STATUS_PER_STAGE: Record<string, string[]> = {
           NEW: ["WAITING_SURVEY", "WAITING_FILES"],
@@ -127,8 +159,8 @@ export async function PUT(
           EXECUTION: ["READY_TO_START", "IN_PROGRESS"],
           CLOSED: ["COMPLETED"],
         }
-        const stage = body.processStage || oldCase?.processStage || "NEW"
-        const status = body.detailedStatus || oldCase?.detailedStatus
+        const stage = parsed.processStage || oldCase?.processStage || "NEW"
+        const status = parsed.detailedStatus || oldCase?.detailedStatus
         if (status && ALLOWED_STATUS_PER_STAGE[stage] && !ALLOWED_STATUS_PER_STAGE[stage].includes(status)) {
           return NextResponse.json(
             { error: `Status "${status}" nie jest dozwolony dla etapu "${stage}"` },
@@ -138,31 +170,37 @@ export async function PUT(
       }
     }
 
+    // Prisma pomija pola `undefined` — aktualizujemy tylko przekazane klucze
     const updated = await prisma.case.update({
       where: { id },
       data: {
-        title: body.title,
-        serviceName: body.serviceName,
-        status: body.status,
-        salesId: body.salesId,
-        caretakerId: body.caretakerId,
-        directorId: body.directorId,
-        surveyNeeds: body.surveyNeeds,
-        surveyBudget: body.surveyBudget,
-        surveyDeadline: body.surveyDeadline ? new Date(body.surveyDeadline) : null,
-        surveyClientNotes: body.surveyClientNotes,
-        surveySalesNotes: body.surveySalesNotes,
-        processStage: body.processStage,
-        detailedStatus: body.detailedStatus,
+        title: parsed.title,
+        serviceName: parsed.serviceName,
+        status: parsed.status,
+        salesId: parsed.salesId,
+        caretakerId: parsed.caretakerId,
+        directorId: parsed.directorId,
+        surveyNeeds: parsed.surveyNeeds,
+        surveyBudget: parsed.surveyBudget,
+        surveyDeadline:
+          parsed.surveyDeadline === undefined
+            ? undefined
+            : parsed.surveyDeadline
+              ? new Date(parsed.surveyDeadline)
+              : null,
+        surveyClientNotes: parsed.surveyClientNotes,
+        surveySalesNotes: parsed.surveySalesNotes,
+        processStage: parsed.processStage,
+        detailedStatus: parsed.detailedStatus,
       }
     })
 
     // Log zmiany statusu + powiadomienia
-    if (oldCase?.status !== body.status && body.status) {
+    if (oldCase?.status !== parsed.status && parsed.status) {
       await prisma.caseMessage.create({
         data: {
           caseId: id,
-          content: `Status zmieniony z "${oldCase?.status}" na "${body.status}"`,
+          content: `Status zmieniony z "${oldCase?.status}" na "${parsed.status}"`,
           type: "SYSTEM_LOG",
           visibilityScope: "ALL",
           authorId: user.id
@@ -170,21 +208,21 @@ export async function PUT(
       })
 
       // Powiadomienie: sprzedaż do akceptacji dyrektora  
-      if (body.status === "DIRECTOR_REVIEW" && updated.directorId) {
+      if (parsed.status === "DIRECTOR_REVIEW" && updated.directorId) {
         await notifyCaseForApproval(updated.directorId, id, updated.title)
       }
       // Powiadomienie: sprzedaż do kontroli opiekuna
-      if (body.status === "CARETAKER_REVIEW" && updated.caretakerId) {
+      if (parsed.status === "CARETAKER_REVIEW" && updated.caretakerId) {
         await notifyCaseForApproval(updated.caretakerId, id, updated.title)
       }
       // Powiadomienie: sprzedaż do poprawy
-      if (body.status === "TO_FIX" && updated.caretakerId) {
+      if (parsed.status === "TO_FIX" && updated.caretakerId) {
         await notifyCaseReturned(updated.caretakerId, id, updated.title)
       }
     }
 
     // Log zmiany opiekuna + powiadomienie
-    if (oldCase?.caretakerId !== body.caretakerId && body.caretakerId) {
+    if (oldCase?.caretakerId !== parsed.caretakerId && parsed.caretakerId) {
       await prisma.caseMessage.create({
         data: {
           caseId: id,
@@ -194,7 +232,7 @@ export async function PUT(
           authorId: user.id
         }
       })
-      await notifyCaseAssigned(body.caretakerId, id, updated.title)
+      await notifyCaseAssigned(parsed.caretakerId, id, updated.title)
       // Powiadom handlowca o zmianie opiekuna
       if (updated.salesId) {
         await notifyCaretakerChanged(updated.salesId, id, "nowy opiekun")
@@ -202,7 +240,7 @@ export async function PUT(
     }
 
     // Log zmiany dyrektora
-    if (oldCase?.directorId !== body.directorId && body.directorId) {
+    if (oldCase?.directorId !== parsed.directorId && parsed.directorId) {
       await prisma.caseMessage.create({
         data: {
           caseId: id,
@@ -216,19 +254,19 @@ export async function PUT(
 
     const changes = oldCase ? diffChanges(
       oldCase as unknown as Record<string, unknown>,
-      body,
+      parsed as Record<string, unknown>,
       ["title", "serviceName", "status", "processStage", "detailedStatus", "salesId", "caretakerId", "directorId"]
     ) : null
 
     const isReassign = oldCase && (
-      (body.salesId && oldCase.salesId !== body.salesId) ||
-      (body.caretakerId && oldCase.caretakerId !== body.caretakerId) ||
-      (body.directorId && oldCase.directorId !== body.directorId)
+      (parsed.salesId && oldCase.salesId !== parsed.salesId) ||
+      (parsed.caretakerId && oldCase.caretakerId !== parsed.caretakerId) ||
+      (parsed.directorId && oldCase.directorId !== parsed.directorId)
     )
 
     await auditLog({
       action: isReassign ? "REASSIGN"
-        : (body.status && oldCase?.status !== body.status) ? "STATUS_CHANGE"
+        : (parsed.status && oldCase?.status !== parsed.status) ? "STATUS_CHANGE"
         : "UPDATE",
       entityType: "CASE",
       entityId: id,
@@ -239,7 +277,7 @@ export async function PUT(
 
     return NextResponse.json(updated)
   } catch (error) {
-    console.error(error)
+    logger.error("PUT failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
@@ -286,7 +324,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error(error)
+    logger.error("DELETE failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }

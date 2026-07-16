@@ -1,62 +1,33 @@
 "use client"
 
-import { useEffect, useState, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Users, ShoppingCart, Clock, AlertCircle, Target,
-  Calendar, Plus, ArrowRight, CheckCircle2, ArrowUpRight,
+  Calendar, Plus, ArrowRight, CheckCircle2,
   TrendingUp, Inbox, Activity,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { StageBadge } from "@/components/ui/status-badge"
 import type { DashboardData, DashboardCaseSummary, DashboardActivity, DashboardTaskItem } from "@/types/api"
-
-/* ═══════════════════════════════════════════════════════
-   Hook: Animated count-up
-   ═══════════════════════════════════════════════════════ */
-function useCountUp(target: number, duration = 1200) {
-  const [value, setValue] = useState(0)
-  const ref = useRef<number>(0)
-
-  useEffect(() => {
-    if (target === 0) { setValue(0); return }
-    const start = performance.now()
-    const from = ref.current
-
-    function tick(now: number) {
-      const elapsed = now - start
-      const progress = Math.min(elapsed / duration, 1)
-      // ease-out-expo curve
-      const eased = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress)
-      const current = Math.round(from + (target - from) * eased)
-      setValue(current)
-      if (progress < 1) requestAnimationFrame(tick)
-      else ref.current = target
-    }
-
-    requestAnimationFrame(tick)
-  }, [target, duration])
-
-  return value
-}
+import { KpiCard } from "@/components/shared/KpiCard"
 
 /* ═══════════════════════════════════════════════════════
    Dashboard Page
    ═══════════════════════════════════════════════════════ */
 export default function DashboardPage() {
   const router = useRouter()
-  const [data, setData] = useState<DashboardData | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    fetch("/api/dashboard")
-      .then((r) => r.json() as Promise<DashboardData>)
-      .then((d) => setData(d))
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [])
+  const { data, isLoading: loading } = useQuery<DashboardData>({
+    queryKey: ["dashboard"],
+    queryFn: async () => {
+      const r = await fetch("/api/dashboard")
+      if (!r.ok) throw new Error("Błąd pobierania dashboardu")
+      return r.json() as Promise<DashboardData>
+    },
+    staleTime: 60_000,
+  })
 
   if (loading) return <DashboardSkeleton />
 
@@ -85,24 +56,22 @@ export default function DashboardPage() {
       </div>
 
       {/* KPI Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 reveal reveal-delay-1">
-        <KPICard
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <KpiCard
           icon={Users}
           value={data?.newLeads || 0}
           label="Nowe leady"
-          trend="+12%"
           color="oklch(0.55 0.18 250)"
           onClick={() => router.push("/leads?status=NEW")}
         />
-        <KPICard
+        <KpiCard
           icon={ShoppingCart}
           value={data?.activeCasesCount || 0}
           label="Aktywne sprzedaże"
-          trend="+8%"
           color="oklch(0.60 0.17 170)"
           onClick={() => router.push("/cases")}
         />
-        <KPICard
+        <KpiCard
           icon={Clock}
           value={data?.casesForApproval?.length || 0}
           label="Do akceptacji"
@@ -110,7 +79,7 @@ export default function DashboardPage() {
           onClick={() => router.push("/cases?detailedStatus=CARETAKER_APPROVAL")}
           urgent={!!data?.casesForApproval?.length}
         />
-        <KPICard
+        <KpiCard
           icon={AlertCircle}
           value={data?.casesWithMissing?.length || 0}
           label="Z brakami"
@@ -118,7 +87,7 @@ export default function DashboardPage() {
           onClick={() => router.push("/cases?hasMissing=true")}
           urgent={!!data?.casesWithMissing?.length}
         />
-        <KPICard
+        <KpiCard
           icon={Target}
           value={data?.myExecutionCount || 0}
           label="Moje w realizacji"
@@ -430,67 +399,6 @@ function QuickAction({ icon: Icon, label, onClick, accent }: {
     >
       <Icon className="w-3.5 h-3.5" strokeWidth={2} />
       {label}
-    </button>
-  )
-}
-
-function KPICard({ icon: Icon, value, label, trend, color, onClick, urgent }: {
-  icon: LucideIcon; value: number; label: string; trend?: string; color: string;
-  onClick: () => void; urgent?: boolean
-}) {
-  const animatedValue = useCountUp(value)
-
-  return (
-    <button
-      onClick={onClick}
-      className="group relative overflow-hidden rounded-xl p-5 text-left transition-all duration-300 cursor-pointer card-hover"
-      style={{
-        background: "var(--card)",
-        border: "1px solid var(--border)",
-      }}
-    >
-      {/* Icon */}
-      <div className="flex items-center justify-between mb-4">
-        <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110"
-          style={{ background: `${color}15`, color }}
-        >
-          <Icon className="w-[18px] h-[18px]" strokeWidth={1.5} />
-        </div>
-        {urgent && (
-          <span
-            className="w-2 h-2 rounded-full"
-            style={{ background: color, animation: "pulse-ring 2s infinite" }}
-          />
-        )}
-      </div>
-
-      {/* Value */}
-      <div className="flex items-baseline gap-2">
-        <span
-          className="text-3xl font-semibold tabular-nums tracking-tight"
-          style={{ color: "var(--content-strong)", fontFamily: "var(--font-display)" }}
-        >
-          {animatedValue}
-        </span>
-        {trend && (
-          <span className="mono-label text-[0.6rem]" style={{ color: "var(--success)" }}>
-            {trend}
-          </span>
-        )}
-      </div>
-
-      {/* Label */}
-      <p className="text-xs mt-1.5" style={{ color: "var(--content-muted)" }}>
-        {label}
-      </p>
-
-      {/* Hover arrow */}
-      <ArrowUpRight
-        className="absolute top-4 right-4 w-4 h-4 opacity-0 translate-x-1 -translate-y-1 group-hover:opacity-100 group-hover:translate-x-0 group-hover:translate-y-0 transition-all duration-300"
-        style={{ color: "var(--content-subtle)" }}
-        strokeWidth={1.5}
-      />
     </button>
   )
 }

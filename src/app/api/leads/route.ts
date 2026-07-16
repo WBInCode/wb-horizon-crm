@@ -1,9 +1,40 @@
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
 import { getVisibleUserIds } from "@/lib/structure"
-import type { Role } from "@prisma/client"
+import { checkRateLimit, LIMITS } from "@/lib/rate-limit"
+import type { Role, LeadStatus } from "@prisma/client"
+import { logger } from "@/lib/logger"
+
+function getClientIp(req: NextRequest): string {
+  const fwd = req.headers.get("x-forwarded-for")
+  if (fwd) return fwd.split(",")[0].trim()
+  return req.headers.get("x-real-ip") || "unknown"
+}
+
+const createLeadSchema = z.object({
+  companyName: z.string().min(1).max(200),
+  contactPerson: z.string().min(1).max(200),
+  phone: z.string().min(1).max(50),
+  nip: z.string().max(20).optional().nullable(),
+  industry: z.string().max(100).optional().nullable(),
+  website: z.string().max(500).url().optional().nullable().or(z.literal("")),
+  source: z.string().max(100).optional().nullable(),
+  sourceId: z.string().optional().nullable(),
+  position: z.string().max(100).optional().nullable(),
+  email: z.string().email().optional().nullable().or(z.literal("")),
+  isDecisionMaker: z.boolean().optional(),
+  meetingDate: z.string().datetime().optional().nullable(),
+  notes: z.string().max(5000).optional().nullable(),
+  needs: z.string().max(2000).optional().nullable(),
+  nextStep: z.string().max(500).optional().nullable(),
+  nextStepDate: z.string().datetime().optional().nullable(),
+  priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional().nullable(),
+  status: z.string().max(50).optional(),
+  assignedSalesId: z.string().optional().nullable(),
+})
 
 export async function GET(request: NextRequest) {
   try {
@@ -56,7 +87,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(leads)
   } catch (error) {
-    console.error(error)
+    logger.error("GET failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
@@ -73,28 +104,45 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Brak uprawnień" }, { status: 403 })
     }
 
-    const body = await request.json()
-    
+    const ip = getClientIp(request)
+    const rl = await checkRateLimit(`leads:${ip}`, LIMITS.apiWrite)
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Zbyt wiele żądań. Spróbuj za chwilę." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+      )
+    }
+
+    const raw = await request.json()
+    const parsed = createLeadSchema.safeParse(raw)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Validation failed", details: parsed.error.flatten() },
+        { status: 422 },
+      )
+    }
+    const body = parsed.data
+
     const lead = await prisma.lead.create({
       data: {
         companyName: body.companyName,
-        nip: body.nip,
-        industry: body.industry,
-        website: body.website,
-        source: body.source,
-        sourceId: body.sourceId || null,
         contactPerson: body.contactPerson,
-        position: body.position,
         phone: body.phone,
-        email: body.email,
+        nip: body.nip ?? null,
+        industry: body.industry ?? null,
+        website: body.website || null,
+        source: body.source ?? null,
+        sourceId: body.sourceId ?? null,
+        position: body.position ?? null,
+        email: body.email || null,
         isDecisionMaker: body.isDecisionMaker || false,
         meetingDate: body.meetingDate ? new Date(body.meetingDate) : null,
-        notes: body.notes,
-        needs: body.needs,
-        nextStep: body.nextStep || null,
+        notes: body.notes ?? null,
+        needs: body.needs ?? null,
+        nextStep: body.nextStep ?? null,
         nextStepDate: body.nextStepDate ? new Date(body.nextStepDate) : null,
-        priority: body.priority || null,
-        status: body.status || undefined,
+        priority: body.priority ?? null,
+        status: body.status as LeadStatus | undefined,
         assignedSalesId: body.assignedSalesId || user.id,
       }
     })
@@ -109,7 +157,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(lead, { status: 201 })
   } catch (error) {
-    console.error(error)
+    logger.error("POST failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }

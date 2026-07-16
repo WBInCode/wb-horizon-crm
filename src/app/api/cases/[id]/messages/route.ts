@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
 import { notifyProcessParticipants } from "@/lib/notifications"
+import { logger } from "@/lib/logger"
 
 export async function GET(
   request: NextRequest,
@@ -42,7 +43,7 @@ export async function GET(
 
     return NextResponse.json(messages)
   } catch (error) {
-    console.error(error)
+    logger.error("GET failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
@@ -105,7 +106,7 @@ export async function POST(
 
     return NextResponse.json(message, { status: 201 })
   } catch (error) {
-    console.error(error)
+    logger.error("POST failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }

@@ -56,3 +56,6 @@ WB Horizon CRM-archive/
 *.zip
 *.pdf
 WB Horizon CRM/
+
+# Local code graph/audit output
+graphify-out/

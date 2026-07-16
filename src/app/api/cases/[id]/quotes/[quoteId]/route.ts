@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
+import { logger } from "@/lib/logger"
 
 // GET /api/cases/[id]/quotes/[quoteId]
 export async function GET(
@@ -21,8 +22,8 @@ export async function GET(
       return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
     }
 
-    const quote = await prisma.quote.findUnique({
-      where: { id: quoteId },
+    const quote = await prisma.quote.findFirst({
+      where: { id: quoteId, caseId: id },
       include: { lineItems: { orderBy: { sortOrder: "asc" } } },
     })
 
@@ -32,7 +33,7 @@ export async function GET(
 
     return NextResponse.json(quote)
   } catch (error) {
-    console.error(error)
+    logger.error("GET failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
@@ -62,8 +63,11 @@ export async function PUT(
       return NextResponse.json({ error: "Brak uprawnień do zmiany statusu" }, { status: 403 })
     }
 
+    const existingQuote = await prisma.quote.findFirst({ where: { id: quoteId, caseId: id }, select: { id: true } })
+    if (!existingQuote) return NextResponse.json({ error: "Not found" }, { status: 404 })
+
     const quote = await prisma.quote.update({
-      where: { id: quoteId },
+      where: { id: existingQuote.id },
       data: {
         scope: body.scope,
         price: body.price ? parseFloat(body.price) : undefined,
@@ -98,7 +102,7 @@ export async function PUT(
 
     return NextResponse.json(quote)
   } catch (error) {
-    console.error(error)
+    logger.error("PUT failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
@@ -121,7 +125,10 @@ export async function DELETE(
 
     const { id, quoteId } = await params
 
-    await prisma.quote.delete({ where: { id: quoteId } })
+    const quote = await prisma.quote.findFirst({ where: { id: quoteId, caseId: id }, select: { id: true } })
+    if (!quote) return NextResponse.json({ error: "Not found" }, { status: 404 })
+
+    await prisma.quote.delete({ where: { id: quote.id } })
 
     await prisma.caseMessage.create({
       data: {
@@ -143,7 +150,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error(error)
+    logger.error("DELETE failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }

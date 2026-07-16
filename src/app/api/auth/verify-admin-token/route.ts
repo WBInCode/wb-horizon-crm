@@ -47,8 +47,12 @@ export async function POST(req: NextRequest) {
 
     // Return a session-bound verification token (hash of admin token + timestamp)
     const timestamp = Date.now()
+    const secret = process.env.NEXTAUTH_SECRET
+    if (!secret) {
+      return NextResponse.json({ error: "Konfiguracja serwera jest nieprawidłowa" }, { status: 500 })
+    }
     const verificationHash = crypto
-      .createHmac("sha256", process.env.NEXTAUTH_SECRET || "secret")
+      .createHmac("sha256", secret)
       .update(`${adminToken}:${timestamp}`)
       .digest("hex")
 

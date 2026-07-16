@@ -1,17 +1,22 @@
 import { redirect } from "next/navigation"
-import { getServerSession } from "next-auth"
+import { getCurrentUser } from "@/lib/auth"
 import { ClientSidebar } from "@/components/layout/ClientSidebar"
 import { ClientHeader } from "@/components/layout/ClientHeader"
+import { CommandPalette } from "@/components/layout/CommandPalette"
 
 export default async function ClientLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const session = await getServerSession()
+  const user = await getCurrentUser()
 
-  if (!session) {
+  if (!user) {
     redirect("/login")
+  }
+
+  if (user.role !== "CLIENT") {
+    redirect("/dashboard")
   }
 
   return (
@@ -23,6 +28,7 @@ export default async function ClientLayout({
           {children}
         </main>
       </div>
+      <CommandPalette />
     </div>
   )
 }

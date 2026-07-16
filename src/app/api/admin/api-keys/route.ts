@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requirePermission } from "@/lib/auth"
-import { generateApiKey, ALL_SCOPES } from "@/lib/api-auth"
+import { generateApiKey, ALL_SCOPES } from "@/lib/api-keys"
 import { auditLog } from "@/lib/audit"
 
 const createSchema = z.object({

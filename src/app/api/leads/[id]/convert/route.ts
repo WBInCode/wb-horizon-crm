@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
+import { logger } from "@/lib/logger"
 
 export async function POST(
   request: NextRequest,
@@ -62,7 +63,7 @@ export async function POST(
 
     return NextResponse.json(client, { status: 201 })
   } catch (error) {
-    console.error(error)
+    logger.error("POST failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }

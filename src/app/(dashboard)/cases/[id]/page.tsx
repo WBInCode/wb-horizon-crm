@@ -146,7 +146,20 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
     }
   }
 
-  if (loading) return <div className="p-6">Ładowanie...</div>
+  if (loading) {
+    return (
+      <div className="p-6 space-y-4" role="status" aria-label="Ładowanie sprzedaży">
+        <div className="skeleton h-8 w-40 rounded-lg" />
+        <div className="skeleton h-24 w-full rounded-xl" />
+        <div className="flex gap-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="skeleton h-9 w-24 rounded-lg" />
+          ))}
+        </div>
+        <div className="skeleton h-72 w-full rounded-xl" />
+      </div>
+    )
+  }
   if (!caseData) return <div className="p-6">Nie znaleziono sprzedaży</div>
 
   const currentStage = caseData.processStage || "NEW"

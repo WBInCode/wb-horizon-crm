@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useState, useRef, useCallback } from "react"
-import { useRouter } from "next/navigation"
-import { Search, ShoppingCart, Building2, Users, FileText, ArrowRight, X } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
+import { Search, ShoppingCart, Building2, Users, FileText, ArrowRight, X, BarChart3, HelpCircle, Package, CalendarDays, Network } from "lucide-react"
 
 const typeConfig = {
   case: { icon: ShoppingCart, label: "Sprzedaże", color: "var(--brand)" },
@@ -19,12 +19,83 @@ interface SearchResult {
   href: string
 }
 
-const QUICK_LINKS = [
-  { label: "Dashboard", href: "/dashboard", icon: FileText },
-  { label: "Nowa sprzedaż", href: "/cases", icon: ShoppingCart },
-  { label: "Kontrahenci", href: "/clients", icon: Building2 },
-  { label: "Leady", href: "/leads", icon: Users },
-]
+function navigationFor(pathname: string) {
+  if (pathname.startsWith("/client")) return {
+    quickLinks: [
+      { label: "Podsumowanie", href: "/client", icon: FileText },
+      { label: "Moje sprzedaże", href: "/client/cases", icon: ShoppingCart },
+      { label: "Pliki", href: "/client/files", icon: FileText },
+      { label: "Komunikacja", href: "/client/messages", icon: Users },
+      { label: "Produkty", href: "/client/products", icon: Package },
+    ],
+    routes: { d: "/client", l: "/client/cases", s: "/client/cases", c: "/client/messages", r: "/client/products" },
+    labels: { d: "Podsumowanie", l: "Moje sprzedaże", s: "Sprzedaże", c: "Komunikacja", r: "Produkty" },
+    createHref: "/client/messages", createLabel: "Komunikacja",
+  }
+  if (pathname.startsWith("/vendor")) return {
+    quickLinks: [
+      { label: "Dashboard vendora", href: "/vendor", icon: FileText },
+      { label: "Produkty", href: "/vendor/products", icon: Package },
+      { label: "Sprzedaże", href: "/vendor/sales", icon: ShoppingCart },
+      { label: "Klienci", href: "/vendor/clients", icon: Building2 },
+      { label: "Wyceny", href: "/vendor/quotes", icon: BarChart3 },
+    ],
+    routes: { d: "/vendor", l: "/vendor/products", s: "/vendor/sales", c: "/vendor/clients", r: "/vendor/quotes" },
+    labels: { d: "Dashboard", l: "Produkty", s: "Sprzedaże", c: "Klienci", r: "Wyceny" },
+    createHref: "/vendor/products/new", createLabel: "Nowy produkt",
+  }
+  if (pathname.startsWith("/cc")) return {
+    quickLinks: [
+      { label: "Dashboard Call Center", href: "/cc", icon: FileText },
+      { label: "Moi klienci", href: "/cc/clients", icon: Building2 },
+      { label: "Spotkania", href: "/cc/meetings", icon: CalendarDays },
+      { label: "Leady", href: "/leads", icon: Users },
+    ],
+    routes: { d: "/cc", l: "/leads", s: "/cc/meetings", c: "/cc/clients", r: "/cc/meetings" },
+    labels: { d: "Dashboard", l: "Leady", s: "Spotkania", c: "Klienci", r: "Spotkania" },
+    createHref: "/leads/new", createLabel: "Nowy lead",
+  }
+  if (pathname.startsWith("/caretaker")) return {
+    quickLinks: [
+      { label: "Dashboard opiekuna", href: "/caretaker", icon: FileText },
+      { label: "Moi klienci", href: "/caretaker/clients", icon: Building2 },
+      { label: "Sprzedaże", href: "/caretaker/cases", icon: ShoppingCart },
+      { label: "Raporty", href: "/reports", icon: BarChart3 },
+    ],
+    routes: { d: "/caretaker", l: "/leads", s: "/caretaker/cases", c: "/caretaker/clients", r: "/reports" },
+    labels: { d: "Dashboard", l: "Leady", s: "Sprzedaże", c: "Klienci", r: "Raporty" },
+    createHref: "/clients/new", createLabel: "Nowy klient",
+  }
+  if (pathname.startsWith("/management")) return {
+    quickLinks: [
+      { label: "Dashboard zarządzania", href: "/management", icon: FileText },
+      { label: "Struktura", href: "/management/structure", icon: Network },
+      { label: "Sprzedaże", href: "/management/cases", icon: ShoppingCart },
+      { label: "Kontrahenci", href: "/management/clients", icon: Building2 },
+      { label: "Raporty", href: "/reports", icon: BarChart3 },
+    ],
+    routes: { d: "/management", l: "/management/structure", s: "/management/cases", c: "/management/clients", r: "/reports" },
+    labels: { d: "Dashboard", l: "Struktura", s: "Sprzedaże", c: "Kontrahenci", r: "Raporty" },
+    createHref: "/clients/new", createLabel: "Nowy kontrahent",
+  }
+  return {
+    quickLinks: [
+      { label: "Dashboard", href: "/dashboard", icon: FileText },
+      { label: "Nowa sprzedaż", href: "/cases/new", icon: ShoppingCart },
+      { label: "Kontrahenci", href: "/clients", icon: Building2 },
+      { label: "Leady", href: "/leads", icon: Users },
+      { label: "Raporty", href: "/reports", icon: BarChart3 },
+    ],
+    routes: { d: "/dashboard", l: "/leads", s: "/cases", c: "/clients", r: "/reports" },
+    labels: { d: "Dashboard", l: "Leady", s: "Sprzedaże", c: "Kontrahenci", r: "Raporty" },
+    createHref: "/leads/new", createLabel: "Nowy lead",
+  }
+}
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  const element = target as HTMLElement | null
+  return !!element?.closest("input, textarea, select, [contenteditable='true']")
+}
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false)
@@ -32,22 +103,56 @@ export function CommandPalette() {
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
+  const [helpOpen, setHelpOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const sequenceRef = useRef<{ key: string; at: number } | null>(null)
   const router = useRouter()
+  const pathname = usePathname()
+  const navigation = navigationFor(pathname)
   const abortRef = useRef<AbortController | null>(null)
 
-  // Ctrl+K / Cmd+K global listener
+  // Ctrl+K + skróty sekwencyjne (G D/L/S/C/R), C=create, ?=pomoc.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault()
         setOpen((prev) => !prev)
+        setHelpOpen(false)
+        return
       }
-      if (e.key === "Escape") setOpen(false)
+      if (e.key === "Escape") {
+        setOpen(false)
+        setHelpOpen(false)
+        sequenceRef.current = null
+        return
+      }
+      if (open || helpOpen || isEditableTarget(e.target) || e.metaKey || e.ctrlKey || e.altKey) return
+
+      const key = e.key.toLowerCase()
+      const now = Date.now()
+      const sequence = sequenceRef.current
+      if (sequence?.key === "g" && now - sequence.at < 1200) {
+        const href = navigation.routes[key as keyof typeof navigation.routes]
+        sequenceRef.current = null
+        if (href) {
+          e.preventDefault()
+          router.push(href)
+        }
+        return
+      }
+      if (key === "g") {
+        sequenceRef.current = { key, at: now }
+      } else if (key === "c") {
+        e.preventDefault()
+        router.push(navigation.createHref)
+      } else if (e.key === "?") {
+        e.preventDefault()
+        setHelpOpen(true)
+      }
     }
     document.addEventListener("keydown", onKeyDown)
     return () => document.removeEventListener("keydown", onKeyDown)
-  }, [])
+  }, [router, open, helpOpen, navigation])
 
   // Focus input on open
   useEffect(() => {
@@ -95,6 +200,12 @@ export function CommandPalette() {
 
   const allItems = query.length >= 2 ? results : []
   const showQuickLinks = query.length < 2
+  const shortcuts = [
+    { keys: ["⌃", "K"], label: "Otwórz wyszukiwarkę" },
+    ...(["d", "l", "s", "c", "r"] as const).map((key) => ({ keys: ["G", key.toUpperCase()], label: navigation.labels[key] })),
+    { keys: ["C"], label: navigation.createLabel },
+    { keys: ["?"], label: "Pokaż skróty" },
+  ]
 
   const navigateTo = (href: string) => {
     setOpen(false)
@@ -102,7 +213,7 @@ export function CommandPalette() {
   }
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    const total = showQuickLinks ? QUICK_LINKS.length : allItems.length
+    const total = showQuickLinks ? navigation.quickLinks.length : allItems.length
     if (e.key === "ArrowDown") {
       e.preventDefault()
       setActiveIndex((i) => (i + 1) % Math.max(total, 1))
@@ -111,8 +222,8 @@ export function CommandPalette() {
       setActiveIndex((i) => (i - 1 + Math.max(total, 1)) % Math.max(total, 1))
     } else if (e.key === "Enter") {
       e.preventDefault()
-      if (showQuickLinks && QUICK_LINKS[activeIndex]) {
-        navigateTo(QUICK_LINKS[activeIndex].href)
+      if (showQuickLinks && navigation.quickLinks[activeIndex]) {
+        navigateTo(navigation.quickLinks[activeIndex].href)
       } else if (allItems[activeIndex]) {
         navigateTo(allItems[activeIndex].href)
       }
@@ -126,7 +237,42 @@ export function CommandPalette() {
     return acc
   }, {})
 
-  if (!open) return null
+  if (!open && !helpOpen) return null
+
+  if (helpOpen) {
+    return (
+      <div className="fixed inset-0 z-[100]" onClick={() => setHelpOpen(false)}>
+        <div className="absolute inset-0 bg-[oklch(0.16_0.015_55/0.6)] backdrop-blur-sm" />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="shortcuts-title"
+          className="relative mx-auto mt-[min(20vh,140px)] w-[440px] max-w-[calc(100vw-2rem)] rounded-xl overflow-hidden p-5"
+          style={{ background: "var(--card)", border: "1px solid var(--border)", boxShadow: "0 24px 80px -12px oklch(0.16 0.015 55 / 0.25)" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h2 id="shortcuts-title" className="text-base font-semibold flex items-center gap-2" style={{ color: "var(--content-strong)" }}>
+              <HelpCircle className="w-4 h-4" style={{ color: "var(--brand)" }} /> Skróty klawiaturowe
+            </h2>
+            <button aria-label="Zamknij pomoc" onClick={() => setHelpOpen(false)} className="p-1 rounded-md hover:bg-[var(--surface-2)]">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="space-y-1">
+            {shortcuts.map((shortcut) => (
+              <div key={shortcut.label} className="flex items-center justify-between py-2 border-b last:border-0" style={{ borderColor: "var(--line-subtle)" }}>
+                <span className="text-sm" style={{ color: "var(--content-muted)" }}>{shortcut.label}</span>
+                <span className="flex gap-1">
+                  {shortcut.keys.map((key) => <kbd key={key} className="mono-label min-w-6 px-1.5 py-1 rounded text-center" style={{ background: "var(--surface-2)", border: "1px solid var(--line-subtle)" }}>{key}</kbd>)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   let flatIndex = 0
 
@@ -211,7 +357,7 @@ export function CommandPalette() {
               >
                 SZYBKIE NAWIGACJE
               </p>
-              {QUICK_LINKS.map((link, i) => {
+              {navigation.quickLinks.map((link, i) => {
                 const Icon = link.icon
                 const isActive = i === activeIndex
                 return (

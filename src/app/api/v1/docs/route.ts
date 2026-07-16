@@ -1,6 +1,8 @@
 /**
  * GET /api/v1/docs — Swagger UI for the public REST API.
- * Loaded from CDN. Spec served at /api/v1/openapi.json.
+ * Assets self-hostowane z swagger-ui-dist przez /api/v1/docs/assets/*
+ * (audyt F0: usunięty CDN unpkg — CSP `script-src 'self'` + brak supply-chain risk).
+ * Spec served at /api/v1/openapi.json.
  */
 
 const HTML = `<!DOCTYPE html>
@@ -9,12 +11,12 @@ const HTML = `<!DOCTYPE html>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>WB Horizon CRM API Docs</title>
-<link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+<link rel="stylesheet" href="/api/v1/docs/assets/swagger-ui.css" />
 <style>html,body,#swagger-ui{margin:0;padding:0;height:100%}</style>
 </head>
 <body>
 <div id="swagger-ui"></div>
-<script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js" crossorigin="anonymous"></script>
+<script src="/api/v1/docs/assets/swagger-ui-bundle.js"></script>
 <script>
 window.addEventListener('load', function() {
   window.SwaggerUIBundle({

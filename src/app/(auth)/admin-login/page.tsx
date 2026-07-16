@@ -16,6 +16,8 @@ export default function AdminLoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
+  const [totpCode, setTotpCode] = useState("")
+  const [totpRequired, setTotpRequired] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
@@ -57,14 +59,23 @@ export default function AdminLoginPage() {
         email,
         password,
         adminGateToken,
+        totpCode: totpCode || undefined,
         redirect: false,
       })
 
       if (result?.error) {
+        if (result.error === "TOTP_REQUIRED") {
+          // Hasło poprawne — konto ma włączone 2FA, pokaż pole na kod
+          setTotpRequired(true)
+          setError("")
+          return
+        }
         if (result.error.includes("bramki") || result.error.includes("token")) {
           setStep("token")
           setAdminGateToken("")
           setSecurityToken("")
+          setTotpRequired(false)
+          setTotpCode("")
         }
         setError(result.error)
       } else {
@@ -286,6 +297,35 @@ export default function AdminLoginPage() {
               </button>
             </div>
           </div>
+
+          {totpRequired && (
+            <div className="reveal">
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--content-default)" }}>
+                Kod uwierzytelniania (2FA)
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value)}
+                placeholder="123 456"
+                autoFocus
+                required
+                className="w-full px-4 py-2.5 rounded-lg text-sm outline-none transition-all duration-200 tabular-nums"
+                style={{
+                  background: "var(--card)",
+                  border: "1px solid var(--border)",
+                  color: "var(--content-strong)",
+                }}
+                onFocus={(e) => (e.target.style.borderColor = "var(--brand)")}
+                onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+              />
+              <p className="text-xs mt-2" style={{ color: "var(--content-subtle)" }}>
+                Wpisz kod z aplikacji authenticator
+              </p>
+            </div>
+          )}
 
           <button
             type="submit"

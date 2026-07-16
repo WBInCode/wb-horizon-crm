@@ -2,6 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
+import { ThemeToggle } from "@/components/layout/ThemeToggle"
 import { LogOut } from "lucide-react"
 
 export function ClientHeader() {
@@ -10,7 +11,7 @@ export function ClientHeader() {
 
   return (
     <header
-      className="h-[60px] flex items-center justify-between px-6 fade-in"
+      className="h-[60px] flex items-center justify-between pl-16 pr-6 lg:pl-6 fade-in"
       style={{
         background: "var(--card)",
         borderBottom: "1px solid var(--border)",
@@ -18,6 +19,7 @@ export function ClientHeader() {
     >
       <div />
       <div className="flex items-center gap-4">
+        <ThemeToggle />
         <div className="text-right">
           <p
             className="text-sm font-medium"

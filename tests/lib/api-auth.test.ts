@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest"
-import { generateApiKey, hashApiKey, hasScope, API_KEY_PREFIX } from "@/lib/api-auth"
+import { generateApiKey, hashApiKey, API_KEY_PREFIX } from "@/lib/api-keys"
+import { hasScope } from "@/lib/api-auth"
 
 describe("api-auth", () => {
   describe("generateApiKey", () => {

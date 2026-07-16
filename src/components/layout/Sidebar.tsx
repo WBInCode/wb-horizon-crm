@@ -1,39 +1,54 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Users, Building2, ShoppingCart, Shield, ScrollText, Archive, BookOpen } from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
+import { LayoutDashboard, Users, Building2, ShoppingCart, Shield, ScrollText, Archive, BookOpen, Menu, BarChart3 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { usePermissions } from "@/components/providers/PermissionProvider"
+import { Sheet, SheetContent } from "@/components/ui/sheet"
 
+// moduleKey — gating przez entitlements wb-platform (null z API = wszystko ON)
 const allMenuItems = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, permission: "pages.dashboard" },
-  { label: "Leady", href: "/leads", icon: Users, permission: "pages.leads" },
-  { label: "Kontrahenci", href: "/clients", icon: Building2, permission: "pages.clients" },
-  { label: "Sprzedaże", href: "/cases", icon: ShoppingCart, permission: "pages.cases" },
-  { label: "Archiwum", href: "/archive", icon: Archive, permission: "pages.archive" },
-  { label: "Admin", href: "/admin", icon: Shield, permission: "pages.admin" },
-  { label: "Audit Log", href: "/admin/audit-logs", icon: ScrollText, permission: "admin.audit" },
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, permission: "pages.dashboard", moduleKey: "core" },
+  { label: "Leady", href: "/leads", icon: Users, permission: "pages.leads", moduleKey: "leads" },
+  { label: "Kontrahenci", href: "/clients", icon: Building2, permission: "pages.clients", moduleKey: "clients" },
+  { label: "Sprzedaże", href: "/cases", icon: ShoppingCart, permission: "pages.cases", moduleKey: "sales" },
+  { label: "Raporty", href: "/reports", icon: BarChart3, permission: "pages.reports", moduleKey: "core" },
+  { label: "Archiwum", href: "/archive", icon: Archive, permission: "pages.archive", moduleKey: "core" },
+  { label: "Admin", href: "/admin", icon: Shield, permission: "pages.admin", moduleKey: "core" },
+  { label: "Audit Log", href: "/admin/audit-logs", icon: ScrollText, permission: "admin.audit", moduleKey: "core" },
 ]
 
-export function Sidebar() {
+function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
-  const { has, loading } = usePermissions()
+  const { has } = usePermissions()
+
+  // Faza 6: moduly z Huba (entitlements) — null = standalone, wszystko widoczne
+  const { data: hubModules } = useQuery<{ modules: string[] | null }>({
+    queryKey: ["hub-modules"],
+    queryFn: async () => {
+      const r = await fetch("/api/hub/modules")
+      if (!r.ok) return { modules: null }
+      return r.json()
+    },
+    staleTime: 60_000,
+  })
+  const enabledModules = hubModules?.modules ?? null
 
   const items = useMemo(
-    () => allMenuItems.filter((item) => has(item.permission)),
-    [has],
+    () =>
+      allMenuItems.filter(
+        (item) =>
+          has(item.permission) &&
+          (enabledModules === null || enabledModules.includes(item.moduleKey)),
+      ),
+    [has, enabledModules],
   )
 
   return (
-    <aside
-      className="w-[260px] flex flex-col slide-in-left"
-      style={{
-        background: "var(--sidebar)",
-        borderRight: "1px solid var(--sidebar-border)",
-      }}
-    >
+    <>
       {/* Brand */}
       <div className="px-5 py-5" style={{ borderBottom: "1px solid var(--sidebar-border)" }}>
         <div className="flex items-center gap-3">
@@ -71,6 +86,7 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onNavigate}
               className={cn(
                 "group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-[0.8125rem] font-medium transition-all duration-200",
                 `reveal reveal-delay-${Math.min(i + 1, 6)}`,
@@ -113,6 +129,7 @@ export function Sidebar() {
       <div className="px-3 pb-2">
         <Link
           href="/docs"
+          onClick={onNavigate}
           className="group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-[0.8125rem] font-medium transition-all duration-200"
           style={{
             color: pathname.startsWith("/docs") ? "var(--sidebar-accent-foreground)" : "var(--sidebar-foreground)",
@@ -145,6 +162,52 @@ export function Sidebar() {
           </span>
         </div>
       </div>
-    </aside>
+    </>
+  )
+}
+
+export function Sidebar() {
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  return (
+    <>
+      {/* Desktop */}
+      <aside
+        className="hidden lg:flex w-[260px] flex-col slide-in-left"
+        style={{
+          background: "var(--sidebar)",
+          borderRight: "1px solid var(--sidebar-border)",
+        }}
+      >
+        <SidebarContent />
+      </aside>
+
+      {/* Mobile trigger (Header ma pl-16 na <lg) */}
+      <button
+        type="button"
+        aria-label="Otwórz menu nawigacji"
+        onClick={() => setMobileOpen(true)}
+        className="lg:hidden fixed left-4 top-3 z-40 inline-flex h-9 w-9 items-center justify-center rounded-lg"
+        style={{
+          background: "var(--card)",
+          border: "1px solid var(--line-subtle)",
+          color: "var(--content-default)",
+        }}
+      >
+        <Menu className="h-4.5 w-4.5" aria-hidden="true" />
+      </button>
+
+      {/* Mobile drawer */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen} side="left">
+        <SheetContent className="p-0 gap-0 max-w-[280px] sm:max-w-[280px]">
+          <div
+            className="flex h-full flex-col"
+            style={{ background: "var(--sidebar)" }}
+          >
+            <SidebarContent onNavigate={() => setMobileOpen(false)} />
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   )
 }

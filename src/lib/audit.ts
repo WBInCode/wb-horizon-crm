@@ -20,6 +20,7 @@ export type AuditAction =
   | "WEBHOOK_CREATED"
   | "WEBHOOK_UPDATED"
   | "WEBHOOK_DELETED"
+  | "EXPORT"
 
 export type AuditEntityType =
   | "CASE"

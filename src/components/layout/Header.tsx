@@ -1,11 +1,17 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { LogOut, Bell, Search } from "lucide-react"
-import { LangSwitcher } from "./LangSwitcher"
+import { ThemeToggle } from "@/components/layout/ThemeToggle"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { LogOut, Bell, Search, ShieldCheck } from "lucide-react"
 
 const roleLabels: Record<string, string> = {
   ADMIN: "Administrator",
@@ -31,8 +37,6 @@ export function Header() {
   const user = session?.user as any
   const [notifications, setNotifications] = useState<any[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
-  const [showDropdown, setShowDropdown] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
 
   const fetchNotifications = async () => {
     try {
@@ -48,8 +52,32 @@ export function Header() {
 
   useEffect(() => {
     fetchNotifications()
-    // Refresh on tab focus + periodic poll co 2 minuty (zamiast 30s)
-    const interval = setInterval(fetchNotifications, 120000)
+
+    // Audyt F4: SSE zamiast pollingu co 2 min; polling zostaje jako fallback
+    let es: EventSource | null = null
+    let fallback: ReturnType<typeof setInterval> | undefined
+
+    const startPollingFallback = () => {
+      if (!fallback) fallback = setInterval(fetchNotifications, 120000)
+    }
+
+    if (typeof EventSource !== "undefined") {
+      es = new EventSource("/api/notifications/stream")
+      es.onmessage = (ev) => {
+        try {
+          const data = JSON.parse(ev.data)
+          if (Array.isArray(data.notifications)) setNotifications(data.notifications)
+          if (typeof data.unreadCount === "number") setUnreadCount(data.unreadCount)
+        } catch {}
+      }
+      es.onerror = () => {
+        // Po utracie połączenia przeglądarka sama wznawia; polling jako siatka bezpieczeństwa
+        startPollingFallback()
+      }
+    } else {
+      startPollingFallback()
+    }
+
     const onFocus = () => fetchNotifications()
     const onVisibility = () => {
       if (document.visibilityState === "visible") fetchNotifications()
@@ -57,20 +85,11 @@ export function Header() {
     window.addEventListener("focus", onFocus)
     document.addEventListener("visibilitychange", onVisibility)
     return () => {
-      clearInterval(interval)
+      es?.close()
+      if (fallback) clearInterval(fallback)
       window.removeEventListener("focus", onFocus)
       document.removeEventListener("visibilitychange", onVisibility)
     }
-  }, [])
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setShowDropdown(false)
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
   const handleNotificationClick = async (notif: any) => {
@@ -82,7 +101,6 @@ export function Header() {
       })
       fetchNotifications()
     }
-    setShowDropdown(false)
     if (notif.link) router.push(notif.link)
   }
 
@@ -101,7 +119,7 @@ export function Header() {
 
   return (
     <header
-      className="h-[60px] flex items-center justify-between px-6 fade-in"
+      className="h-[60px] flex items-center justify-between pl-16 pr-6 lg:pl-6 fade-in"
       style={{
         background: "var(--card)",
         borderBottom: "1px solid var(--border)",
@@ -136,20 +154,25 @@ export function Header() {
 
       {/* Right */}
       <div className="flex items-center gap-3">
-        <LangSwitcher />
-        {/* Notifications */}
-        <div className="relative" ref={dropdownRef}>
-          <button
-            className="relative flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200 cursor-pointer"
-            style={{
-              background: showDropdown ? "var(--surface-2)" : "transparent",
-              color: "var(--content-muted)",
-            }}
-            onClick={() => setShowDropdown(!showDropdown)}
-            onMouseEnter={(e) => { if (!showDropdown) (e.currentTarget.style.background = "var(--surface-2)") }}
-            onMouseLeave={(e) => { if (!showDropdown) (e.currentTarget.style.background = "transparent") }}
+        <button
+          type="button"
+          onClick={() => router.push("/security")}
+          aria-label="Ustawienia bezpieczeństwa (2FA)"
+          title="Bezpieczeństwo konta"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-[var(--surface-2)]"
+          style={{ color: "var(--content-muted)" }}
+        >
+          <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+        </button>
+        <ThemeToggle />
+        {/* Notifications — Base UI Menu (a11y: role, klawiatura, focus) */}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            aria-label={`Powiadomienia${unreadCount > 0 ? ` (${unreadCount} nieprzeczytanych)` : ""}`}
+            className="relative flex items-center justify-center w-9 h-9 rounded-lg transition-colors duration-200 cursor-pointer hover:bg-[var(--surface-2)] data-popup-open:bg-[var(--surface-2)]"
+            style={{ color: "var(--content-muted)" }}
           >
-            <Bell className="w-[18px] h-[18px]" strokeWidth={1.5} />
+            <Bell className="w-[18px] h-[18px]" strokeWidth={1.5} aria-hidden="true" />
             {unreadCount > 0 && (
               <span
                 className="absolute -top-0.5 -right-0.5 text-[0.6rem] font-semibold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1"
@@ -162,75 +185,60 @@ export function Header() {
                 {unreadCount > 9 ? "9+" : unreadCount}
               </span>
             )}
-          </button>
-
-          {showDropdown && (
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" sideOffset={8} className="w-[340px] p-0 overflow-hidden">
             <div
-              className="absolute right-0 top-12 w-[340px] rounded-xl overflow-hidden scale-in"
-              style={{
-                background: "var(--card)",
-                border: "1px solid var(--border)",
-                boxShadow: "0 16px 48px -12px oklch(0.16 0.015 55 / 0.15), 0 4px 16px -4px oklch(0.16 0.015 55 / 0.08)",
-                zIndex: 50,
-              }}
+              className="flex items-center justify-between px-4 py-3"
+              style={{ borderBottom: "1px solid var(--line-subtle)" }}
             >
-              <div
-                className="flex items-center justify-between px-4 py-3"
-                style={{ borderBottom: "1px solid var(--line-subtle)" }}
-              >
-                <span className="text-sm font-semibold" style={{ color: "var(--content-strong)", fontFamily: "var(--font-display)" }}>
-                  Powiadomienia
-                </span>
-                {unreadCount > 0 && (
-                  <button
-                    onClick={markAllRead}
-                    className="text-xs font-medium transition-colors duration-150 cursor-pointer"
-                    style={{ color: "var(--brand)" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = "var(--brand-hover)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = "var(--brand)")}
+              <span className="text-sm font-semibold" style={{ color: "var(--content-strong)", fontFamily: "var(--font-display)" }}>
+                Powiadomienia
+              </span>
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAllRead}
+                  className="text-xs font-medium transition-colors duration-150 cursor-pointer hover:text-[var(--brand-hover)]"
+                  style={{ color: "var(--brand)" }}
+                >
+                  Oznacz wszystkie
+                </button>
+              )}
+            </div>
+            <div className="max-h-[360px] overflow-y-auto">
+              {notifications.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 px-4">
+                  <Bell className="w-8 h-8 mb-2" style={{ color: "var(--content-subtle)" }} strokeWidth={1} aria-hidden="true" />
+                  <p className="text-sm" style={{ color: "var(--content-muted)" }}>Brak powiadomień</p>
+                </div>
+              ) : (
+                notifications.map((n, i) => (
+                  <DropdownMenuItem
+                    key={n.id}
+                    onClick={() => handleNotificationClick(n)}
+                    className="px-4 py-3 rounded-none cursor-pointer items-start"
+                    style={{
+                      borderBottom: i < notifications.length - 1 ? "1px solid var(--line-subtle)" : undefined,
+                      background: !n.isRead ? "var(--brand-muted)" : undefined,
+                    }}
                   >
-                    Oznacz wszystkie
-                  </button>
-                )}
-              </div>
-              <div className="max-h-[360px] overflow-y-auto">
-                {notifications.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 px-4">
-                    <Bell className="w-8 h-8 mb-2" style={{ color: "var(--content-subtle)" }} strokeWidth={1} />
-                    <p className="text-sm" style={{ color: "var(--content-muted)" }}>Brak powiadomień</p>
-                  </div>
-                ) : (
-                  notifications.map((n, i) => (
-                    <div
-                      key={n.id}
-                      onClick={() => handleNotificationClick(n)}
-                      className="px-4 py-3 cursor-pointer transition-colors duration-150"
-                      style={{
-                        borderBottom: i < notifications.length - 1 ? "1px solid var(--line-subtle)" : undefined,
-                        background: !n.isRead ? "var(--brand-muted)" : "transparent",
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = !n.isRead ? "var(--brand-muted)" : "var(--surface-2)")}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = !n.isRead ? "var(--brand-muted)" : "transparent")}
-                    >
-                      <div className="flex items-start gap-3">
-                        {!n.isRead && (
-                          <span className="mt-1.5 w-2 h-2 rounded-full flex-shrink-0" style={{ background: "var(--brand)" }} />
-                        )}
-                        <div className={!n.isRead ? "" : "pl-5"}>
-                          <p className="text-sm font-medium" style={{ color: "var(--content-strong)" }}>{n.title}</p>
-                          <p className="text-xs mt-0.5" style={{ color: "var(--content-muted)" }}>{n.message}</p>
-                          <p className="mono-label mt-1" style={{ color: "var(--content-subtle)", fontSize: "0.6rem" }}>
-                            {new Date(n.createdAt).toLocaleString("pl-PL")}
-                          </p>
-                        </div>
+                    <div className="flex items-start gap-3">
+                      {!n.isRead && (
+                        <span className="mt-1.5 w-2 h-2 rounded-full flex-shrink-0" style={{ background: "var(--brand)" }} aria-hidden="true" />
+                      )}
+                      <div className={!n.isRead ? "" : "pl-5"}>
+                        <p className="text-sm font-medium" style={{ color: "var(--content-strong)" }}>{n.title}</p>
+                        <p className="text-xs mt-0.5" style={{ color: "var(--content-muted)" }}>{n.message}</p>
+                        <p className="mono-label mt-1" style={{ color: "var(--content-subtle)", fontSize: "0.6rem" }}>
+                          {new Date(n.createdAt).toLocaleString("pl-PL")}
+                        </p>
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
+                  </DropdownMenuItem>
+                ))
+              )}
             </div>
-          )}
-        </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Separator */}
         <div className="w-px h-6" style={{ background: "var(--line-subtle)" }} />

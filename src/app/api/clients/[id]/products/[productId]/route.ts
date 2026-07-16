@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessClient } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
+import { logger } from "@/lib/logger"
 
 type Params = { params: Promise<{ id: string; productId: string }> }
 
@@ -56,7 +57,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
     return NextResponse.json(product)
   } catch (error) {
-    console.error(error)
+    logger.error("PUT failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
@@ -127,7 +128,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
     return NextResponse.json({ message: "Produkt usunięty" })
   } catch (error) {
-    console.error(error)
+    logger.error("DELETE failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
+import { logger } from "@/lib/logger"
 
 // GET /api/client/surveys — list all surveys for the client's cases
 export async function GET() {
@@ -78,7 +79,7 @@ export async function GET() {
 
     return NextResponse.json(result)
   } catch (error) {
-    console.error(error)
+    logger.error("GET failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
@@ -144,7 +145,7 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json(survey)
   } catch (error) {
-    console.error(error)
+    logger.error("PUT failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }

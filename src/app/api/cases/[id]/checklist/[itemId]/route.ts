@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
+import { logger } from "@/lib/logger"
 
 export async function PATCH(
   request: NextRequest,
@@ -55,7 +56,7 @@ export async function PATCH(
 
     return NextResponse.json(item)
   } catch (error) {
-    console.error(error)
+    logger.error("PATCH failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
@@ -92,7 +93,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error(error)
+    logger.error("DELETE failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }

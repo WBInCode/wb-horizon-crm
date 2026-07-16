@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { display, body, mono } from "./fonts";
 import "./globals.css";
 import { SessionProvider } from "@/components/providers/SessionProvider";
-import { I18nProvider } from "@/i18n/client";
-import { getMessages } from "@/i18n";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { QueryProvider } from "@/components/providers/QueryProvider";
+import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 export const metadata: Metadata = {
   title: "WB Horizon CRM",
@@ -15,15 +17,19 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { locale, messages } = await getMessages();
   return (
-    <html lang={locale} className={`${display.variable} ${body.variable} ${mono.variable}`} suppressHydrationWarning>
+    <html lang="pl" className={`${display.variable} ${body.variable} ${mono.variable}`} suppressHydrationWarning>
       <body className="antialiased">
-        <SessionProvider>
-          <I18nProvider locale={locale} messages={messages}>
-            {children}
-          </I18nProvider>
-        </SessionProvider>
+        <ThemeProvider>
+          <SessionProvider>
+            <QueryProvider>
+              <TooltipProvider>
+                {children}
+              </TooltipProvider>
+            </QueryProvider>
+          </SessionProvider>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

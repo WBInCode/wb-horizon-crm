@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
+import { logger } from "@/lib/logger"
 
 // GET /api/cases/[id]/survey - pobierz ankietę sprzedaży
 export async function GET(
@@ -63,7 +64,7 @@ export async function GET(
 
     return NextResponse.json(survey)
   } catch (error) {
-    console.error(error)
+    logger.error("GET failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
@@ -141,7 +142,7 @@ export async function POST(
 
     return NextResponse.json(survey, { status: existing ? 200 : 201 })
   } catch (error) {
-    console.error(error)
+    logger.error("POST failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }

@@ -14,9 +14,11 @@ import {
   BookOpen,
   UserCircle,
   Settings,
+  Menu,
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
+import { Sheet, SheetContent } from "@/components/ui/sheet"
 
 const clientMenuItems = [
   { label: "Podsumowanie", href: "/client", icon: LayoutDashboard },
@@ -33,6 +35,7 @@ export function ClientSidebar() {
   const { data: session } = useSession()
   const user = session?.user as any
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
     if (user?.email) {
@@ -47,14 +50,8 @@ export function ClientSidebar() {
     ? user.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
     : "?"
 
-  return (
-    <aside
-      className="w-[260px] flex flex-col slide-in-left"
-      style={{
-        background: "var(--sidebar)",
-        borderRight: "1px solid var(--sidebar-border)",
-      }}
-    >
+  const sidebarInner = (onNavigate?: () => void) => (
+    <>
       {/* Brand */}
       <div className="px-5 py-5" style={{ borderBottom: "1px solid var(--sidebar-border)" }}>
         <div className="flex items-center gap-3">
@@ -94,6 +91,7 @@ export function ClientSidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onNavigate}
               className={cn(
                 "group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-[0.8125rem] font-medium transition-all duration-200",
                 `reveal reveal-delay-${Math.min(i + 1, 6)}`,
@@ -136,6 +134,7 @@ export function ClientSidebar() {
       <div className="px-3 pb-2">
         <Link
           href="/client/docs"
+          onClick={onNavigate}
           className="group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-[0.8125rem] font-medium transition-all duration-200"
           style={{
             color: pathname.startsWith("/client/docs") ? "var(--sidebar-accent-foreground)" : "var(--sidebar-foreground)",
@@ -152,6 +151,7 @@ export function ClientSidebar() {
         <div className="px-4 py-4" style={{ borderTop: "1px solid var(--sidebar-border)" }}>
           <Link
             href="/client/profile"
+            onClick={onNavigate}
             className="flex items-center gap-3 group rounded-lg px-1 py-1 -mx-1 transition-colors hover:bg-[var(--sidebar-accent)]"
           >
             <div
@@ -189,6 +189,45 @@ export function ClientSidebar() {
           </Link>
         </div>
       )}
-    </aside>
+    </>
+  )
+
+  return (
+    <>
+      {/* Desktop */}
+      <aside
+        className="hidden lg:flex w-[260px] flex-col slide-in-left"
+        style={{
+          background: "var(--sidebar)",
+          borderRight: "1px solid var(--sidebar-border)",
+        }}
+      >
+        {sidebarInner()}
+      </aside>
+
+      {/* Mobile trigger */}
+      <button
+        type="button"
+        aria-label="Otwórz menu nawigacji"
+        onClick={() => setMobileOpen(true)}
+        className="lg:hidden fixed left-4 top-3 z-40 inline-flex h-9 w-9 items-center justify-center rounded-lg"
+        style={{
+          background: "var(--card)",
+          border: "1px solid var(--line-subtle)",
+          color: "var(--content-default)",
+        }}
+      >
+        <Menu className="h-4.5 w-4.5" aria-hidden="true" />
+      </button>
+
+      {/* Mobile drawer */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen} side="left">
+        <SheetContent className="p-0 gap-0 max-w-[280px] sm:max-w-[280px]">
+          <div className="flex h-full flex-col" style={{ background: "var(--sidebar)" }}>
+            {sidebarInner(() => setMobileOpen(false))}
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   )
 }

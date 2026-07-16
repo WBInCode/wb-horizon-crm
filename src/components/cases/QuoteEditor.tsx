@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import { Plus, Trash2, Save, Send } from "lucide-react"
+import { Plus, Trash2, Save, Send, Download } from "lucide-react"
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: "Robocza",
@@ -241,6 +241,13 @@ export default function QuoteEditor({ caseId, quote, onUpdate, userRole }: Quote
 
         {/* Actions */}
         <div className="flex flex-wrap gap-2 pt-2 border-t" style={{ borderColor: "var(--border)" }}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => window.open(`/api/cases/${caseId}/quotes/${quote.id}/pdf`, "_blank")}
+          >
+            <Download className="w-3.5 h-3.5 mr-1" /> Pobierz PDF
+          </Button>
           {isEditable && (
             <Button size="sm" onClick={save} disabled={saving}>
               <Save className="w-3.5 h-3.5 mr-1" /> {saving ? "Zapisuję..." : "Zapisz"}

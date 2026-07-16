@@ -1,51 +1,10 @@
-/**
- * Public REST API authentication.
- *
- * Format keys: `wbh_<22+ chars base64url>` (32 random bytes encoded).
- * Storage: only SHA-256 hex digest in DB (`ApiKey.hashedKey`). Plaintext is shown
- * exactly once at creation and never retrievable afterwards.
- *
- * Scope strings are namespaced "<resource>:<action>", e.g. "leads:read", "clients:write".
- * Wildcard "*" grants all scopes.
- */
-
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto"
+import { timingSafeEqual } from "node:crypto"
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { logger } from "@/lib/logger"
-
-export const API_KEY_PREFIX = "wbh_"
-const API_KEY_BYTES = 32
-
-export type ApiKeyScope =
-  | "leads:read"
-  | "leads:write"
-  | "clients:read"
-  | "clients:write"
-  | "cases:read"
-  | "cases:write"
-  | "*"
-
-export const ALL_SCOPES: ApiKeyScope[] = [
-  "leads:read",
-  "leads:write",
-  "clients:read",
-  "clients:write",
-  "cases:read",
-  "cases:write",
-]
-
-export function generateApiKey(): { plaintext: string; hashed: string; prefix: string } {
-  const raw = randomBytes(API_KEY_BYTES).toString("base64url")
-  const plaintext = `${API_KEY_PREFIX}${raw}`
-  const hashed = hashApiKey(plaintext)
-  const prefix = plaintext.slice(0, 12)
-  return { plaintext, hashed, prefix }
-}
-
-export function hashApiKey(plaintext: string): string {
-  return createHash("sha256").update(plaintext).digest("hex")
-}
+import { API_KEY_PREFIX, hashApiKey } from "@/lib/api-keys"
+import { checkRateLimit, LIMITS } from "@/lib/rate-limit"
+import type { ApiKeyScope } from "@/lib/api-keys"
 
 function timingSafeStringEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false
@@ -141,6 +100,24 @@ export function withApiAuth<T = unknown>(
     if (!auth.ok) {
       return NextResponse.json({ error: auth.error }, { status: auth.status })
     }
+
+    // Audyt F2: limit per klucz — chroni przed scrapingiem po wycieku klucza
+    const rate = await checkRateLimit(`apikey:${auth.apiKeyId}`, LIMITS.apiV1)
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded" },
+        {
+          status: 429,
+          headers: {
+            "retry-after": String(rate.retryAfterSec),
+            "x-ratelimit-limit": String(LIMITS.apiV1.max),
+            "x-ratelimit-remaining": "0",
+            "x-ratelimit-reset": String(Math.ceil(rate.resetAt / 1000)),
+          },
+        },
+      )
+    }
+
     if (!hasScope(auth.scopes, requiredScope)) {
       return NextResponse.json(
         { error: `Missing required scope: ${requiredScope}` },
@@ -148,11 +125,17 @@ export function withApiAuth<T = unknown>(
       )
     }
     try {
-      return await handler(req, {
+      const res = await handler(req, {
         apiKeyId: auth.apiKeyId,
         ownerId: auth.ownerId,
         scopes: auth.scopes,
       })
+      if (res instanceof NextResponse) {
+        res.headers.set("x-ratelimit-limit", String(LIMITS.apiV1.max))
+        res.headers.set("x-ratelimit-remaining", String(rate.remaining))
+        res.headers.set("x-ratelimit-reset", String(Math.ceil(rate.resetAt / 1000)))
+      }
+      return res
     } catch (err) {
       logger.error("api-auth: handler threw", err)
       return NextResponse.json({ error: "Internal server error" }, { status: 500 })

@@ -232,6 +232,10 @@
     scroll-behavior: smooth;
   }
 
+  html.dark {
+    color-scheme: dark;
+  }
+
   body {
     background: var(--surface-1);
     color: var(--content-default);
@@ -414,6 +418,62 @@
   50% { box-shadow: 0 0 20px 4px var(--brand-muted); }
 }
 
+@keyframes sheet-in-right {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes sheet-in-left {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes sheet-in-top {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes sheet-in-bottom {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+@keyframes stagger-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+}
+
+@keyframes gradient-shift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
 .reveal {
   animation: reveal-up 700ms var(--ease-out-expo) both;
 }
@@ -435,6 +495,73 @@
 .scale-in {
   animation: scale-in 500ms var(--ease-out-expo) both;
 }
+
+.stagger-item {
+  opacity: 0;
+  animation: stagger-fade-up 600ms var(--ease-out-expo) both;
+}
+.stagger-1 { animation-delay: 60ms; }
+.stagger-2 { animation-delay: 120ms; }
+.stagger-3 { animation-delay: 180ms; }
+.stagger-4 { animation-delay: 240ms; }
+.stagger-5 { animation-delay: 300ms; }
+.stagger-6 { animation-delay: 360ms; }
+.stagger-7 { animation-delay: 420ms; }
+.stagger-8 { animation-delay: 480ms; }
+.stagger-9 { animation-delay: 540ms; }
+.stagger-10 { animation-delay: 600ms; }
+
+/* Glass surface — frosted backdrop */
+.glass {
+  background: oklch(0.99 0.004 85 / 0.70);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid oklch(0.16 0.015 55 / 0.06);
+}
+.dark .glass {
+  background: oklch(0.17 0.010 260 / 0.70);
+  border-color: oklch(0.96 0.008 260 / 0.06);
+}
+
+/* Gradient accent border */
+.gradient-border {
+  position: relative;
+}
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    var(--brand) 0%,
+    oklch(0.65 0.12 220) 25%,
+    oklch(0.72 0.16 80) 50%,
+    var(--brand) 75%
+  );
+  background-size: 300% 300%;
+  animation: gradient-shift 6s ease infinite;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Hover glow ring */
+.glow-ring {
+  transition: box-shadow 350ms var(--ease-out-expo);
+}
+.glow-ring:hover {
+  box-shadow: 0 0 0 2px var(--brand-muted), 0 4px 12px -4px oklch(0.16 0.015 55 / 0.08);
+}
+
+/* Interactive scale — subtle feedback */
+.interactive-scale {
+  transition: transform 200ms var(--ease-out-expo);
+}
+.interactive-scale:hover { transform: scale(1.02); }
+.interactive-scale:active { transform: scale(0.98); }
 
 /* Skeleton loading shimmer */
 .skeleton {
@@ -523,7 +650,8 @@
   .reveal,
   .fade-in,
   .slide-in-left,
-  .scale-in {
+  .scale-in,
+  .stagger-item {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
@@ -531,14 +659,25 @@
   }
   .card-hover:hover,
   .btn-press:hover,
-  .btn-press:active {
+  .btn-press:active,
+  .interactive-scale:hover,
+  .interactive-scale:active {
     transform: none;
   }
   [data-slot="dialog-overlay"],
   [data-slot="dialog-content"],
+  [data-slot="sheet-overlay"],
+  [data-slot="sheet-content"],
+  [data-slot="alert-dialog-overlay"],
+  [data-slot="alert-dialog-content"],
+  [data-slot="popover-content"],
+  [data-slot="tooltip-content"],
   [data-slot="dropdown-menu-content"],
   [data-slot="select-content"] {
     animation: none !important;
     transition: none !important;
+  }
+  .gradient-border::before {
+    animation: none;
   }
 }

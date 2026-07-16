@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessClient } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
+import { logger } from "@/lib/logger"
 
 // Dozwolone przejścia etapów kontrahenta
 const ALLOWED_STAGE_TRANSITIONS: Record<string, string[]> = {
@@ -61,7 +62,7 @@ export async function GET(
 
     return NextResponse.json(client)
   } catch (error) {
-    console.error(error)
+    logger.error("GET failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
@@ -78,9 +79,10 @@ export async function PUT(
 
     const { id } = await params
 
-    // Sprawdź dostęp - tylko SALESPERSON (właściciel), ADMIN, DIRECTOR mogą edytować klienta
+    // Sprawdź dostęp — role z uprawnieniem clients.edit; CARETAKER nadal musi
+    // przejść canAccessClient (tylko przypisani klienci).
     const hasAccess = await canAccessClient(user.id, user.role, id)
-    if (!hasAccess || !["SALESPERSON", "ADMIN", "DIRECTOR"].includes(user.role)) {
+    if (!hasAccess || !["SALESPERSON", "CARETAKER", "ADMIN", "DIRECTOR"].includes(user.role)) {
       return NextResponse.json({ error: "Brak uprawnień do edycji" }, { status: 403 })
     }
 
@@ -132,7 +134,7 @@ export async function PUT(
 
     return NextResponse.json(client)
   } catch (error) {
-    console.error(error)
+    logger.error("PUT failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
@@ -184,7 +186,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error(error)
+    logger.error("DELETE failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
