@@ -127,7 +127,7 @@ export default withAuth(
         }
 
         // Pozostałe strony wymagają sesji
-        return !!token
+        return typeof token?.id === "string" && token.id.length > 0
       },
     },
   }

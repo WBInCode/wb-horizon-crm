@@ -2,9 +2,22 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { prisma } from "@/lib/prisma"
 
+export interface CurrentUser {
+  id: string
+  name: string
+  email: string
+  role: string
+}
+
+export function isCurrentUser(value: unknown): value is CurrentUser {
+  if (!value || typeof value !== "object") return false
+  const user = value as Partial<CurrentUser>
+  return Boolean(user.id && user.email && user.role)
+}
+
 export async function getCurrentUser() {
   const session = await getServerSession(authOptions)
-  return session?.user as { id: string; name: string; email: string; role: string } | undefined
+  return isCurrentUser(session?.user) ? session.user : undefined
 }
 
 export async function requireAuth() {
