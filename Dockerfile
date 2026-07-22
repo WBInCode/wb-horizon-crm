@@ -6,9 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 COPY package.json package-lock.json ./
-COPY prisma ./prisma
-COPY prisma.config.ts ./prisma.config.ts
-RUN npm ci
+RUN npm ci --ignore-scripts
 COPY . .
 RUN npm run build
 
