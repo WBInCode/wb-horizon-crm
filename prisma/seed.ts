@@ -141,8 +141,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
 
 async function main() {
   console.log("Seeding database...")
-
-  const password = await bcrypt.hash("admin123", 10)
+  const seedDemoUsers = process.env.SEED_DEMO_USERS !== "false"
 
   // ==================== 1. Permissions ====================
   console.log("\n→ Seeding permissions...")
@@ -196,31 +195,35 @@ async function main() {
   }
 
   // ==================== 4. Users ====================
-  console.log("\n→ Seeding users...")
+  if (seedDemoUsers) {
+    console.log("\n→ Seeding demo users...")
+    const password = await bcrypt.hash("admin123", 10)
+    const usersConfig = [
+      { email: "admin@horizon.pl",      name: "Administrator",    role: "ADMIN" as const,       roleTemplate: "ADMIN" },
+      { email: "dyrektor@horizon.pl",   name: "Jan Dyrektor",     role: "DIRECTOR" as const,    roleTemplate: "DIRECTOR" },
+      { email: "opiekun1@horizon.pl",   name: "Anna Opiekun",     role: "CARETAKER" as const,   roleTemplate: "CARETAKER" },
+      { email: "opiekun2@horizon.pl",   name: "Marek Opiekun",    role: "CARETAKER" as const,   roleTemplate: "CARETAKER" },
+      { email: "handlowiec@horizon.pl", name: "Piotr Handlowiec", role: "SALESPERSON" as const, roleTemplate: "SALESPERSON" },
+      { email: "callcenter@horizon.pl", name: "Ewa Call Center",  role: "CALL_CENTER" as const, roleTemplate: "CALL_CENTER" },
+    ]
 
-  const usersConfig = [
-    { email: "admin@horizon.pl",      name: "Administrator",    role: "ADMIN" as const,       roleTemplate: "ADMIN" },
-    { email: "dyrektor@horizon.pl",   name: "Jan Dyrektor",     role: "DIRECTOR" as const,    roleTemplate: "DIRECTOR" },
-    { email: "opiekun1@horizon.pl",   name: "Anna Opiekun",     role: "CARETAKER" as const,   roleTemplate: "CARETAKER" },
-    { email: "opiekun2@horizon.pl",   name: "Marek Opiekun",    role: "CARETAKER" as const,   roleTemplate: "CARETAKER" },
-    { email: "handlowiec@horizon.pl", name: "Piotr Handlowiec", role: "SALESPERSON" as const, roleTemplate: "SALESPERSON" },
-    { email: "callcenter@horizon.pl", name: "Ewa Call Center",  role: "CALL_CENTER" as const, roleTemplate: "CALL_CENTER" },
-  ]
-
-  for (const u of usersConfig) {
-    await prisma.user.upsert({
-      where: { email: u.email },
-      update: { roleTemplateId: roleTemplateMap[u.roleTemplate] },
-      create: {
-        email: u.email,
-        name: u.name,
-        password,
-        role: u.role,
-        status: "ACTIVE",
-        roleTemplateId: roleTemplateMap[u.roleTemplate],
-      },
-    })
-    console.log(`  ✓ ${u.email} (${u.role})`)
+    for (const u of usersConfig) {
+      await prisma.user.upsert({
+        where: { email: u.email },
+        update: { roleTemplateId: roleTemplateMap[u.roleTemplate] },
+        create: {
+          email: u.email,
+          name: u.name,
+          password,
+          role: u.role,
+          status: "ACTIVE",
+          roleTemplateId: roleTemplateMap[u.roleTemplate],
+        },
+      })
+      console.log(`  ✓ ${u.email} (${u.role})`)
+    }
+  } else {
+    console.log("\n→ Demo users skipped (SEED_DEMO_USERS=false)")
   }
 
   // ==================== 5. Link any existing users without roleTemplate ====================
