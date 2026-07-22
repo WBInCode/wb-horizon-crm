@@ -1,0 +1,12 @@
+.git
+.github
+.next
+node_modules
+coverage
+graphify-out
+*.log
+*.zip
+*.pdf
+.env*
+public/uploads
+WB Horizon CRM*

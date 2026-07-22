@@ -8,7 +8,13 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { verifyHubSignature, invalidateModulesCache } from "@/lib/hub"
+import {
+  HUB_INSTANCE_ID,
+  HUB_ORG_ID,
+  verifyHubSignature,
+  invalidateModulesCache,
+  parseHubSessionRevocation,
+} from "@/lib/hub"
 import { logger } from "@/lib/logger"
 
 export const runtime = "nodejs"
@@ -29,6 +35,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
   }
 
+  const payloadOrgId = typeof payload.data?.orgId === "string" ? payload.data.orgId : ""
+  if (
+    (HUB_INSTANCE_ID && payload.instanceId !== HUB_INSTANCE_ID)
+    || (HUB_ORG_ID && payloadOrgId !== HUB_ORG_ID)
+  ) {
+    logger.warn("hub webhook: zdarzenie dla obcego tenanta odrzucone", {
+      instanceId: payload.instanceId,
+      orgId: payloadOrgId,
+    })
+    return NextResponse.json({ error: "Wrong tenant" }, { status: 403 })
+  }
+
   switch (payload.event) {
     case "entitlements.updated": {
       invalidateModulesCache()
@@ -36,14 +54,28 @@ export async function POST(request: NextRequest) {
       break
     }
     case "session.revoked": {
-      // Hub unieważnił sesję użytkownika — podbij sessionVersion (JWT przestaje działać)
-      const hubUserId = (payload.data?.userId ?? payload.data?.hubUserId) as string | undefined
-      if (hubUserId) {
-        await prisma.user.updateMany({
-          where: { hubUserId },
+      const revocation = parseHubSessionRevocation(payload.data)
+      if (revocation?.kind === "all") {
+        const result = await prisma.user.updateMany({
           data: { sessionVersion: { increment: 1 } },
         })
-        logger.info("hub webhook: session.revoked", { hubUserId })
+        logger.info("hub webhook: session.revoked (all)", { users: result.count })
+      } else if (revocation?.kind === "users") {
+        const filters = [
+          ...(revocation.emails.length > 0
+            ? [{ email: { in: revocation.emails, mode: "insensitive" as const } }]
+            : []),
+          ...(revocation.hubUserIds.length > 0
+            ? [{ hubUserId: { in: revocation.hubUserIds } }]
+            : []),
+        ]
+        if (filters.length > 0) {
+          const result = await prisma.user.updateMany({
+            where: { OR: filters },
+            data: { sessionVersion: { increment: 1 } },
+          })
+          logger.info("hub webhook: session.revoked (users)", { users: result.count })
+        }
       }
       break
     }

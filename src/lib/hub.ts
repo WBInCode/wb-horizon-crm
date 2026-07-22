@@ -94,6 +94,34 @@ export function invalidateModulesCache() {
   if (globalForHub._hubModules) globalForHub._hubModules.fetchedAt = 0
 }
 
+export type HubSessionRevocation =
+  | { kind: "all" }
+  | { kind: "users"; emails: string[]; hubUserIds: string[] }
+
+/**
+ * Normalizuje obecny kontrakt Huba (`scope: all|users`, `emails`) oraz
+ * zachowuje kompatybilność z dawnym payloadem `userId`/`hubUserId`.
+ */
+export function parseHubSessionRevocation(
+  data: Record<string, unknown> | undefined,
+): HubSessionRevocation | null {
+  if (!data) return null
+  if (data.scope === "all") return { kind: "all" }
+
+  const emails = Array.isArray(data.emails)
+    ? [...new Set(data.emails.filter((value): value is string => typeof value === "string")
+        .map((email) => email.trim().toLowerCase())
+        .filter(Boolean))]
+    : []
+  const legacyIds = [data.userId, data.hubUserId]
+    .filter((value): value is string => typeof value === "string" && value.length > 0)
+
+  if (data.scope === "users" || emails.length > 0 || legacyIds.length > 0) {
+    return { kind: "users", emails, hubUserIds: [...new Set(legacyIds)] }
+  }
+  return null
+}
+
 /**
  * Włączone moduły z Huba. `null` = integracja nieskonfigurowana / brak SSO
  * (wszystko widoczne — tryb standalone).
