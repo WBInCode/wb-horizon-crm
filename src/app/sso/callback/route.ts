@@ -23,9 +23,15 @@ function mapRole(instanceRole: string): "ADMIN" | "SALESPERSON" {
   return instanceRole === "owner" || instanceRole === "admin" ? "ADMIN" : "SALESPERSON"
 }
 
+/** Publiczny origin aplikacji; request.url w kontenerze może wskazywać 0.0.0.0:4783. */
+export function publicAppOrigin(requestUrl: string): string {
+  return (process.env.NEXTAUTH_URL || new URL(requestUrl).origin).replace(/\/$/, "")
+}
+
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token")
-  const loginUrl = new URL("/login", request.url)
+  const appOrigin = publicAppOrigin(request.url)
+  const loginUrl = new URL("/login", appOrigin)
 
   if (!hubConfigured() || !token) {
     loginUrl.searchParams.set("sso_error", "1")
@@ -99,7 +105,7 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    const finishUrl = new URL("/sso/finish", request.url)
+    const finishUrl = new URL("/sso/finish", appOrigin)
     finishUrl.searchParams.set("ticket", ticket)
     return NextResponse.redirect(finishUrl, 303)
   } catch (error) {
