@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
+import { syncMeetingsToRytm } from "@/lib/ecosystem-sync"
 
 // PDF C.7 — Operacje na spotkaniu zapisywane w Akcjach (AuditLog)
 
@@ -86,6 +87,8 @@ export async function PATCH(
     },
   })
 
+  await syncMeetingsToRytm([existing.createdById, existing.assignedToId, updated.assignedToId])
+
   return NextResponse.json(updated)
 }
 
@@ -117,6 +120,8 @@ export async function DELETE(
       metadata: { caseId: id, date: existing.date.toISOString() },
     },
   })
+
+  await syncMeetingsToRytm([existing.createdById, existing.assignedToId])
 
   return NextResponse.json({ success: true })
 }

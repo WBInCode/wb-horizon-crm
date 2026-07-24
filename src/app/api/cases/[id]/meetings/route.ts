@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
 import { createNotification } from "@/lib/notifications"
+import { syncMeetingsToRytm } from "@/lib/ecosystem-sync"
 
 // PDF B.6.4 / C.6 — Spotkania w pulpicie sprawy
 
@@ -112,6 +113,8 @@ export async function POST(
       `/cases/${id}`,
     )
   }
+
+  await syncMeetingsToRytm([user.id, meeting.assignedToId, ...recipients])
 
   return NextResponse.json(meeting, { status: 201 })
 }
