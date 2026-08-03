@@ -1,6 +1,8 @@
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { prisma } from "@/lib/prisma"
+import { isClientVisibleToStructureUser } from "@/lib/structure"
+import type { Role } from "@prisma/client"
 
 export interface CurrentUser {
   id: string
@@ -120,19 +122,25 @@ export async function requireAnyPermission(codes: string[]) {
 
 /**
  * Check if user has access to a specific case based on role.
- * ADMIN/DIRECTOR: full access
+ * ADMIN: full access
+ * DIRECTOR/MANAGER: only cases of Kontrahenci from their own firm (Structure)
  * CARETAKER: only assigned cases
  * SALESPERSON: only assigned cases
  * CLIENT: only cases for their owned client
  */
 export async function canAccessCase(userId: string, role: string, caseId: string): Promise<boolean> {
-  if (role === "ADMIN" || role === "DIRECTOR") return true
+  if (role === "ADMIN") return true
 
   const caseData = await prisma.case.findUnique({
     where: { id: caseId },
-    select: { salesId: true, caretakerId: true, directorId: true, client: { select: { ownerId: true } } }
+    select: { clientId: true, salesId: true, caretakerId: true, directorId: true, client: { select: { ownerId: true } } }
   })
   if (!caseData) return false
+
+  if (role === "DIRECTOR" || role === "MANAGER") {
+    if (caseData.directorId === userId) return true
+    return isClientVisibleToStructureUser(userId, role as Role, caseData.clientId)
+  }
 
   if (role === "SALESPERSON") return caseData.salesId === userId
   if (role === "CARETAKER") return caseData.caretakerId === userId
@@ -143,9 +151,14 @@ export async function canAccessCase(userId: string, role: string, caseId: string
 
 /**
  * Check if user can access a specific client.
+ * Dyrektor i Manager widza wylacznie Kontrahentow przypisanych do ich firmy.
  */
 export async function canAccessClient(userId: string, role: string, clientId: string): Promise<boolean> {
-  if (role === "ADMIN" || role === "DIRECTOR") return true
+  if (role === "ADMIN") return true
+
+  if (role === "DIRECTOR" || role === "MANAGER") {
+    return isClientVisibleToStructureUser(userId, role as Role, clientId)
+  }
 
   const client = await prisma.client.findUnique({
     where: { id: clientId },

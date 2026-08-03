@@ -9,6 +9,10 @@ import { verifyTotp } from "@/lib/totp"
 
 const ADMIN_ROLES = ["ADMIN", "DIRECTOR", "MANAGER", "CARETAKER", "SALESPERSON", "CALL_CENTER", "KONTRAHENT"]
 
+// Panel firmowy dziala wylacznie na SSO z WB Platform. Logowanie haslem lokalnym
+// zostaje jako wejscie awaryjne przy niedostepnym Hubie i wymaga zmiennej na serwerze.
+const LOKALNE_LOGOWANIE_PRACOWNIKOW = process.env.CRM_ALLOW_LOCAL_STAFF_LOGIN === "true"
+
 const LOCKOUT_THRESHOLD = 5
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 min
 
@@ -121,6 +125,13 @@ export const authOptions: AuthOptions = {
         totpCode: { label: "Kod 2FA", type: "text" },
       },
       async authorize(credentials) {
+        if (!LOKALNE_LOGOWANIE_PRACOWNIKOW) {
+          logger.warn("Blocked local staff login attempt \u2014 panel firmowy wymaga SSO", {
+            email: credentials?.email,
+          })
+          throw new Error("Panel firmowy jest dost\u0119pny wy\u0142\u0105cznie przez WB Platform")
+        }
+
         if (!credentials?.email || !credentials?.password || !credentials?.adminGateToken) {
           throw new Error("Podaj wszystkie wymagane dane")
         }
@@ -254,7 +265,7 @@ export const authOptions: AuthOptions = {
 
         if (user.role !== "CLIENT") {
           await logLoginAttempt(credentials.email, false, user.id)
-          throw new Error("Użyj panelu administracyjnego do logowania")
+          throw new Error("Konta firmowe loguj\u0105 si\u0119 przez WB Platform")
         }
 
         const isValid = await bcrypt.compare(credentials.password, user.password)

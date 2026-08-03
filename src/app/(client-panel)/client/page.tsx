@@ -4,7 +4,7 @@ import { redirect } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
-import { Briefcase, FileText, CheckSquare, MessageSquare, ArrowRight } from "lucide-react"
+import { Briefcase, FileText, CheckSquare, MessageSquare, ArrowRight, Building2 } from "lucide-react"
 
 const statusLabels: Record<string, string> = {
   DRAFT: "Szkic",
@@ -65,6 +65,22 @@ export default async function ClientDashboardPage() {
     orderBy: { updatedAt: "desc" },
   })
 
+  // Firmy (Struktury), ktore obsluguja tego Kontrahenta — jeden Kontrahent moze nalezec do kilku
+  const przypisaniaFirm = await prisma.structureClient.findMany({
+    where: { clientId: client.id },
+    select: {
+      createdAt: true,
+      structure: {
+        select: {
+          id: true,
+          name: true,
+          director: { select: { name: true, email: true, phone: true } },
+        },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  })
+
   const totalCases = cases.length
   const activeCases = cases.filter(
     (c) => !["CLOSED", "CANCELLED"].includes(c.status)
@@ -115,6 +131,47 @@ export default async function ClientDashboardPage() {
           </Card>
         ))}
       </div>
+
+      {/* Firmy obslugujace tego Kontrahenta */}
+      <Card className="reveal reveal-delay-5">
+        <CardHeader>
+          <CardTitle>Twoje firmy</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {przypisaniaFirm.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8">
+              <Building2 className="w-8 h-8 mb-2" style={{ color: "var(--content-subtle)" }} strokeWidth={1} />
+              <p style={{ color: "var(--content-muted)" }} className="text-sm">
+                Nie jesteś jeszcze przypisany do żadnej firmy
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {przypisaniaFirm.map(({ structure }) => (
+                <div
+                  key={structure.id}
+                  className="flex items-start gap-3 rounded-lg p-4"
+                  style={{ background: "var(--surface-2)" }}
+                >
+                  <Building2 className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "var(--brand)" }} strokeWidth={1.5} />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: "var(--content-strong)" }}>
+                      {structure.name}
+                    </p>
+                    <p className="text-xs mt-1" style={{ color: "var(--content-muted)" }}>
+                      Opiekun: {structure.director.name}
+                    </p>
+                    <p className="text-xs truncate" style={{ color: "var(--content-muted)" }}>
+                      {structure.director.email}
+                      {structure.director.phone ? ` · ${structure.director.phone}` : ""}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Recent Cases */}
       <Card className="reveal reveal-delay-5">

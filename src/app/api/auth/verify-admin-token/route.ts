@@ -18,6 +18,14 @@ function getClientIp(req: NextRequest): string {
 
 export async function POST(req: NextRequest) {
   try {
+    // Bramka ma sens tylko przy awaryjnym logowaniu lokalnym — inaczej panel firmowy idzie przez SSO.
+    if (process.env.CRM_ALLOW_LOCAL_STAFF_LOGIN !== "true") {
+      return NextResponse.json(
+        { error: "Panel firmowy jest dost\u0119pny wy\u0142\u0105cznie przez WB Platform" },
+        { status: 404 },
+      )
+    }
+
     const ip = getClientIp(req)
     const limit = await checkRateLimit(`admin-gate:${ip}`, LIMITS.adminGate)
     if (!limit.allowed) {

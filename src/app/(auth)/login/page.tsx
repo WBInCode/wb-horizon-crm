@@ -166,18 +166,6 @@ export default function ClientLoginPage() {
           )}
         </button>
       </form>
-
-      {/* Footer link */}
-      <p className="mt-8 text-center text-xs" style={{ color: "var(--content-subtle)" }}>
-        Panel administracyjny?{" "}
-        <a
-          href="/admin-login"
-          className="font-medium transition-colors duration-150"
-          style={{ color: "var(--brand)" }}
-        >
-          Zaloguj się tutaj
-        </a>
-      </p>
     </div>
   )
 }
