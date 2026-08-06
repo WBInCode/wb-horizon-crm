@@ -1,4 +1,4 @@
-import { HUB_ORG_ID } from "@/lib/hub"
+import { HUB_ORG_IDS } from "@/lib/hub"
 import { logger } from "@/lib/logger"
 import { prisma } from "@/lib/prisma"
 
@@ -43,7 +43,7 @@ export async function syncMeetingsToRytm(userIds: Array<string | null | undefine
           source: "CRM",
           userEmail: user.email,
           snapshotAt: new Date().toISOString(),
-          ...(HUB_ORG_ID ? { hubOrgId: HUB_ORG_ID } : {}),
+          ...(HUB_ORG_IDS[0] ? { hubOrgId: HUB_ORG_IDS[0] } : {}),
           events: meetings.map((meeting) => ({
             sourceRef: meeting.id,
             title: `CRM: ${meeting.topic}`,

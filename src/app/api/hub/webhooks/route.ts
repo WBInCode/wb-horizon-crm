@@ -9,8 +9,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import {
-  HUB_INSTANCE_ID,
-  HUB_ORG_ID,
+  HUB_INSTANCE_IDS,
+  HUB_ORG_IDS,
   verifyHubSignature,
   invalidateModulesCache,
   parseHubSessionRevocation,
@@ -37,8 +37,8 @@ export async function POST(request: NextRequest) {
 
   const payloadOrgId = typeof payload.data?.orgId === "string" ? payload.data.orgId : ""
   if (
-    (HUB_INSTANCE_ID && payload.instanceId !== HUB_INSTANCE_ID)
-    || (HUB_ORG_ID && payloadOrgId !== HUB_ORG_ID)
+    (HUB_INSTANCE_IDS.length > 0 && !HUB_INSTANCE_IDS.includes(payload.instanceId ?? ""))
+    || (HUB_ORG_IDS.length > 0 && !HUB_ORG_IDS.includes(payloadOrgId))
   ) {
     logger.warn("hub webhook: zdarzenie dla obcego tenanta odrzucone", {
       instanceId: payload.instanceId,

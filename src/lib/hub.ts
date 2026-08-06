@@ -14,15 +14,22 @@ export const HUB_URL = (process.env.HUB_URL ?? "").replace(/\/$/, "")
 const CLIENT_ID = process.env.HUB_SSO_CLIENT_ID ?? "crm"
 const CLIENT_SECRET = process.env.HUB_SSO_SECRET ?? ""
 const WEBHOOK_SECRET = process.env.HUB_WEBHOOK_SECRET ?? ""
-// Multi-tenancy (bounded MVP): to wdrożenie CRM obsługuje JEDNĄ instancję Huba.
-// Gdy ustawione — SSO z innej instancji/organizacji jest odrzucane (izolacja).
-export const HUB_INSTANCE_ID = process.env.HUB_INSTANCE_ID ?? ""
-export const HUB_ORG_ID = process.env.HUB_ORG_ID ?? ""
+// Multi-tenancy (bounded MVP): baza CRM nie zna pojęcia najemcy, więc jedno wdrożenie
+// obsługuje jedną firmę. `HUB_INSTANCE_ID` przyjmuje listę po przecinku wyłącznie po to,
+// żeby obok instancji produkcyjnej wpuścić instancję demonstracyjną — dane pozostają wspólne.
+export const HUB_INSTANCE_IDS = (process.env.HUB_INSTANCE_ID ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean)
+export const HUB_ORG_IDS = (process.env.HUB_ORG_ID ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean)
 
 /** Czy bilet SSO dotyczy instancji/organizacji obsługiwanej przez to wdrożenie. */
 export function isAllowedTenant(instanceId: string, orgId: string): boolean {
-  if (HUB_INSTANCE_ID && instanceId !== HUB_INSTANCE_ID) return false
-  if (HUB_ORG_ID && orgId !== HUB_ORG_ID) return false
+  if (HUB_INSTANCE_IDS.length > 0 && !HUB_INSTANCE_IDS.includes(instanceId)) return false
+  if (HUB_ORG_IDS.length > 0 && !HUB_ORG_IDS.includes(orgId)) return false
   return true
 }
 
