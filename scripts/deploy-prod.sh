@@ -22,7 +22,15 @@ tar xzf /tmp/crm-src.tar.gz -C /tmp/crm-new
 if ! grep -qF -e "HUB_INSTANCE_IDS" /tmp/crm-new/src/lib/hub.ts; then
   echo "!! paczka nie zawiera oczekiwanej zmiany (HUB_INSTANCE_IDS)"; exit 1
 fi
-rm -rf "$BASE/src.prev" && mv "$BASE/src" "$BASE/src.prev" && mv /tmp/crm-new "$BASE/src"
+# sudo, bo poprzednie wdrozenia zostawialy pliki nalezace do roota. Bez tego rm
+# konczy sie bledem, a laczenie przez && po cichu pomijalo cala podmiane zrodel.
+sudo rm -rf "$BASE/src.prev"
+mv "$BASE/src" "$BASE/src.prev"
+mv /tmp/crm-new "$BASE/src"
+# Bramka po podmianie: sprawdzamy to, co faktycznie lezy na dysku, nie paczke.
+if ! grep -qF -e "HUB_INSTANCE_IDS" "$BASE/src/src/lib/hub.ts"; then
+  echo "!! podmiana zrodel nie doszla do skutku"; exit 1
+fi
 
 przywroc() {
   log "!! wycofywanie"

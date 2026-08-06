@@ -10,8 +10,12 @@
  *   docker exec wb-crm node /app/seed-crm.mjs
  */
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-const prisma = new PrismaClient();
+// Prisma 7 wymaga jawnego adaptera — tak samo jak src/lib/prisma.ts w aplikacji.
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+});
 const DOMENA = "demo.wb-partners.pl";
 const ZNACZNIK = "[DEMO]";
 
