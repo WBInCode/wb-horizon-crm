@@ -7,13 +7,21 @@
  * - cache modułów per instancja (TTL 60 s + inwalidacja webhookiem)
  */
 
-import { createHmac, timingSafeEqual } from "node:crypto"
+import {
+  createHmac,
+  createPublicKey,
+  timingSafeEqual,
+  verify as verifySignature,
+  type JsonWebKey as NodeJsonWebKey,
+} from "node:crypto"
 import { logger } from "@/lib/logger"
 
 export const HUB_URL = (process.env.HUB_URL ?? "").replace(/\/$/, "")
 const CLIENT_ID = process.env.HUB_SSO_CLIENT_ID ?? "crm"
 const CLIENT_SECRET = process.env.HUB_SSO_SECRET ?? ""
 const WEBHOOK_SECRET = process.env.HUB_WEBHOOK_SECRET ?? ""
+// Wystawca w tokenach Huba to adres PUBLICZNY; HUB_URL bywa adresem wewnętrznym kontenera.
+const HUB_ISSUER = (process.env.HUB_ISSUER ?? process.env.HUB_PUBLIC_URL ?? process.env.HUB_URL ?? "").replace(/\/$/, "")
 // Multi-tenancy (bounded MVP): baza CRM nie zna pojęcia najemcy, więc jedno wdrożenie
 // obsługuje jedną firmę. `HUB_INSTANCE_ID` przyjmuje listę po przecinku wyłącznie po to,
 // żeby obok instancji produkcyjnej wpuścić instancję demonstracyjną — dane pozostają wspólne.
@@ -83,6 +91,73 @@ export function verifyHubSignature(rawBody: string, signature: string | null): b
   const a = Buffer.from(expected)
   const b = Buffer.from(signature)
   return a.length === b.length && timingSafeEqual(a, b)
+}
+
+/* ─── Back-channel single logout ────────────────────── */
+
+interface HubJwk {
+  kid?: string
+  kty?: string
+  crv?: string
+  x?: string
+}
+
+const JWKS_TTL_MS = 60 * 60 * 1000
+const globalForJwks = globalThis as unknown as { _hubJwks?: { keys: HubJwk[]; fetchedAt: number } }
+
+async function fetchHubJwks(force = false): Promise<HubJwk[]> {
+  const cached = globalForJwks._hubJwks
+  if (!force && cached && Date.now() - cached.fetchedAt < JWKS_TTL_MS) return cached.keys
+  const res = await fetch(`${HUB_URL}/.well-known/jwks.json`, { signal: AbortSignal.timeout(5_000) })
+  if (!res.ok) throw new Error(`Hub JWKS failed: ${res.status}`)
+  const body = (await res.json()) as { keys?: HubJwk[] }
+  const keys = Array.isArray(body.keys) ? body.keys : []
+  globalForJwks._hubJwks = { keys, fetchedAt: Date.now() }
+  return keys
+}
+
+function decodeSegment(segment: string): Record<string, unknown> {
+  return JSON.parse(Buffer.from(segment, "base64url").toString("utf8")) as Record<string, unknown>
+}
+
+/**
+ * Weryfikuje token back-channel logout wystawiony przez Hub (EdDSA/Ed25519, klucz z JWKS).
+ * Zwraca e-mail użytkownika, którego sesje należy unieważnić. Rzuca przy każdym
+ * odstępstwie — podpis, wystawca, odbiorca, typ i ważność są sprawdzane osobno.
+ */
+export async function verifyHubLogoutToken(token: string): Promise<string> {
+  const parts = token.split(".")
+  if (parts.length !== 3 || token.length > 16_384) throw new Error("Malformed token")
+
+  const header = decodeSegment(parts[0]) as { alg?: string; kid?: string }
+  if (header.alg !== "EdDSA") throw new Error(`Unexpected algorithm ${header.alg}`)
+  if (!header.kid) throw new Error("Missing kid")
+
+  let jwk = (await fetchHubJwks()).find((k) => k.kid === header.kid)
+  if (!jwk) jwk = (await fetchHubJwks(true)).find((k) => k.kid === header.kid)
+  if (!jwk || jwk.kty !== "OKP" || jwk.crv !== "Ed25519") throw new Error("Signing key not found")
+
+  const signature = Buffer.from(parts[2], "base64url")
+  if (signature.length !== 64) throw new Error("Invalid signature length")
+  const key = createPublicKey({ key: jwk as NodeJsonWebKey, format: "jwk" })
+  if (!verifySignature(null, Buffer.from(`${parts[0]}.${parts[1]}`), key, signature)) {
+    throw new Error("Invalid signature")
+  }
+
+  const payload = decodeSegment(parts[1])
+  if (payload.typ !== "logout") throw new Error("Not a logout token")
+  if (!HUB_ISSUER || payload.iss !== HUB_ISSUER) throw new Error("Invalid issuer")
+  const audienceOk = Array.isArray(payload.aud)
+    ? payload.aud.includes(CLIENT_ID)
+    : payload.aud === CLIENT_ID
+  if (!audienceOk) throw new Error("Invalid audience")
+
+  const now = Math.floor(Date.now() / 1000)
+  if (typeof payload.exp !== "number" || payload.exp <= now - 10) throw new Error("Token expired")
+
+  const email = String(payload.email ?? "").trim().toLowerCase()
+  if (!email) throw new Error("Token without email")
+  return email
 }
 
 /* ─── Cache modułów (single-instance MVP) ───────────────── */
