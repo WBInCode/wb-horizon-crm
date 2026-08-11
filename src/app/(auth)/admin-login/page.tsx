@@ -14,7 +14,7 @@ export default function AdminLoginPage() {
     return <LokalneLogowanie />
   }
 
-  const adresPlatformy = process.env.HUB_PUBLIC_URL || "https://wb-partners.pl"
+  const adresPlatformy = process.env.HUB_PUBLIC_URL || "https://wb-platform.pl"
 
   return (
     <div className="w-full max-w-[400px] reveal">
