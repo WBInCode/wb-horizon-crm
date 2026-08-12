@@ -40,6 +40,7 @@ tar xzf /tmp/crm-src.tar.gz -C /tmp/crm-nowe
 # Sprawdzian, ze to faktycznie wersja z poprawkami — inaczej nie ma po co budowac.
 grep -q 'isClientVisibleToStructureUser' /tmp/crm-nowe/src/lib/structure.ts
 grep -q 'CRM_ALLOW_LOCAL_STAFF_LOGIN' /tmp/crm-nowe/src/app/api/auth/\[...nextauth\]/route.ts
+grep -q 'prismaFirmy' /tmp/crm-nowe/src/lib/prisma-firma.ts
 sudo rm -rf "$BAZA/src.prev" && sudo mv "$BAZA/src" "$BAZA/src.prev"
 sudo mv /tmp/crm-nowe "$BAZA/src"
 
