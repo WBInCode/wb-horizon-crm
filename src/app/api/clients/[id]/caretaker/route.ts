@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getCurrentUser } from "@/lib/auth"
+import { canAccessClient, getCurrentUser } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
 import { createNotification } from "@/lib/notifications"
 
@@ -17,6 +17,9 @@ export async function PUT(
 
   if (!["ADMIN", "DIRECTOR", "MANAGER"].includes(user.role)) {
     return NextResponse.json({ error: "Brak uprawnień" }, { status: 403 })
+  }
+  if (!(await canAccessClient(user.id, user.role, id))) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
 
   const body = await req.json().catch(() => ({}))

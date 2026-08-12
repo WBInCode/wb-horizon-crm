@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  weryfikacja:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: crm
+          POSTGRES_PASSWORD: crm
+          POSTGRES_DB: crm_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # Test integracyjny odmawia startu, jesli adres bazy nie zawiera "crm_test" —
+      # to jego bezpiecznik przed skasowaniem prawdziwych danych.
+      DATABASE_URL: postgresql://crm:crm@localhost:5432/crm_test
+      NEXTAUTH_SECRET: ci-nieuzywany-sekret-do-testow
+      NEXTAUTH_URL: http://localhost:3000
+      ADMIN_SECRET_TOKEN: ci-nieuzywany-token
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Schemat bazy testowej
+        run: npx prisma migrate deploy
+
+      - name: Lint (na razie nie blokuje)
+        # W kodzie jest 328 bledow lintu sprzed wprowadzenia CI. Blokowanie od razu
+        # dawaloby stale czerwony przebieg, ktory wszyscy zaczynaja ignorowac.
+        # Do zdjecia razem z dlugiem, wtedy ten krok staje sie blokujacy.
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Testy
+        run: npm run test
+
+      - name: Build
+        run: npm run build

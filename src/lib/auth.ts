@@ -1,7 +1,8 @@
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { prisma } from "@/lib/prisma"
-import { isClientVisibleToStructureUser } from "@/lib/structure"
+import { getVisibleUserIds, isClientVisibleToStructureUser } from "@/lib/structure"
+import { czyLeadWZasiegu } from "@/lib/lead-access"
 import type { Role } from "@prisma/client"
 
 export interface CurrentUser {
@@ -147,6 +148,36 @@ export async function canAccessCase(userId: string, role: string, caseId: string
   if (role === "CLIENT") return caseData.client?.ownerId === userId
 
   return false
+}
+
+/**
+ * Czy uzytkownik ma dostep do pojedynczego Leada.
+ *
+ * Zasieg musi byc identyczny z filtrem listy w GET /api/leads, inaczej lead
+ * niewidoczny na liscie daloby sie odczytac i zmienic po samym identyfikatorze.
+ * Klient, Opiekun i Kontrahent nie widza leadow wcale - lista zwraca im pusto.
+ */
+export async function canAccessLead(userId: string, role: string, leadId: string): Promise<boolean> {
+  if (role === "ADMIN") return true
+  if (role === "CLIENT" || role === "CARETAKER" || role === "KONTRAHENT") return false
+
+  const lead = await prisma.lead.findUnique({
+    where: { id: leadId },
+    select: { assignedSalesId: true },
+  })
+  if (!lead) return false
+
+  const widoczniUzytkownicy =
+    role === "DIRECTOR" || role === "MANAGER"
+      ? await getVisibleUserIds(userId, role as Role)
+      : [userId]
+
+  return czyLeadWZasiegu({
+    role,
+    userId,
+    assignedSalesId: lead.assignedSalesId,
+    widoczniUzytkownicy,
+  })
 }
 
 /**

@@ -31,8 +31,12 @@ const createLeadSchema = z.object({
   needs: z.string().max(2000).optional().nullable(),
   nextStep: z.string().max(500).optional().nullable(),
   nextStepDate: z.string().datetime().optional().nullable(),
-  priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional().nullable(),
-  status: z.string().max(50).optional(),
+  priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).optional().nullable(),
+  // Dowolny tekst przechodzil walidacje i wywalal sie dopiero na bazie jako 500.
+  status: z.enum([
+    "NEW", "TO_CONTACT", "IN_CONTACT", "MEETING_SCHEDULED", "AFTER_MEETING",
+    "QUALIFIED", "NOT_QUALIFIED", "TRANSFERRED", "CLOSED",
+  ]).optional(),
   assignedSalesId: z.string().optional().nullable(),
 })
 
@@ -50,12 +54,22 @@ export async function GET(request: NextRequest) {
     const priority = searchParams.get("priority")
 
     const where: Record<string, unknown> = {}
-    
+    // Warunki skladane przez AND. Dwa klucze OR w jednym obiekcie where nadpisalyby
+    // sie nawzajem, a wtedy zawezenie wg roli po cichu by zniknelo.
+    const warunki: Record<string, unknown>[] = []
+
     if (status) where.status = status
     if (salesId) where.assignedSalesId = salesId
     if (priority) where.priority = priority
     if (search) {
-      where.companyName = { contains: search, mode: "insensitive" }
+      warunki.push({
+        OR: [
+          { companyName: { contains: search, mode: "insensitive" } },
+          { contactPerson: { contains: search, mode: "insensitive" } },
+          { phone: { contains: search, mode: "insensitive" } },
+          { email: { contains: search, mode: "insensitive" } },
+        ],
+      })
     }
 
     // Ograniczenia wg roli (PDF A.2.2 — scope visibility)
@@ -67,13 +81,16 @@ export async function GET(request: NextRequest) {
       // Widzi leady przypisane do osób w jego strukturze
       const visible = await getVisibleUserIds(user.id, user.role as Role)
       if (visible !== "ALL") {
-        where.OR = [
-          { assignedSalesId: { in: visible } },
-          { assignedSalesId: null }, // nieprzypisane są też widoczne dla zarządzających
-        ]
+        warunki.push({
+          OR: [
+            { assignedSalesId: { in: visible } },
+            { assignedSalesId: null }, // nieprzypisane są też widoczne dla zarządzających
+          ],
+        })
       }
     }
     // ADMIN — bez ograniczeń
+    if (warunki.length > 0) where.AND = warunki
 
     const leads = await prisma.lead.findMany({
       where,
@@ -82,7 +99,9 @@ export async function GET(request: NextRequest) {
           select: { id: true, name: true }
         }
       },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
+      // Bez gornej granicy jedna firma z duzym zbiorem potrafi polozyc liste wszystkim.
+      take: 500,
     })
 
     return NextResponse.json(leads)

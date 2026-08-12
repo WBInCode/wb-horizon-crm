@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getCurrentUser } from "@/lib/auth"
+import { canAccessLead, getCurrentUser } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
 import { logger } from "@/lib/logger"
+
+/** Role prowadzace leady — zgodnie z POST /api/leads. */
+const ROLE_PROWADZACE = ["CALL_CENTER", "SALESPERSON", "ADMIN", "DIRECTOR", "MANAGER"]
 
 export async function POST(
   request: NextRequest,
@@ -15,11 +18,26 @@ export async function POST(
     }
 
     const { id } = await params
+    // Konwersja tworzy Kontrahenta z ownerId zalogowanego, wiec bez tych dwoch
+    // kontroli dowolne konto przepisywalo cudzy lead na siebie.
+    if (!ROLE_PROWADZACE.includes(user.role)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 })
+    }
+    if (!(await canAccessLead(user.id, user.role, id))) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 })
+    }
 
     const lead = await prisma.lead.findUnique({ where: { id } })
 
     if (!lead) {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 })
+    }
+    // Druga konwersja zrobilaby drugiego Kontrahenta z tego samego leada.
+    if (lead.convertedToClientId) {
+      return NextResponse.json(
+        { error: "Lead został już przekształcony w Kontrahenta", clientId: lead.convertedToClientId },
+        { status: 409 },
+      )
     }
 
     // Utwórz klienta na podstawie leada
