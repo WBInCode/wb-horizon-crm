@@ -1,8 +1,44 @@
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { getCurrentUser } from "@/lib/auth"
+import { canAccessLead, getCurrentUser } from "@/lib/auth"
 import { auditLog, diffChanges } from "@/lib/audit"
 import { logger } from "@/lib/logger"
+
+/** Role, ktore w ogole prowadza leady - zgodnie z POST /api/leads. */
+const ROLE_PROWADZACE = ["CALL_CENTER", "SALESPERSON", "ADMIN", "DIRECTOR", "MANAGER"]
+
+const updateLeadSchema = z.object({
+  companyName: z.string().min(1).max(200).optional(),
+  contactPerson: z.string().min(1).max(200).optional(),
+  phone: z.string().min(1).max(50).optional(),
+  nip: z.string().max(20).nullable().optional(),
+  industry: z.string().max(100).nullable().optional(),
+  website: z.string().max(500).nullable().optional(),
+  source: z.string().max(100).nullable().optional(),
+  position: z.string().max(100).nullable().optional(),
+  email: z.string().max(200).nullable().optional(),
+  isDecisionMaker: z.boolean().optional(),
+  meetingDate: z.string().datetime().nullable().optional(),
+  status: z.enum([
+    "NEW", "TO_CONTACT", "IN_CONTACT", "MEETING_SCHEDULED", "AFTER_MEETING",
+    "QUALIFIED", "NOT_QUALIFIED", "TRANSFERRED", "CLOSED",
+  ]).optional(),
+  notes: z.string().max(5000).nullable().optional(),
+  needs: z.string().max(2000).nullable().optional(),
+  assignedSalesId: z.string().nullable().optional(),
+  convertedToClientId: z.string().nullable().optional(),
+  nextStep: z.string().max(500).nullable().optional(),
+  nextStepDate: z.string().datetime().nullable().optional(),
+  priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).nullable().optional(),
+})
+
+/**
+ * Brak dostepu do leada zwraca 404, nie 403.
+ * Rozroznienie tych dwoch odpowiedzi mowi pytajacemu, ze lead o danym
+ * identyfikatorze istnieje, a tego jedna firma nie moze dowiedziec sie o drugiej.
+ */
+const NIE_ZNALEZIONO = NextResponse.json({ error: "Not found" }, { status: 404 })
 
 export async function GET(
   request: NextRequest,
@@ -15,6 +51,7 @@ export async function GET(
     }
 
     const { id } = await params
+    if (!(await canAccessLead(user.id, user.role, id))) return NIE_ZNALEZIONO
 
     const lead = await prisma.lead.findUnique({
       where: { id },
@@ -50,7 +87,17 @@ export async function PUT(
     }
 
     const { id } = await params
-    const body = await request.json()
+    if (!ROLE_PROWADZACE.includes(user.role)) return NIE_ZNALEZIONO
+    if (!(await canAccessLead(user.id, user.role, id))) return NIE_ZNALEZIONO
+
+    const parsed = updateLeadSchema.safeParse(await request.json())
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Validation failed", details: parsed.error.flatten() },
+        { status: 422 },
+      )
+    }
+    const body = parsed.data
 
     const oldLead = await prisma.lead.findUnique({ where: { id } })
 
@@ -117,6 +164,11 @@ export async function DELETE(
     }
 
     const { id } = await params
+    if (!(await canAccessLead(user.id, user.role, id))) return NIE_ZNALEZIONO
+
+    // Etykieta musi byc odczytana przed usunieciem, inaczej dziennik traci
+    // informacje o tym, czyj lead zniknal, dokladnie tam gdzie jest najpotrzebniejsza.
+    const lead = await prisma.lead.findUnique({ where: { id }, select: { companyName: true } })
 
     await prisma.lead.delete({ where: { id } })
 
@@ -124,6 +176,7 @@ export async function DELETE(
       action: "DELETE",
       entityType: "LEAD",
       entityId: id,
+      entityLabel: lead?.companyName,
       userId: user.id,
     })
 
