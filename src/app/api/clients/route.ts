@@ -5,6 +5,7 @@ import { auditLog } from "@/lib/audit"
 import { getVisibleUserIds, getVisibleClientIds } from "@/lib/structure"
 import type { Role } from "@prisma/client"
 import { logger } from "@/lib/logger"
+import { firmaUzytkownika } from "@/lib/company"
 
 export async function GET(request: NextRequest) {
   try {
@@ -104,8 +105,14 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
+    const companyId = await firmaUzytkownika(user.id)
+    if (!companyId) {
+      return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
+    }
+
     const client = await prisma.client.create({
       data: {
+        companyId,
         companyName: body.companyName,
         nip: body.nip,
         industry: body.industry,

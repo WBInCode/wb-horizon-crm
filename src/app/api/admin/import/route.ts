@@ -16,6 +16,7 @@ import { parseCsv, applyMapping, CsvParseError } from "@/lib/csv-import"
 import { getImportFields, type ImportResource } from "@/lib/import-schemas"
 import { auditLog } from "@/lib/audit"
 import { logger } from "@/lib/logger"
+import { firmaUzytkownika } from "@/lib/company"
 
 export const runtime = "nodejs"
 
@@ -129,9 +130,14 @@ export async function POST(req: NextRequest) {
 
   // Real import
   let created = 0
+  const companyId = await firmaUzytkownika(user.id)
+  if (!companyId) {
+    return NextResponse.json({ ...summary, error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
+  }
   if (resource === "leads") {
     const result = await prisma.lead.createMany({
       data: validRows.map((d) => ({
+        companyId,
         companyName: String(d.companyName),
         contactPerson: String(d.contactPerson),
         phone: String(d.phone),
@@ -153,6 +159,7 @@ export async function POST(req: NextRequest) {
   } else if (resource === "clients") {
     const result = await prisma.client.createMany({
       data: validRows.map((d) => ({
+        companyId,
         companyName: String(d.companyName),
         nip: d.nip ? String(d.nip) : null,
         industry: d.industry ? String(d.industry) : null,

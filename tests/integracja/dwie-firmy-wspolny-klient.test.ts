@@ -1,9 +1,9 @@
 /**
- * Scenariusz: jeden Kontrahent obslugiwany przez dwie firmy (Struktury).
+ * Scenariusz: jeden Kontrahent obslugiwany przez dwie Struktury tej samej firmy.
  *
- * W CRM Horizon "firma" to Structure - zespol jednego Dyrektora.
- * Model StructureClient (@@id([structureId, clientId])) dopuszcza,
- * by ten sam Kontrahent nalezal do wielu Struktur naraz.
+ * Od wprowadzenia modelu Company "firma" to Company, a Structure jest hierarchia
+ * sprzedazy WEWNATRZ firmy. Test pilnuje, ze zasieg Dyrektora i Managera konczy
+ * sie na wlasnej strukturze, mimo ze wszystkie siedza w jednej firmie.
  *
  * Test uruchamia prawdziwy kod z src/lib na prawdziwej bazie.
  * Wymaga DATABASE_URL wskazujacego baze testowa.
@@ -14,6 +14,7 @@ import { getVisibleClientIds, getVisibleUserIds } from "@/lib/structure"
 import { canAccessClient } from "@/lib/auth"
 
 const dane = {
+  firma: "",
   dyrektorAlfa: "",
   dyrektorBeta: "",
   handlowiecAlfa: "",
@@ -54,6 +55,11 @@ beforeAll(async () => {
   await prisma.structure.deleteMany({})
   await prisma.client.deleteMany({ where: { companyName: { startsWith: "[TEST]" } } })
   await prisma.user.deleteMany({ where: { email: { endsWith: "@dwiefirmy.test" } } })
+  await prisma.company.deleteMany({ where: { name: { startsWith: "[TEST]" } } })
+
+  // Obie Struktury siedza w JEDNEJ firmie - test pilnuje zasiegu wewnatrz niej.
+  const firma = await prisma.company.create({ data: { name: "[TEST] Firma" } })
+  dane.firma = firma.id
 
   dane.dyrektorAlfa = await utworzUzytkownika("dyrektor.alfa@dwiefirmy.test", "Dyrektor Alfa", "DIRECTOR")
   dane.dyrektorBeta = await utworzUzytkownika("dyrektor.beta@dwiefirmy.test", "Dyrektor Beta", "DIRECTOR")
@@ -62,10 +68,10 @@ beforeAll(async () => {
   dane.kontoKlienta = await utworzUzytkownika("klient@dwiefirmy.test", "Konto Klienta", "CLIENT")
 
   const alfa = await prisma.structure.create({
-    data: { name: "[TEST] Firma Alfa", directorId: dane.dyrektorAlfa },
+    data: { name: "[TEST] Struktura Alfa", directorId: dane.dyrektorAlfa, companyId: firma.id },
   })
   const beta = await prisma.structure.create({
-    data: { name: "[TEST] Firma Beta", directorId: dane.dyrektorBeta },
+    data: { name: "[TEST] Struktura Beta", directorId: dane.dyrektorBeta, companyId: firma.id },
   })
   dane.strukturaAlfa = alfa.id
   dane.strukturaBeta = beta.id
@@ -82,10 +88,10 @@ beforeAll(async () => {
   })
 
   const wspolny = await prisma.client.create({
-    data: { companyName: "[TEST] Klient Wspolny", ownerId: dane.kontoKlienta },
+    data: { companyName: "[TEST] Klient Wspolny", ownerId: dane.kontoKlienta, companyId: firma.id },
   })
-  const tylkoAlfa = await prisma.client.create({ data: { companyName: "[TEST] Klient Tylko Alfa" } })
-  const tylkoBeta = await prisma.client.create({ data: { companyName: "[TEST] Klient Tylko Beta" } })
+  const tylkoAlfa = await prisma.client.create({ data: { companyName: "[TEST] Klient Tylko Alfa", companyId: firma.id } })
+  const tylkoBeta = await prisma.client.create({ data: { companyName: "[TEST] Klient Tylko Beta", companyId: firma.id } })
   dane.klientWspolny = wspolny.id
   dane.klientTylkoAlfa = tylkoAlfa.id
   dane.klientTylkoBeta = tylkoBeta.id
@@ -93,7 +99,7 @@ beforeAll(async () => {
   // Kontrahent handlowca z Alfy, celowo BEZ przypisania do Struktury —
   // sprawdza zgodnosc filtra listy z kontrola dostepu do rekordu.
   const klientHandlowca = await prisma.client.create({
-    data: { companyName: "[TEST] Klient Handlowca Alfy", ownerId: dane.handlowiecAlfa },
+    data: { companyName: "[TEST] Klient Handlowca Alfy", ownerId: dane.handlowiecAlfa, companyId: firma.id },
   })
   dane.klientHandlowcaAlfy = klientHandlowca.id
 
@@ -224,8 +230,8 @@ describe("Panel klienta", () => {
 
     expect(firmy).toHaveLength(2)
     expect(firmy.map((f) => f.structure.name).sort()).toEqual([
-      "[TEST] Firma Alfa",
-      "[TEST] Firma Beta",
+      "[TEST] Struktura Alfa",
+      "[TEST] Struktura Beta",
     ])
     expect(firmy.map((f) => f.structure.director.email).sort()).toEqual([
       "dyrektor.alfa@dwiefirmy.test",

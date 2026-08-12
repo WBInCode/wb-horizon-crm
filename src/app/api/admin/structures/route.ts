@@ -42,6 +42,9 @@ export async function POST(req: NextRequest) {
   if (director.role !== "DIRECTOR") {
     return NextResponse.json({ error: "Użytkownik nie ma roli DIRECTOR" }, { status: 400 })
   }
+  if (!director.companyId) {
+    return NextResponse.json({ error: "Dyrektor nie jest przypisany do żadnej firmy" }, { status: 409 })
+  }
 
   const existing = await prisma.structure.findUnique({ where: { directorId } })
   if (existing) {
@@ -49,7 +52,8 @@ export async function POST(req: NextRequest) {
   }
 
   const created = await prisma.structure.create({
-    data: { name, directorId },
+    // Struktura powstaje w firmie swojego Dyrektora, nie w firmie klikajacego admina.
+    data: { name, directorId, companyId: director.companyId },
     include: { director: { select: { id: true, name: true, email: true } } },
   })
   return NextResponse.json(created, { status: 201 })

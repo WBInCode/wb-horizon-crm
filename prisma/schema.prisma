@@ -176,6 +176,35 @@ enum SaleDetailedStatus {
 
 // ==================== MODELE ====================
 
+/// Stan licencji firmy. Po wygasnieciu 7 dni pelnego dzialania (GRACE),
+/// potem archiwum na 30 dni, potem usuniecie.
+enum CompanyStatus {
+  ACTIVE
+  GRACE
+  ARCHIVED
+}
+
+/// Firma, ktora kupila licencje w WB Platform.
+/// To jest granica danych: handlowiec jednej firmy nie widzi niczego z drugiej.
+/// Structure to hierarchia sprzedazy WEWNATRZ firmy, nie sama firma.
+model Company {
+  id               String        @id @default(cuid())
+  name             String
+  hubOrgId         String?       @unique
+  hubInstanceId    String?
+  status           CompanyStatus @default(ACTIVE)
+  licenseExpiresAt DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  users      User[]
+  structures Structure[]
+  leads      Lead[]
+  clients    Client[]
+
+  @@index([status])
+}
+
 model User {
   id        String     @id @default(cuid())
   email     String     @unique
@@ -185,6 +214,10 @@ model User {
   avatarUrl String?
   role      Role       @default(SALESPERSON)
   status    UserStatus @default(ACTIVE)
+  /// Konta pracownikow naleza do firmy. Konta klientow nie — klient moze byc
+  /// obslugiwany przez kilka firm naraz i ma jedno konto na cala platforme.
+  companyId String?
+  company   Company?   @relation(fields: [companyId], references: [id])
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
@@ -351,6 +384,12 @@ model Lead {
   sourceId  String?
   sourceRef LeadSource? @relation("LeadSourceRef", fields: [sourceId], references: [id])
 
+  /// Firma prowadzaca lead. Wczesniej wynikala z przypisania handlowca, przez co
+  /// handlowiec nalezacy do dwoch struktur czynil wlascicielstwo niejednoznacznym.
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
   @@index([assignedSalesId])
   @@index([sourceId])
   @@index([status])
@@ -374,6 +413,10 @@ model Client {
   keyFindings        String?         @db.Text
   stage              ContractorStage @default(LEAD)
   archivedAt         DateTime?
+  /// Teczka handlowa nalezy do jednej firmy. Ten sam klient obslugiwany przez
+  /// dwie firmy ma dwie teczki i jedno wspolne konto w portalu.
+  companyId          String
+  company            Company         @relation(fields: [companyId], references: [id])
 
   // Lead tab (PDF C.5) — wpisy z pierwszego kontaktu CC
   leadFirstContactNotes String?   @db.Text
@@ -407,6 +450,7 @@ model Client {
   meetings    Meeting[]         @relation("MeetingClient")
   structures  StructureClient[] @relation("StructureClientClient")
 
+  @@index([companyId])
   @@index([ownerId])
   @@index([caretakerId])
   @@index([sourceId])
@@ -869,12 +913,18 @@ model Structure {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// Struktura zawsze siedzi w jednej firmie.
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
   // Każda struktura ma jednego Dyrektora
   directorId String @unique
   director   User   @relation("StructureDirector", fields: [directorId], references: [id])
 
   members StructureMember[] @relation("StructureMemberStructure")
   clients StructureClient[] @relation("StructureClientStructure")
+
+  @@index([companyId])
 }
 
 model StructureMember {

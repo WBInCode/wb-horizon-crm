@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
 import { getVisibleUserIds } from "@/lib/structure"
 import { checkRateLimit, LIMITS } from "@/lib/rate-limit"
+import { firmaUzytkownika } from "@/lib/company"
 import type { Role, LeadStatus } from "@prisma/client"
 import { logger } from "@/lib/logger"
 
@@ -142,8 +143,14 @@ export async function POST(request: NextRequest) {
     }
     const body = parsed.data
 
+    const companyId = await firmaUzytkownika(user.id)
+    if (!companyId) {
+      return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
+    }
+
     const lead = await prisma.lead.create({
       data: {
+        companyId,
         companyName: body.companyName,
         contactPerson: body.contactPerson,
         phone: body.phone,
