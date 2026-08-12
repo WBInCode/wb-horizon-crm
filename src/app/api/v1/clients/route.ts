@@ -8,6 +8,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { withApiAuth, parsePagination } from "@/lib/api-auth"
 import { logger } from "@/lib/logger"
+import { firmaUzytkownika } from "@/lib/company"
 
 export const runtime = "nodejs"
 
@@ -87,9 +88,16 @@ export const POST = withApiAuth("clients:write", async (req: NextRequest, ctx) =
     )
   }
 
+  // Klucz API dziala w firmie swojego wlasciciela.
+  const companyId = await firmaUzytkownika(ctx.ownerId)
+  if (!companyId) {
+    return NextResponse.json({ error: "Właściciel klucza nie jest przypisany do firmy" }, { status: 409 })
+  }
+
   const created = await prisma.client.create({
     data: {
       ...parsed.data,
+      companyId,
       ownerId: ctx.ownerId,
     },
     select: CLIENT_SELECT,

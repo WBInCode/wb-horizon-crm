@@ -40,9 +40,10 @@ export async function POST(
       )
     }
 
-    // Utwórz klienta na podstawie leada
+    // Kontrahent powstaje w firmie, ktora prowadzila lead, a nie w firmie klikajacego.
     const client = await prisma.client.create({
       data: {
+        companyId: lead.companyId,
         companyName: lead.companyName,
         nip: lead.nip,
         industry: lead.industry,

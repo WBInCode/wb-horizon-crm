@@ -10,7 +10,7 @@
  * i powiadomienia. Idempotentny (markery po unikalnych nazwach).
  */
 
-import { PrismaClient } from "@prisma/client"
+import { Prisma, PrismaClient } from "@prisma/client"
 import { PrismaPg } from "@prisma/adapter-pg"
 import bcrypt from "bcryptjs"
 
@@ -19,20 +19,23 @@ const prisma = new PrismaClient({ adapter })
 
 const PASSWORD = "admin123"
 
-async function ensureUser(email: string, name: string, role: "ADMIN" | "DIRECTOR" | "MANAGER" | "CARETAKER" | "SALESPERSON" | "CALL_CENTER" | "CLIENT" | "KONTRAHENT", roleTemplateName?: string) {
+async function ensureUser(email: string, name: string, role: "ADMIN" | "DIRECTOR" | "MANAGER" | "CARETAKER" | "SALESPERSON" | "CALL_CENTER" | "CLIENT" | "KONTRAHENT", roleTemplateName?: string, companyId?: string) {
   const password = await bcrypt.hash(PASSWORD, 10)
   const roleTemplate = roleTemplateName
     ? await prisma.roleTemplate.findUnique({ where: { name: roleTemplateName } })
     : null
+  // Konto klienta celowo bez firmy — klient bywa obslugiwany przez kilka naraz.
+  const firma = role === "CLIENT" ? null : (companyId ?? null)
   return prisma.user.upsert({
     where: { email },
-    update: { role, status: "ACTIVE" },
+    update: { role, status: "ACTIVE", companyId: firma },
     create: {
       email,
       name,
       password,
       role,
       status: "ACTIVE",
+      companyId: firma,
       roleTemplateId: roleTemplate?.id ?? null,
     },
   })
@@ -53,13 +56,20 @@ async function main() {
     })
   }
 
+  // ── Firma, do ktorej naleza dane pokazowe ──
+  const firma = await prisma.company.upsert({
+    where: { id: "firma-demo" },
+    update: {},
+    create: { id: "firma-demo", name: "Horizon Demo" },
+  })
+
   // ── Użytkownicy ──
-  const admin = await ensureUser("admin@horizon.pl", "Administrator", "ADMIN", "ADMIN")
-  const dyrektor = await ensureUser("dyrektor@horizon.pl", "Jan Dyrektor", "DIRECTOR", "DIRECTOR")
-  const manager = await ensureUser("manager@horizon.pl", "Maria Manager", "MANAGER", "MANAGER")
-  const opiekun = await ensureUser("opiekun1@horizon.pl", "Anna Opiekun", "CARETAKER", "CARETAKER")
-  const handlowiec = await ensureUser("handlowiec@horizon.pl", "Piotr Handlowiec", "SALESPERSON", "SALESPERSON")
-  const callcenter = await ensureUser("callcenter@horizon.pl", "Ewa Call Center", "CALL_CENTER", "CALL_CENTER")
+  const admin = await ensureUser("admin@horizon.pl", "Administrator", "ADMIN", "ADMIN", firma.id)
+  const dyrektor = await ensureUser("dyrektor@horizon.pl", "Jan Dyrektor", "DIRECTOR", "DIRECTOR", firma.id)
+  const manager = await ensureUser("manager@horizon.pl", "Maria Manager", "MANAGER", "MANAGER", firma.id)
+  const opiekun = await ensureUser("opiekun1@horizon.pl", "Anna Opiekun", "CARETAKER", "CARETAKER", firma.id)
+  const handlowiec = await ensureUser("handlowiec@horizon.pl", "Piotr Handlowiec", "SALESPERSON", "SALESPERSON", firma.id)
+  const callcenter = await ensureUser("callcenter@horizon.pl", "Ewa Call Center", "CALL_CENTER", "CALL_CENTER", firma.id)
   const klient = await ensureUser("klient@horizon.pl", "Tomasz Klient (Nowak-Bud)", "CLIENT", "CLIENT")
   const vendor = await ensureUser("vendor@horizon.pl", "Karol Vendor (WebStudio)", "KONTRAHENT", "KONTRAHENT")
   console.log("  ✓ użytkownicy (8 ról)")
@@ -98,6 +108,7 @@ async function main() {
     for (const l of leadRows) {
       await prisma.lead.create({
         data: {
+          companyId: firma.id,
           companyName: l.companyName,
           contactPerson: l.contactPerson,
           phone: l.phone,
@@ -125,7 +136,8 @@ async function main() {
   // ── Kontrahenci (marker: "Nowak-Bud") ──
   let clientMain = await prisma.client.findFirst({ where: { companyName: "Nowak-Bud Sp. z o.o." } })
   if (!clientMain) {
-    const mk = (data: Parameters<typeof prisma.client.create>[0]["data"]) => prisma.client.create({ data })
+    const mk = (data: Omit<Prisma.ClientUncheckedCreateInput, "companyId">) =>
+      prisma.client.create({ data: { ...data, companyId: firma.id } })
 
     clientMain = await mk({
       companyName: "Nowak-Bud Sp. z o.o.",
@@ -336,7 +348,7 @@ async function main() {
   const structure = await prisma.structure.upsert({
     where: { directorId: dyrektor.id },
     update: {},
-    create: { name: "Struktura Warszawa", directorId: dyrektor.id },
+    create: { name: "Struktura Warszawa", directorId: dyrektor.id, companyId: firma.id },
   })
   const managerMember = await prisma.structureMember.upsert({
     where: { structureId_userId: { structureId: structure.id, userId: manager.id } },
