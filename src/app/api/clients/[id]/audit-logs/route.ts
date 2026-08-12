@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getCurrentUser } from "@/lib/auth"
+import { canAccessClient, getCurrentUser } from "@/lib/auth"
 import { logger } from "@/lib/logger"
 
 export async function GET(
@@ -14,6 +14,9 @@ export async function GET(
     }
 
     const { id } = await params
+    if (!(await canAccessClient(user.id, user.role, id))) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 })
+    }
 
     const logs = await prisma.auditLog.findMany({
       where: {

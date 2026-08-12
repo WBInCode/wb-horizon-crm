@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getCurrentUser } from "@/lib/auth"
+import { canAccessClient, getCurrentUser } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
 import { logger } from "@/lib/logger"
 
@@ -15,6 +15,9 @@ export async function POST(
     }
 
     const { id } = await params
+    if (!(await canAccessClient(user.id, user.role, id))) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 })
+    }
     const body = await request.json()
 
     const contact = await prisma.contactPerson.create({

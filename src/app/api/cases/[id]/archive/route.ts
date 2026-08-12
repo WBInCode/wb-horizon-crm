@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getCurrentUser } from "@/lib/auth"
+import { canAccessCase, getCurrentUser } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
 import { logger } from "@/lib/logger"
 
@@ -19,6 +19,9 @@ export async function POST(
     }
 
     const { id } = await params
+    if (!(await canAccessCase(user.id, user.role, id))) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 })
+    }
 
     const caseData = await prisma.case.findUnique({
       where: { id },
