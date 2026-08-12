@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma"
 import { withApiAuth, parsePagination } from "@/lib/api-auth"
 import { logger } from "@/lib/logger"
 import { firmaUzytkownika } from "@/lib/company"
+import { prismaFirmy } from "@/lib/prisma-firma"
 
 export const runtime = "nodejs"
 
@@ -61,14 +62,21 @@ const LEAD_SELECT = {
   updatedAt: true,
 } as const
 
-export const GET = withApiAuth("leads:read", async (req: NextRequest) => {
+export const GET = withApiAuth("leads:read", async (req: NextRequest, ctx) => {
   const url = new URL(req.url)
   const { limit, cursor } = parsePagination(url)
   const status = url.searchParams.get("status")
 
   const where = status ? { status: status as never } : undefined
 
-  const items = await prisma.lead.findMany({
+  // Klucz API dziala w firmie swojego wlasciciela — bez tego jeden klucz
+  // wyciagalby leady wszystkich firm z instalacji.
+  const companyId = await firmaUzytkownika(ctx.ownerId)
+  if (!companyId) {
+    return NextResponse.json({ error: "Właściciel klucza nie jest przypisany do firmy" }, { status: 409 })
+  }
+
+  const items = await prismaFirmy(companyId).lead.findMany({
     where,
     select: LEAD_SELECT,
     orderBy: { createdAt: "desc" },
@@ -105,7 +113,7 @@ export const POST = withApiAuth("leads:write", async (req: NextRequest, ctx) => 
   if (!companyId) {
     return NextResponse.json({ error: "Właściciel klucza nie jest przypisany do firmy" }, { status: 409 })
   }
-  const created = await prisma.lead.create({
+  const created = await prismaFirmy(companyId).lead.create({
     data: {
       ...data,
       companyId,

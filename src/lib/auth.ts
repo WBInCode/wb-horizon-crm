@@ -3,6 +3,8 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { prisma } from "@/lib/prisma"
 import { getVisibleUserIds, isClientVisibleToStructureUser } from "@/lib/structure"
 import { czyLeadWZasiegu } from "@/lib/lead-access"
+import { firmaUzytkownika } from "@/lib/company"
+import { prismaFirmy } from "@/lib/prisma-firma"
 import type { Role } from "@prisma/client"
 
 export interface CurrentUser {
@@ -130,13 +132,24 @@ export async function requireAnyPermission(codes: string[]) {
  * CLIENT: only cases for their owned client
  */
 export async function canAccessCase(userId: string, role: string, caseId: string): Promise<boolean> {
-  if (role === "ADMIN") return true
-
   const caseData = await prisma.case.findUnique({
     where: { id: caseId },
     select: { clientId: true, salesId: true, caretakerId: true, directorId: true, client: { select: { ownerId: true } } }
   })
   if (!caseData) return false
+
+  // Sprawa nalezy do firmy przez Kontrahenta — pracownik nie siega poza wlasna.
+  if (role !== "CLIENT") {
+    const companyId = await firmaUzytkownika(userId)
+    if (!companyId) return false
+    const wZakresie = await prismaFirmy(companyId).client.findUnique({
+      where: { id: caseData.clientId },
+      select: { id: true },
+    })
+    if (!wZakresie) return false
+  }
+
+  if (role === "ADMIN") return true
 
   if (role === "DIRECTOR" || role === "MANAGER") {
     if (caseData.directorId === userId) return true
@@ -158,14 +171,20 @@ export async function canAccessCase(userId: string, role: string, caseId: string
  * Klient, Opiekun i Kontrahent nie widza leadow wcale - lista zwraca im pusto.
  */
 export async function canAccessLead(userId: string, role: string, leadId: string): Promise<boolean> {
-  if (role === "ADMIN") return true
   if (role === "CLIENT" || role === "CARETAKER" || role === "KONTRAHENT") return false
 
-  const lead = await prisma.lead.findUnique({
+  // Granica firmy idzie PRZED rolą. Administrator i Dyrektor widzą wszystko,
+  // ale wyłącznie u siebie: bez tego lead innej firmy bez przypisanego handlowca
+  // przechodził przez regułę „nieprzypisany jest widoczny dla zarządzających".
+  const companyId = await firmaUzytkownika(userId)
+  if (!companyId) return false
+
+  const lead = await prismaFirmy(companyId).lead.findUnique({
     where: { id: leadId },
     select: { assignedSalesId: true },
   })
   if (!lead) return false
+  if (role === "ADMIN") return true
 
   const widoczniUzytkownicy =
     role === "DIRECTOR" || role === "MANAGER"
@@ -185,6 +204,17 @@ export async function canAccessLead(userId: string, role: string, leadId: string
  * Dyrektor i Manager widza wylacznie Kontrahentow przypisanych do ich firmy.
  */
 export async function canAccessClient(userId: string, role: string, clientId: string): Promise<boolean> {
+  // Granica firmy przed rola: pracownik nie siega poza wlasna firme nawet jako ADMIN.
+  if (role !== "CLIENT") {
+    const companyId = await firmaUzytkownika(userId)
+    if (!companyId) return false
+    const wZakresie = await prismaFirmy(companyId).client.findUnique({
+      where: { id: clientId },
+      select: { id: true },
+    })
+    if (!wZakresie) return false
+  }
+
   if (role === "ADMIN") return true
 
   if (role === "DIRECTOR" || role === "MANAGER") {
