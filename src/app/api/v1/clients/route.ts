@@ -10,6 +10,7 @@ import { withApiAuth, parsePagination } from "@/lib/api-auth"
 import { logger } from "@/lib/logger"
 import { firmaUzytkownika } from "@/lib/company"
 import { prismaFirmy } from "@/lib/prisma-firma"
+import { tozsamoscKlienta } from "@/lib/tozsamosc-klienta"
 
 export const runtime = "nodejs"
 
@@ -102,10 +103,29 @@ export const POST = withApiAuth("clients:write", async (req: NextRequest, ctx) =
     return NextResponse.json({ error: "Właściciel klucza nie jest przypisany do firmy" }, { status: 409 })
   }
 
+  const identityId = await tozsamoscKlienta({
+    companyName: parsed.data.companyName,
+    nip: parsed.data.nip,
+    industry: parsed.data.industry,
+    website: parsed.data.website,
+  })
+
+  const juzMa = await prismaFirmy(companyId).client.findFirst({
+    where: { identityId },
+    select: { id: true },
+  })
+  if (juzMa) {
+    return NextResponse.json(
+      { error: "Ten kontrahent jest ju\u017c u Ciebie prowadzony", clientId: juzMa.id },
+      { status: 409 },
+    )
+  }
+
   const created = await prismaFirmy(companyId).client.create({
     data: {
       ...parsed.data,
       companyId,
+      identityId,
       ownerId: ctx.ownerId,
     },
     select: CLIENT_SELECT,

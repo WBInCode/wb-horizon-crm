@@ -244,6 +244,7 @@ model User {
   leadsAssigned    Lead[]   @relation("SalespersonLeads")
   clientsOwned     Client[] @relation("ClientOwner")
   clientsCaretaken Client[] @relation("ClientCaretaker")
+  clientIdentity   ClientIdentity? @relation("ClientPortalAccount")
 
   casesAsSales     Case[] @relation("CaseSalesperson")
   casesAsCaretaker Case[] @relation("CaseCaretaker")
@@ -397,6 +398,35 @@ model Lead {
   @@index([createdAt])
 }
 
+/// Tozsamosc kontrahenta, wspolna dla calej platformy. Ten sam podmiot obslugiwany
+/// przez dwie firmy ma JEDNA tozsamosc i DWIE teczki (model Client).
+///
+/// Nazwa, NIP i adres rejestrowy sa kanoniczne — firma ich nie nadpisuje. Jesli chce
+/// nazywac klienta po swojemu, ustawia `alias` na swojej teczce. Dane kontaktowe
+/// (telefon, e-mail, osoby kontaktowe) sa per teczka, bo kazda firma rozmawia z kim innym.
+model ClientIdentity {
+  id          String  @id @default(cuid())
+  companyName String
+  nip         String? @unique
+  address     String?
+  industry    String?
+  website     String?
+
+  /// Konto klienta w portalu — jedno na tozsamosc, wspolne dla wszystkich firm.
+  /// Wczesniej ta role pelnilo `Client.ownerId`, ktore znaczylo naraz "wlasciciel
+  /// handlowy teczki" i "konto klienta". Przy dwoch firmach powiazanie z portalem
+  /// gubilo sie w teczce drugiej firmy.
+  portalUserId String? @unique
+  portalUser   User?   @relation("ClientPortalAccount", fields: [portalUserId], references: [id])
+
+  files Client[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyName])
+}
+
 model Client {
   id                 String          @id @default(cuid())
   companyName        String
@@ -418,6 +448,13 @@ model Client {
   companyId          String
   company            Company         @relation(fields: [companyId], references: [id])
 
+  /// Tozsamosc, ktorej dotyczy ta teczka. Jedna teczka na pare (firma, tozsamosc).
+  identityId String
+  identity   ClientIdentity @relation(fields: [identityId], references: [id])
+
+  /// Wlasna nazwa nadana przez firme. Nazwy kanonicznej z tozsamosci nie zmienia.
+  alias String?
+
   // Lead tab (PDF C.5) — wpisy z pierwszego kontaktu CC
   leadFirstContactNotes String?   @db.Text
   leadNeeds             String?   @db.Text
@@ -429,6 +466,8 @@ model Client {
   updatedAt DateTime @updatedAt
 
   // Relacje
+  /// WYLACZNIE wlasciciel handlowy teczki (pracownik). Konto klienta w portalu
+  /// siedzi w `identity.portalUserId` — to sa dwie rozne rzeczy.
   ownerId String?
   owner   User?   @relation("ClientOwner", fields: [ownerId], references: [id])
 
@@ -450,7 +489,9 @@ model Client {
   meetings    Meeting[]         @relation("MeetingClient")
   structures  StructureClient[] @relation("StructureClientClient")
 
+  @@unique([companyId, identityId])
   @@index([companyId])
+  @@index([identityId])
   @@index([ownerId])
   @@index([caretakerId])
   @@index([sourceId])

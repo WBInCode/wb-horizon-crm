@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { canAccessLead, getCurrentUser } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
 import { logger } from "@/lib/logger"
+import { tozsamoscKlienta } from "@/lib/tozsamosc-klienta"
 
 /** Role prowadzace leady — zgodnie z POST /api/leads. */
 const ROLE_PROWADZACE = ["CALL_CENTER", "SALESPERSON", "ADMIN", "DIRECTOR", "MANAGER"]
@@ -40,10 +41,29 @@ export async function POST(
       )
     }
 
+    const identityId = await tozsamoscKlienta({
+      companyName: lead.companyName,
+      nip: lead.nip,
+      industry: lead.industry,
+      website: lead.website,
+    })
+
+    const juzMa = await prisma.client.findFirst({
+      where: { companyId: lead.companyId, identityId },
+      select: { id: true },
+    })
+    if (juzMa) {
+      return NextResponse.json(
+        { error: "Ten kontrahent jest ju\u017c u Ciebie prowadzony", clientId: juzMa.id },
+        { status: 409 },
+      )
+    }
+
     // Kontrahent powstaje w firmie, ktora prowadzila lead, a nie w firmie klikajacego.
     const client = await prisma.client.create({
       data: {
         companyId: lead.companyId,
+        identityId,
         companyName: lead.companyName,
         nip: lead.nip,
         industry: lead.industry,

@@ -7,6 +7,7 @@ import type { Role } from "@prisma/client"
 import { logger } from "@/lib/logger"
 import { firmaUzytkownika } from "@/lib/company"
 import { prismaFirmy } from "@/lib/prisma-firma"
+import { tozsamoscKlienta } from "@/lib/tozsamosc-klienta"
 
 export async function GET(request: NextRequest) {
   try {
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
 
     // Ograniczenia wg roli (PDF A.2.2 — scope visibility)
     if (user.role === "CLIENT") {
-      where.ownerId = user.id
+      where.identity = { portalUserId: user.id }
     } else if (user.role === "SALESPERSON") {
       warunki.push({
         OR: [{ ownerId: user.id }, { cases: { some: { salesId: user.id } } }],
@@ -130,9 +131,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
     }
 
+    const identityId = await tozsamoscKlienta({
+      companyName: body.companyName,
+      nip: body.nip,
+      industry: body.industry,
+      website: body.website,
+    })
+
+    // Jedna teczka na pare (firma, tozsamosc). Mowimy o WLASNEJ teczce firmy,
+    // wiec to nie zdradza niczego o innych firmach.
+    const juzMa = await prismaFirmy(companyId).client.findFirst({
+      where: { identityId },
+      select: { id: true },
+    })
+    if (juzMa) {
+      return NextResponse.json(
+        { error: "Ten kontrahent jest ju\u017c u Ciebie prowadzony", clientId: juzMa.id },
+        { status: 409 },
+      )
+    }
+
     const client = await prismaFirmy(companyId).client.create({
       data: {
         companyId,
+        identityId,
         companyName: body.companyName,
         nip: body.nip,
         industry: body.industry,

@@ -134,7 +134,7 @@ export async function requireAnyPermission(codes: string[]) {
 export async function canAccessCase(userId: string, role: string, caseId: string): Promise<boolean> {
   const caseData = await prisma.case.findUnique({
     where: { id: caseId },
-    select: { clientId: true, salesId: true, caretakerId: true, directorId: true, client: { select: { ownerId: true } } }
+    select: { clientId: true, salesId: true, caretakerId: true, directorId: true, client: { select: { identity: { select: { portalUserId: true } } } } }
   })
   if (!caseData) return false
 
@@ -158,7 +158,7 @@ export async function canAccessCase(userId: string, role: string, caseId: string
 
   if (role === "SALESPERSON") return caseData.salesId === userId
   if (role === "CARETAKER") return caseData.caretakerId === userId
-  if (role === "CLIENT") return caseData.client?.ownerId === userId
+  if (role === "CLIENT") return caseData.client?.identity?.portalUserId === userId
 
   return false
 }
@@ -223,11 +223,16 @@ export async function canAccessClient(userId: string, role: string, clientId: st
 
   const client = await prisma.client.findUnique({
     where: { id: clientId },
-    select: { ownerId: true, cases: { select: { salesId: true, caretakerId: true } } }
+    select: {
+      ownerId: true,
+      identity: { select: { portalUserId: true } },
+      cases: { select: { salesId: true, caretakerId: true } },
+    },
   })
   if (!client) return false
 
-  if (role === "CLIENT") return client.ownerId === userId
+  // Klient portalu jest przy tozsamosci, wlasciciel handlowy przy teczce — to dwa rozne pola.
+  if (role === "CLIENT") return client.identity?.portalUserId === userId
   if (role === "SALESPERSON" || role === "CARETAKER") {
     return client.ownerId === userId || client.cases.some(
       (c) => c.salesId === userId || c.caretakerId === userId

@@ -15,7 +15,7 @@ export async function GET() {
     }
 
     const client = await prisma.client.findFirst({
-      where: { ownerId: user.id },
+      where: { identity: { portalUserId: user.id } },
       select: {
         id: true,
         companyName: true,

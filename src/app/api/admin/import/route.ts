@@ -17,6 +17,7 @@ import { getImportFields, type ImportResource } from "@/lib/import-schemas"
 import { auditLog } from "@/lib/audit"
 import { logger } from "@/lib/logger"
 import { firmaUzytkownika } from "@/lib/company"
+import { tozsamoscKlienta } from "@/lib/tozsamosc-klienta"
 
 export const runtime = "nodejs"
 
@@ -157,9 +158,19 @@ export async function POST(req: NextRequest) {
     })
     created = result.count
   } else if (resource === "clients") {
-    const result = await prisma.client.createMany({
-      data: validRows.map((d) => ({
+    // Tozsamosci rozwiazujemy pojedynczo, bo createMany nie umie zagniezdzac relacji,
+    // a kazdy wiersz moze trafic na podmiot juz znany platformie.
+    const zTozsamoscia = []
+    for (const d of validRows) {
+      const identityId = await tozsamoscKlienta({
+        companyName: String(d.companyName),
+        nip: d.nip ? String(d.nip) : null,
+        industry: d.industry ? String(d.industry) : null,
+        website: d.website ? String(d.website) : null,
+      })
+      zTozsamoscia.push({
         companyId,
+        identityId,
         companyName: String(d.companyName),
         nip: d.nip ? String(d.nip) : null,
         industry: d.industry ? String(d.industry) : null,
@@ -170,7 +181,13 @@ export async function POST(req: NextRequest) {
         requirements: d.requirements ? String(d.requirements) : null,
         stage: (d.stage as never) ?? "LEAD",
         ownerId: user.id,
-      })),
+      })
+    }
+
+    const result = await prisma.client.createMany({
+      data: zTozsamoscia,
+      // Dwa wiersze z tym samym NIP-em wskaza te sama tozsamosc; wiez
+      // (firma, tozsamosc) odsiewa powtorke zamiast wywalac caly import.
       skipDuplicates: true,
     })
     created = result.count

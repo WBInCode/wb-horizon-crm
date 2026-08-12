@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
     } else if (user.role === "CARETAKER") {
       where.caretakerId = user.id
     } else if (user.role === "CLIENT") {
-      where.client = { ownerId: user.id }
+      where.client = { identity: { portalUserId: user.id } }
     } else if (user.role === "CALL_CENTER") {
       where.salesId = user.id
     } else if (user.role === "DIRECTOR" || user.role === "MANAGER") {

@@ -63,6 +63,7 @@ beforeAll(async () => {
   await prisma.structureMember.deleteMany({})
   await prisma.structure.deleteMany({})
   await prisma.client.deleteMany({ where: { companyName: { startsWith: "[TEST]" } } })
+  await prisma.clientIdentity.deleteMany({ where: { companyName: { startsWith: "[TEST]" } } })
   await prisma.user.deleteMany({ where: { email: { endsWith: "@dwiefirmy.test" } } })
   await prisma.company.deleteMany({ where: { name: { startsWith: "[TEST]" } } })
 
@@ -97,10 +98,32 @@ beforeAll(async () => {
   })
 
   const wspolny = await prisma.client.create({
-    data: { companyName: "[TEST] Klient Wspolny", ownerId: dane.kontoKlienta, companyId: firma.id },
+    data: {
+      companyName: "[TEST] Klient Wspolny",
+      company: { connect: { id: firma.id } },
+      // Konto klienta w portalu wisi przy tozsamosci, nie przy teczce.
+      identity: {
+        create: {
+          companyName: "[TEST] Klient Wspolny",
+          portalUser: { connect: { id: dane.kontoKlienta } },
+        },
+      },
+    },
   })
-  const tylkoAlfa = await prisma.client.create({ data: { companyName: "[TEST] Klient Tylko Alfa", companyId: firma.id } })
-  const tylkoBeta = await prisma.client.create({ data: { companyName: "[TEST] Klient Tylko Beta", companyId: firma.id } })
+  const tylkoAlfa = await prisma.client.create({
+    data: {
+      companyName: "[TEST] Klient Tylko Alfa",
+      company: { connect: { id: firma.id } },
+      identity: { create: { companyName: "[TEST] Klient Tylko Alfa" } },
+    },
+  })
+  const tylkoBeta = await prisma.client.create({
+    data: {
+      companyName: "[TEST] Klient Tylko Beta",
+      company: { connect: { id: firma.id } },
+      identity: { create: { companyName: "[TEST] Klient Tylko Beta" } },
+    },
+  })
   dane.klientWspolny = wspolny.id
   dane.klientTylkoAlfa = tylkoAlfa.id
   dane.klientTylkoBeta = tylkoBeta.id
@@ -108,7 +131,12 @@ beforeAll(async () => {
   // Kontrahent handlowca z Alfy, celowo BEZ przypisania do Struktury —
   // sprawdza zgodnosc filtra listy z kontrola dostepu do rekordu.
   const klientHandlowca = await prisma.client.create({
-    data: { companyName: "[TEST] Klient Handlowca Alfy", ownerId: dane.handlowiecAlfa, companyId: firma.id },
+    data: {
+      companyName: "[TEST] Klient Handlowca Alfy",
+      owner: { connect: { id: dane.handlowiecAlfa } },
+      company: { connect: { id: firma.id } },
+      identity: { create: { companyName: "[TEST] Klient Handlowca Alfy" } },
+    },
   })
   dane.klientHandlowcaAlfy = klientHandlowca.id
 
@@ -228,7 +256,9 @@ describe("Osoba nalezaca do obu firm", () => {
 
 describe("Panel klienta", () => {
   it("klient wchodzi na jeden panel i widzi obie firmy, do ktorych jest przypisany", async () => {
-    const kontrahent = await prisma.client.findFirst({ where: { ownerId: dane.kontoKlienta } })
+    const kontrahent = await prisma.client.findFirst({
+      where: { identity: { portalUserId: dane.kontoKlienta } },
+    })
     expect(kontrahent).not.toBeNull()
 
     const firmy = await prisma.structureClient.findMany({

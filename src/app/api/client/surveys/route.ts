@@ -12,7 +12,7 @@ export async function GET() {
     }
 
     const client = await prisma.client.findFirst({
-      where: { ownerId: user.id },
+      where: { identity: { portalUserId: user.id } },
     })
 
     if (!client) {
@@ -98,7 +98,7 @@ export async function PUT(req: NextRequest) {
     }
 
     // Verify client has access to case
-    const client = await prisma.client.findFirst({ where: { ownerId: user.id } })
+    const client = await prisma.client.findFirst({ where: { identity: { portalUserId: user.id } } })
     if (!client) {
       return NextResponse.json({ error: "Brak przypisanej firmy" }, { status: 403 })
     }

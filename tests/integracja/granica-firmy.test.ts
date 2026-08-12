@@ -30,6 +30,7 @@ beforeAll(async () => {
 
   await prisma.lead.deleteMany({ where: { companyName: { startsWith: "[GRANICA]" } } })
   await prisma.client.deleteMany({ where: { companyName: { startsWith: "[GRANICA]" } } })
+  await prisma.clientIdentity.deleteMany({ where: { companyName: { startsWith: "[GRANICA]" } } })
   await prisma.user.deleteMany({ where: { email: { endsWith: "@granica.test" } } })
   await prisma.company.deleteMany({ where: { name: { startsWith: "[GRANICA]" } } })
 
@@ -58,8 +59,20 @@ beforeAll(async () => {
   dane.leadA = leadA.id
   dane.leadB = leadB.id
 
-  const klientA = await prisma.client.create({ data: { companyName: "[GRANICA] Klient A", companyId: a.id } })
-  const klientB = await prisma.client.create({ data: { companyName: "[GRANICA] Klient B", companyId: b.id } })
+  const klientA = await prisma.client.create({
+    data: {
+      companyName: "[GRANICA] Klient A",
+      company: { connect: { id: a.id } },
+      identity: { create: { companyName: "[GRANICA] Klient A" } },
+    },
+  })
+  const klientB = await prisma.client.create({
+    data: {
+      companyName: "[GRANICA] Klient B",
+      company: { connect: { id: b.id } },
+      identity: { create: { companyName: "[GRANICA] Klient B" } },
+    },
+  })
   dane.klientA = klientA.id
   dane.klientB = klientB.id
 })
@@ -67,6 +80,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await prisma.lead.deleteMany({ where: { companyName: { startsWith: "[GRANICA]" } } })
   await prisma.client.deleteMany({ where: { companyName: { startsWith: "[GRANICA]" } } })
+  await prisma.clientIdentity.deleteMany({ where: { companyName: { startsWith: "[GRANICA]" } } })
   await prisma.user.deleteMany({ where: { email: { endsWith: "@granica.test" } } })
   await prisma.company.deleteMany({ where: { name: { startsWith: "[GRANICA]" } } })
   await prisma.$disconnect()

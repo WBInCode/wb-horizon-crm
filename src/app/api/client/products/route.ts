@@ -16,7 +16,7 @@ export async function GET() {
     }
 
     const client = await prisma.client.findFirst({
-      where: { ownerId: user.id },
+      where: { identity: { portalUserId: user.id } },
     })
 
     if (!client) {
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     const client = await prisma.client.findFirst({
-      where: { ownerId: user.id },
+      where: { identity: { portalUserId: user.id } },
     })
 
     if (!client) {

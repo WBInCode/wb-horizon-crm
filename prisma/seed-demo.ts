@@ -136,8 +136,26 @@ async function main() {
   // ── Kontrahenci (marker: "Nowak-Bud") ──
   let clientMain = await prisma.client.findFirst({ where: { companyName: "Nowak-Bud Sp. z o.o." } })
   if (!clientMain) {
-    const mk = (data: Omit<Prisma.ClientUncheckedCreateInput, "companyId">) =>
-      prisma.client.create({ data: { ...data, companyId: firma.id } })
+    // Konto klienta w portalu wisi przy tozsamosci, nie przy teczce — dlatego `portal`
+    // jest osobnym parametrem, a nie `ownerId` (to wlasciciel handlowy).
+    const mk = async (
+      data: Omit<Prisma.ClientUncheckedCreateInput, "companyId" | "identityId">,
+      portal?: string,
+    ) => {
+      const tozsamosc = await prisma.clientIdentity.create({
+        data: {
+          companyName: String(data.companyName),
+          nip: data.nip ? String(data.nip).replace(/\D/g, "") || null : null,
+          address: data.address ?? null,
+          industry: data.industry ?? null,
+          website: data.website ?? null,
+          portalUserId: portal ?? null,
+        },
+      })
+      return prisma.client.create({
+        data: { ...data, companyId: firma.id, identityId: tozsamosc.id },
+      })
+    }
 
     clientMain = await mk({
       companyName: "Nowak-Bud Sp. z o.o.",
@@ -146,7 +164,6 @@ async function main() {
       address: "ul. Budowlana 12, Warszawa",
       stage: "SALE",
       description: "Generalny wykonawca — segment domów jednorodzinnych.",
-      ownerId: klient.id, // portal klienta końcowego
       caretakerId: opiekun.id,
       sourceId: sources["Polecenia"].id,
       hasWebsite: true,
@@ -163,7 +180,7 @@ async function main() {
           { content: "Preferuje kontakt telefoniczny po 15:00.", authorId: handlowiec.id },
         ],
       },
-    })
+    }, klient.id)
 
     const others = [
       { companyName: "Sigma Dietetyka", stage: "LEAD", industry: "Zdrowie", contact: "Sylwia Sigma" },
