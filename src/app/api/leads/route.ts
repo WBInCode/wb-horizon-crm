@@ -6,6 +6,7 @@ import { auditLog } from "@/lib/audit"
 import { getVisibleUserIds } from "@/lib/structure"
 import { checkRateLimit, LIMITS } from "@/lib/rate-limit"
 import { firmaUzytkownika } from "@/lib/company"
+import { prismaFirmy } from "@/lib/prisma-firma"
 import type { Role, LeadStatus } from "@prisma/client"
 import { logger } from "@/lib/logger"
 
@@ -90,10 +91,15 @@ export async function GET(request: NextRequest) {
         })
       }
     }
-    // ADMIN — bez ograniczeń
+    // ADMIN — bez ograniczen wewnatrz wlasnej firmy
     if (warunki.length > 0) where.AND = warunki
 
-    const leads = await prisma.lead.findMany({
+    // Granica firmy idzie ponizej roli: nawet ADMIN widzi wylacznie swoja firme.
+    // Konto bez firmy nie widzi nic — zamkniete domyslnie.
+    const companyId = await firmaUzytkownika(user.id)
+    if (!companyId) return NextResponse.json([])
+
+    const leads = await prismaFirmy(companyId).lead.findMany({
       where,
       include: {
         assignedSales: {
@@ -148,7 +154,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
     }
 
-    const lead = await prisma.lead.create({
+    const lead = await prismaFirmy(companyId).lead.create({
       data: {
         companyId,
         companyName: body.companyName,

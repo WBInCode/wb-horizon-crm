@@ -34,7 +34,16 @@ async function utworzUzytkownika(
   rola: "DIRECTOR" | "MANAGER" | "SALESPERSON" | "CLIENT"
 ) {
   const u = await prisma.user.create({
-    data: { email, name: imie, password: "niewazne-nie-testujemy-logowania", role: rola },
+    data: {
+      email,
+      name: imie,
+      password: "niewazne-nie-testujemy-logowania",
+      role: rola,
+      // Konta pracownicze musza miec firme, bo kontrola dostepu sprawdza
+      // granice firmy przed rola. Konto klienta zostaje bez firmy celowo:
+      // klient nalezy do wielu firm i granica go nie dotyczy.
+      companyId: rola === "CLIENT" ? null : dane.firma,
+    },
   })
   return u.id
 }

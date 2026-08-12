@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
 import { checkRateLimit, LIMITS } from "@/lib/rate-limit"
 import { getVisibleUserIds } from "@/lib/structure"
+import { firmaUzytkownika } from "@/lib/company"
+import { prismaFirmy } from "@/lib/prisma-firma"
 import type { Role } from "@prisma/client"
 
 function getClientIp(req: NextRequest): string {
@@ -70,6 +72,14 @@ export async function GET(request: NextRequest) {
     leadWhere.OR = [{ assignedSalesId: { in: visible } }, { assignedSalesId: null }]
   }
 
+  // Konto klienta nalezy do wielu firm naraz, wiec granica firmy go nie dotyczy —
+  // jego zakres wyznacza ownerId. Konto pracownicze bez firmy nie znajduje nic.
+  const companyId = user.role === "CLIENT" ? null : await firmaUzytkownika(user.id)
+  if (user.role !== "CLIENT" && !companyId) {
+    return NextResponse.json({ cases: [], clients: [], leads: [] })
+  }
+  const db = companyId ? prismaFirmy(companyId) : prisma
+
   const [cases, clients, leads] = await Promise.all([
     prisma.case.findMany({
       where: {
@@ -90,7 +100,7 @@ export async function GET(request: NextRequest) {
       orderBy: { updatedAt: "desc" },
       take,
     }),
-    prisma.client.findMany({
+    db.client.findMany({
       where: {
         AND: [
           clientWhere,
@@ -110,7 +120,7 @@ export async function GET(request: NextRequest) {
       take,
     }),
     !["CLIENT", "CARETAKER", "KONTRAHENT"].includes(user.role)
-      ? prisma.lead.findMany({
+      ? db.lead.findMany({
           where: {
             AND: [
               leadWhere,

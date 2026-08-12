@@ -6,6 +6,7 @@ import { getVisibleUserIds, getVisibleClientIds } from "@/lib/structure"
 import type { Role } from "@prisma/client"
 import { logger } from "@/lib/logger"
 import { firmaUzytkownika } from "@/lib/company"
+import { prismaFirmy } from "@/lib/prisma-firma"
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,11 +30,17 @@ export async function GET(request: NextRequest) {
       where.archivedAt = null
     }
 
+    // Warunki skladane przez AND. Dwa klucze OR w jednym obiekcie where nadpisuja
+    // sie nawzajem — wczesniej fraza szukania kasowala sie z zawezeniem wg roli.
+    const warunki: Record<string, unknown>[] = []
+
     if (search) {
-      where.OR = [
-        { companyName: { contains: search, mode: "insensitive" } },
-        { nip: { contains: search, mode: "insensitive" } },
-      ]
+      warunki.push({
+        OR: [
+          { companyName: { contains: search, mode: "insensitive" } },
+          { nip: { contains: search, mode: "insensitive" } },
+        ],
+      })
     }
     if (stage) {
       where.stage = stage
@@ -43,15 +50,13 @@ export async function GET(request: NextRequest) {
     if (user.role === "CLIENT") {
       where.ownerId = user.id
     } else if (user.role === "SALESPERSON") {
-      where.OR = [
-        { ownerId: user.id },
-        { cases: { some: { salesId: user.id } } }
-      ]
+      warunki.push({
+        OR: [{ ownerId: user.id }, { cases: { some: { salesId: user.id } } }],
+      })
     } else if (user.role === "CARETAKER") {
-      where.OR = [
-        { caretakerId: user.id },
-        { cases: { some: { caretakerId: user.id } } },
-      ]
+      warunki.push({
+        OR: [{ caretakerId: user.id }, { cases: { some: { caretakerId: user.id } } }],
+      })
     } else if (user.role === "DIRECTOR" || user.role === "MANAGER") {
       const [visibleUsers, visibleClients] = await Promise.all([
         getVisibleUserIds(user.id, user.role as Role),
@@ -65,7 +70,7 @@ export async function GET(request: NextRequest) {
       if (visibleClients !== "ALL" && visibleClients.length > 0) {
         orFilters.push({ id: { in: visibleClients } })
       }
-      if (orFilters.length > 0) where.OR = orFilters
+      if (orFilters.length > 0) warunki.push({ OR: orFilters })
     } else if (user.role === "CALL_CENTER") {
       // CC widzi tylko klientów których jest właścicielem (utworzył)
       where.ownerId = user.id
@@ -73,9 +78,24 @@ export async function GET(request: NextRequest) {
       // Vendor widzi klientów u których jego produkty są w sprzedaży
       where.cases = { some: { product: { vendorId: user.id } } }
     }
-    // ADMIN — bez ograniczeń
+    // ADMIN — bez ograniczen wewnatrz wlasnej firmy
+    if (warunki.length > 0) where.AND = warunki
 
-    const clients = await prisma.client.findMany({
+    // Konto klienta nalezy do wielu firm naraz, wiec granica firmy go nie dotyczy:
+    // jego zakres wyznacza ownerId ustawione wyzej.
+    if (user.role === "CLIENT") {
+      const clients = await prisma.client.findMany({
+        where,
+        include: { contacts: true, _count: { select: { cases: true } } },
+        orderBy: { createdAt: "desc" },
+      })
+      return NextResponse.json(clients)
+    }
+
+    const companyId = await firmaUzytkownika(user.id)
+    if (!companyId) return NextResponse.json([])
+
+    const clients = await prismaFirmy(companyId).client.findMany({
       where,
       include: {
         contacts: true,
@@ -110,7 +130,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
     }
 
-    const client = await prisma.client.create({
+    const client = await prismaFirmy(companyId).client.create({
       data: {
         companyId,
         companyName: body.companyName,
