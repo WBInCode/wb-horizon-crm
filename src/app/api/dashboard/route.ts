@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     } else if (user.role === "CARETAKER") {
       caseFilter.caretakerId = user.id
     } else if (user.role === "CLIENT") {
-      caseFilter.client = { identity: { portalUserId: user.id } }
+      caseFilter.client = { identity: { portalUserId: user.id }, visibleToClient: true }
     }
 
     // Filtr leadów (jeśli rola pozwala)
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     const activityFilter: Record<string, unknown> = { type: "SYSTEM_LOG" }
     if (user.role === "SALESPERSON") activityFilter.case = { salesId: user.id }
     else if (user.role === "CARETAKER") activityFilter.case = { caretakerId: user.id }
-    else if (user.role === "CLIENT") activityFilter.case = { client: { identity: { portalUserId: user.id } } }
+    else if (user.role === "CLIENT") activityFilter.case = { client: { identity: { portalUserId: user.id }, visibleToClient: true } }
 
     // Moje akceptacje
     const myApprovalFilter: Record<string, unknown> = {}
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     const mySalesFilter: Record<string, unknown> = { status: { notIn: ["CLOSED", "CANCELLED"] } }
     if (user.role === "SALESPERSON") mySalesFilter.salesId = user.id
     else if (user.role === "CARETAKER") mySalesFilter.caretakerId = user.id
-    else if (user.role === "CLIENT") mySalesFilter.client = { identity: { portalUserId: user.id } }
+    else if (user.role === "CLIENT") mySalesFilter.client = { identity: { portalUserId: user.id }, visibleToClient: true }
 
     // Wszystkie zapytania równolegle (był sekwencyjny waterfall ~12 round-tripów)
     const [

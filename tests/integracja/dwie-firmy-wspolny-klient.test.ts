@@ -101,6 +101,8 @@ beforeAll(async () => {
     data: {
       companyName: "[TEST] Klient Wspolny",
       company: { connect: { id: firma.id } },
+      // Klient juz korzysta z portalu, wiec firma ma te teczke odslonieta.
+      visibleToClient: true,
       // Konto klienta w portalu wisi przy tozsamosci, nie przy teczce.
       identity: {
         create: {

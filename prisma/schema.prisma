@@ -201,6 +201,7 @@ model Company {
   structures Structure[]
   leads      Lead[]
   clients    Client[]
+  invitations ClientInvitation[]
 
   @@index([status])
 }
@@ -245,6 +246,8 @@ model User {
   clientsOwned     Client[] @relation("ClientOwner")
   clientsCaretaken Client[] @relation("ClientCaretaker")
   clientIdentity   ClientIdentity? @relation("ClientPortalAccount")
+  invitationsSent     ClientInvitation[] @relation("InvitationAuthor")
+  invitationsAccepted ClientInvitation[] @relation("InvitationAcceptor")
 
   casesAsSales     Case[] @relation("CaseSalesperson")
   casesAsCaretaker Case[] @relation("CaseCaretaker")
@@ -398,6 +401,58 @@ model Lead {
   @@index([createdAt])
 }
 
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
+/// Zaproszenie klienta do portalu firmy.
+///
+/// Przypisanie powstaje dopiero po potwierdzeniu przez klienta — samo wyslanie
+/// zaproszenia niczego nie odslania. Token i kod trzymamy wylacznie jako skroty,
+/// tak jak klucze API: wyciek bazy nie ma dawac wejscia na konta klientow.
+model ClientInvitation {
+  id String @id @default(cuid())
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// Teczka, ktorej dotyczy zaproszenie. Po przyjeciu to ona staje sie widoczna.
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  identityId String
+  identity   ClientIdentity @relation(fields: [identityId], references: [id], onDelete: Cascade)
+
+  /// Adres, na ktory poszlo zaproszenie. Sluzy tez do przywitania po nazwie,
+  /// nie do wyszukiwania kont w innych firmach.
+  email String
+
+  /// sha256 tokenu z linku i krotkiego kodu wpisywanego w panelu.
+  tokenHash String  @unique
+  codeHash  String? @unique
+
+  status InvitationStatus @default(PENDING)
+
+  invitedById String
+  invitedBy   User   @relation("InvitationAuthor", fields: [invitedById], references: [id])
+
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  acceptedById String?
+  acceptedBy   User?     @relation("InvitationAcceptor", fields: [acceptedById], references: [id])
+  revokedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([clientId])
+  @@index([identityId])
+  @@index([status])
+}
+
 /// Tozsamosc kontrahenta, wspolna dla calej platformy. Ten sam podmiot obslugiwany
 /// przez dwie firmy ma JEDNA tozsamosc i DWIE teczki (model Client).
 ///
@@ -419,7 +474,8 @@ model ClientIdentity {
   portalUserId String? @unique
   portalUser   User?   @relation("ClientPortalAccount", fields: [portalUserId], references: [id])
 
-  files Client[]
+  files       Client[]
+  invitations ClientInvitation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -455,6 +511,11 @@ model Client {
   /// Wlasna nazwa nadana przez firme. Nazwy kanonicznej z tozsamosci nie zmienia.
   alias String?
 
+  /// Czy klient widzi te teczke w portalu. Zamkniete domyslnie: konto klienta jest
+  /// wspolne dla platformy, wiec bez tego przelacznika przyjecie zaproszenia od
+  /// jednej firmy odslanialoby od razu teczki wszystkich pozostalych.
+  visibleToClient Boolean @default(false)
+
   // Lead tab (PDF C.5) — wpisy z pierwszego kontaktu CC
   leadFirstContactNotes String?   @db.Text
   leadNeeds             String?   @db.Text
@@ -488,6 +549,7 @@ model Client {
   clientNotes ClientNote[]      @relation("ClientNotes")
   meetings    Meeting[]         @relation("MeetingClient")
   structures  StructureClient[] @relation("StructureClientClient")
+  invitations ClientInvitation[]
 
   @@unique([companyId, identityId])
   @@index([companyId])

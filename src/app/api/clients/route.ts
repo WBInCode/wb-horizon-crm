@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
     // Ograniczenia wg roli (PDF A.2.2 — scope visibility)
     if (user.role === "CLIENT") {
       where.identity = { portalUserId: user.id }
+      where.visibleToClient = true
     } else if (user.role === "SALESPERSON") {
       warunki.push({
         OR: [{ ownerId: user.id }, { cases: { some: { salesId: user.id } } }],

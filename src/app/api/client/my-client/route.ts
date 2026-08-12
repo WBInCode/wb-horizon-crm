@@ -15,7 +15,7 @@ export async function GET() {
     }
 
     const client = await prisma.client.findFirst({
-      where: { identity: { portalUserId: user.id } },
+      where: { identity: { portalUserId: user.id }, visibleToClient: true },
       select: {
         id: true,
         companyName: true,

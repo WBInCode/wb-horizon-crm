@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
   const caseWhere: Record<string, unknown> = {}
   if (user.role === "SALESPERSON") caseWhere.salesId = user.id
   else if (user.role === "CARETAKER") caseWhere.caretakerId = user.id
-  else if (user.role === "CLIENT") caseWhere.client = { identity: { portalUserId: user.id } }
+  else if (user.role === "CLIENT") caseWhere.client = { identity: { portalUserId: user.id }, visibleToClient: true }
   else if (user.role === "KONTRAHENT") caseWhere.product = { vendorId: user.id }
   else if (user.role === "CALL_CENTER") caseWhere.client = { ownerId: user.id }
   else if (visible && visible !== "ALL") {
@@ -55,7 +55,10 @@ export async function GET(request: NextRequest) {
   const clientWhere: Record<string, unknown> = {}
   if (user.role === "SALESPERSON") clientWhere.ownerId = user.id
   else if (user.role === "CARETAKER") clientWhere.caretakerId = user.id
-  else if (user.role === "CLIENT") clientWhere.identity = { portalUserId: user.id }
+  else if (user.role === "CLIENT") {
+    clientWhere.identity = { portalUserId: user.id }
+    clientWhere.visibleToClient = true
+  }
   else if (user.role === "KONTRAHENT") clientWhere.cases = { some: { product: { vendorId: user.id } } }
   else if (user.role === "CALL_CENTER") clientWhere.ownerId = user.id
   else if (visible && visible !== "ALL") {
