@@ -85,7 +85,9 @@ describe("detectMagicMime", () => {
 })
 
 function makeFile(content: Uint8Array, name: string, type: string): File {
-  return new File([content], name, { type })
+  // Kopia przez `slice()` daje bufor o znanym typie — typy DOM przyjmuja `ArrayBuffer`,
+  // a nie ogolne `ArrayBufferLike`, ktore zwraca `Uint8Array` w nowszej bibliotece.
+  return new File([content.slice().buffer as ArrayBuffer], name, { type })
 }
 
 describe("assertSafeUpload", () => {
