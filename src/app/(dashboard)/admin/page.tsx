@@ -23,6 +23,7 @@ import StructuresTab from "@/components/admin/StructuresTab"
 import ApiKeysTab from "@/components/admin/ApiKeysTab"
 import CsvImportTab from "@/components/admin/CsvImportTab"
 import { WebhooksTab } from "@/components/admin/WebhooksTab"
+import ZaproszenieDoKonfiguratora from "@/components/admin/ZaproszenieDoKonfiguratora"
 
 const roleLabels: Record<string, string> = {
   ADMIN: "Administrator",
@@ -246,6 +247,8 @@ export default function AdminPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Panel administracyjny</h1>
       </div>
+
+      <ZaproszenieDoKonfiguratora />
 
       <Tabs defaultValue="users" className="w-full">
         <TabsList className="mb-4">

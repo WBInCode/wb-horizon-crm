@@ -211,6 +211,9 @@ model Company {
   /// Kiedy firma przeszla w stan zarchiwizowany — od tego liczy sie termin usuniecia danych.
   archivedAt DateTime?
 
+  /// Kiedy firma przeszla konfigurator startowy. Puste znaczy, ze go nie widziala.
+  setupCompletedAt DateTime?
+
   /// Co klient widzi w sprawie. Sprawa moze to nadpisac; `null` na sprawie znaczy
   /// "jak w firmie". Dziennik zdarzen i sciezka akceptacji NIE sa tu ustawieniem —
   /// to wewnetrzna praca firmy i klient nie widzi ich nigdy.

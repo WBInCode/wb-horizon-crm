@@ -9,6 +9,10 @@ import LokalneLogowanie from "./LokalneLogowanie"
  * niedostepnosci Huba — wlacza je CRM_ALLOW_LOCAL_STAFF_LOGIN=true po stronie
  * serwera, wiec z poziomu przegladarki nie da sie go wywolac.
  */
+// Bez tego strona jest generowana raz, przy budowaniu, i przelacznik dziala dopiero
+// po przebudowaniu obrazu. Wejscie awaryjne ma sie wlaczac samym restartem.
+export const dynamic = "force-dynamic"
+
 export default function AdminLoginPage() {
   if (process.env.CRM_ALLOW_LOCAL_STAFF_LOGIN === "true") {
     return <LokalneLogowanie />
