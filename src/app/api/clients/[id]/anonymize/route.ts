@@ -36,13 +36,21 @@ export async function POST(
     const { id } = await params
     const client = await prisma.client.findUnique({
       where: { id },
-      select: { id: true, companyName: true, archivedAt: true },
+      select: { id: true, companyName: true, archivedAt: true, identityId: true },
     })
     if (!client) {
       return NextResponse.json({ error: "Not found" }, { status: 404 })
     }
 
     const label = `Zanonimizowany ${id.slice(0, 8)}`
+
+    // Nazwa i NIP siedza w tozsamosci wspolnej dla platformy, wiec sama redakcja
+    // teczki by ich nie usunela. Teczka przechodzi na wlasna, pusta tozsamosc;
+    // stara znika dopiero wtedy, gdy nie zostala przy niej zadna teczka innej firmy.
+    const pustaTozsamosc = await prisma.clientIdentity.create({
+      data: { companyName: label },
+      select: { id: true },
+    })
 
     await prisma.$transaction([
       // Dane osobowe kontaktów — usuwamy w całości
@@ -53,6 +61,9 @@ export async function POST(
       prisma.client.update({
         where: { id },
         data: {
+          identityId: pustaTozsamosc.id,
+          alias: null,
+          visibleToClient: false,
           companyName: label,
           nip: null,
           website: null,
@@ -84,13 +95,23 @@ export async function POST(
       }),
     ])
 
+    // Tozsamosc znika dopiero, gdy nie obsluguje jej juz zadna firma.
+    const pozostaleTeczki = await prisma.client.count({ where: { identityId: client.identityId } })
+    if (pozostaleTeczki === 0) {
+      await prisma.clientIdentity.delete({ where: { id: client.identityId } })
+    }
+
     await auditLog({
       action: "DELETE",
       entityType: "CLIENT",
       entityId: id,
       entityLabel: label,
       userId: user.id,
-      metadata: { event: "anonymized", previousLabelHashOnly: true },
+      metadata: {
+        event: "anonymized",
+        previousLabelHashOnly: true,
+        tozsamoscUsunieta: pozostaleTeczki === 0,
+      },
     })
     logger.info("Client anonymized", { clientId: id, by: user.id })
 

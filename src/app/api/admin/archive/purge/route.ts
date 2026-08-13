@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     })
     const clientsToPurge = await prisma.client.findMany({
       where: whereCondition as any,
-      select: { id: true, companyName: true },
+      select: { id: true, companyName: true, identityId: true },
     })
 
     // Delete cases first (due to foreign key relations)
@@ -44,6 +44,14 @@ export async function POST(request: NextRequest) {
     // Delete clients (Cascade will handle related contacts, notes, etc.)
     const deletedClients = await prisma.client.deleteMany({
       where: whereCondition as any,
+    })
+
+    // Tozsamosc znika dopiero, gdy nie obsluguje jej juz zadna firma.
+    const osierocone = await prisma.clientIdentity.deleteMany({
+      where: {
+        id: { in: [...new Set(clientsToPurge.map((c) => c.identityId))] },
+        files: { none: {} },
+      },
     })
 
     await auditLog({
@@ -58,6 +66,7 @@ export async function POST(request: NextRequest) {
         retentionDays: force ? 0 : retentionDays,
         deletedCasesCount: deletedCases.count,
         deletedClientsCount: deletedClients.count,
+        deletedIdentitiesCount: osierocone.count,
         purgedCases: casesToPurge.map((c) => ({ id: c.id, title: c.title })),
         purgedClients: clientsToPurge.map((c) => ({ id: c.id, name: c.companyName })),
       },

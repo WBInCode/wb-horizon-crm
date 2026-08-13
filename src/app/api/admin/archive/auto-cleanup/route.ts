@@ -44,6 +44,9 @@ export async function POST(request: NextRequest) {
       where: whereCondition as any,
     })
 
+    // Tozsamosc znika dopiero, gdy nie obsluguje jej juz zadna firma.
+    const osierocone = await prisma.clientIdentity.deleteMany({ where: { files: { none: {} } } })
+
     if (deletedCases.count > 0 || deletedClients.count > 0) {
       await auditLog({
         action: "DELETE",
@@ -56,6 +59,7 @@ export async function POST(request: NextRequest) {
           retentionDays,
           deletedCasesCount: deletedCases.count,
           deletedClientsCount: deletedClients.count,
+          deletedIdentitiesCount: osierocone.count,
         },
       })
     }
@@ -65,6 +69,7 @@ export async function POST(request: NextRequest) {
       deleted: {
         cases: deletedCases.count,
         clients: deletedClients.count,
+        identities: osierocone.count,
       },
     })
   } catch (error) {
