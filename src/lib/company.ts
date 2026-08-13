@@ -21,11 +21,36 @@ export async function firmaUzytkownika(userId: string): Promise<string | null> {
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { companyId: true },
+    select: { company: { select: { id: true, status: true } } },
   })
-  const companyId = user?.companyId ?? null
+
+  // Firma w archiwum nie daje dostepu do danych. Okres ulgi dziala normalnie —
+  // ma przypominac o platnosci, a nie odcinac ludzi od pracy.
+  const companyId = user?.company && user.company.status !== "ARCHIVED" ? user.company.id : null
   pamiec.set(userId, { companyId, wazneDo: Date.now() + TTL_MS })
   return companyId
+}
+
+export type StanLicencji = {
+  status: "ACTIVE" | "GRACE" | "ARCHIVED"
+  wygasa: Date | null
+  dniDoKonca: number | null
+}
+
+/** Stan licencji dla paska ostrzegawczego. Widzi go wylacznie firma, nigdy jej klienci. */
+export async function stanLicencji(userId: string): Promise<StanLicencji | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, company: { select: { status: true, licenseExpiresAt: true } } },
+  })
+  if (!user || user.role === "CLIENT" || !user.company) return null
+
+  const wygasa = user.company.licenseExpiresAt
+  const dniDoKonca = wygasa
+    ? Math.ceil((wygasa.getTime() - Date.now()) / (24 * 60 * 60 * 1000))
+    : null
+
+  return { status: user.company.status, wygasa, dniDoKonca }
 }
 
 /** Pracownik bez firmy nie moze zakladac danych — to stan po awarii, nie normalna sytuacja. */

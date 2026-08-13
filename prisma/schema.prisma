@@ -203,6 +203,9 @@ model Company {
   clients    Client[]
   invitations ClientInvitation[]
 
+  /// Kiedy firma przeszla w stan zarchiwizowany — od tego liczy sie termin usuniecia danych.
+  archivedAt DateTime?
+
   @@index([status])
 }
 
@@ -405,6 +408,22 @@ enum InvitationStatus {
   PENDING
   ACCEPTED
   REVOKED
+}
+
+/// Zadanie cykliczne — stan trzymany w bazie, bo procesow moze byc wiecej niz jeden.
+///
+/// Blokada jest zapisem warunkowym (`updateMany` z warunkiem na `lockedAt`), wiec dwa
+/// procesy nie wykonaja tego samego zadania rownolegle. Przeterminowana blokada wygasa
+/// sama, zeby ubity kontener nie zatrzymal zadania na zawsze.
+model ScheduledJob {
+  name       String    @id
+  nextRunAt  DateTime  @default(now())
+  lastRunAt  DateTime?
+  lockedAt   DateTime?
+  lastResult String?   @db.Text
+  lastError  String?   @db.Text
+  runCount   Int       @default(0)
+  updatedAt  DateTime  @updatedAt
 }
 
 /// Zaproszenie klienta do portalu firmy.

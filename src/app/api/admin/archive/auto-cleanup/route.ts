@@ -1,7 +1,6 @@
 import { timingSafeEqual } from "node:crypto"
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
-import { auditLog } from "@/lib/audit"
+import { wyczyscArchiwum } from "@/lib/zadania/czyszczenie-archiwum"
 import { logger } from "@/lib/logger"
 
 function timingSafeStringEqual(a: string, b: string): boolean {
@@ -28,49 +27,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const retentionDays = parseInt(process.env.ARCHIVE_RETENTION_DAYS || "30", 10)
-    const cutoffDate = new Date()
-    cutoffDate.setDate(cutoffDate.getDate() - retentionDays)
-
-    const whereCondition = {
-      archivedAt: { not: null, lt: cutoffDate },
-    }
-
-    const deletedCases = await prisma.case.deleteMany({
-      where: whereCondition as any,
-    })
-
-    const deletedClients = await prisma.client.deleteMany({
-      where: whereCondition as any,
-    })
-
-    // Tozsamosc znika dopiero, gdy nie obsluguje jej juz zadna firma.
-    const osierocone = await prisma.clientIdentity.deleteMany({ where: { files: { none: {} } } })
-
-    if (deletedCases.count > 0 || deletedClients.count > 0) {
-      await auditLog({
-        action: "DELETE",
-        entityType: "CASE",
-        entityId: null,
-        entityLabel: "Auto-czyszczenie archiwum",
-        userId: null,
-        metadata: {
-          action: "auto_cleanup",
-          retentionDays,
-          deletedCasesCount: deletedCases.count,
-          deletedClientsCount: deletedClients.count,
-          deletedIdentitiesCount: osierocone.count,
-        },
-      })
-    }
+    const wynik = await wyczyscArchiwum()
 
     return NextResponse.json({
       success: true,
       deleted: {
-        cases: deletedCases.count,
-        clients: deletedClients.count,
-        identities: osierocone.count,
+        cases: wynik.sprawy,
+        clients: wynik.teczki,
+        identities: wynik.tozsamosci,
       },
+      retentionDays: wynik.retencjaDni,
     })
   } catch (error) {
     logger.error("POST failed", error)
