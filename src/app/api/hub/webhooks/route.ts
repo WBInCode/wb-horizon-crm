@@ -14,7 +14,9 @@ import {
   verifyHubSignature,
   invalidateModulesCache,
   parseHubSessionRevocation,
+  fetchInstanceConfig,
 } from "@/lib/hub"
+import { zsynchronizujLicencje } from "@/lib/licencja-huba"
 import { logger } from "@/lib/logger"
 
 export const runtime = "nodejs"
@@ -50,7 +52,23 @@ export async function POST(request: NextRequest) {
   switch (payload.event) {
     case "entitlements.updated": {
       invalidateModulesCache()
-      logger.info("hub webhook: entitlements.updated", { instanceId: payload.instanceId })
+
+      // Zmiana uprawnien to takze zmiana stanu licencji — stad bierze sie moment
+      // wygasniecia, od ktorego liczy sie okres ulgi.
+      const firma = payloadOrgId
+        ? await prisma.company.findUnique({ where: { hubOrgId: payloadOrgId }, select: { id: true } })
+        : null
+      if (firma && payload.instanceId) {
+        try {
+          const konfiguracja = await fetchInstanceConfig(payload.instanceId)
+          const wynik = await zsynchronizujLicencje(firma.id, konfiguracja)
+          logger.info("hub webhook: entitlements.updated", { instanceId: payload.instanceId, ...wynik })
+        } catch (blad) {
+          logger.error("hub webhook: nie udalo sie odswiezyc licencji", blad)
+        }
+      } else {
+        logger.info("hub webhook: entitlements.updated", { instanceId: payload.instanceId })
+      }
       break
     }
     case "session.revoked": {

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma"
 import { logger } from "@/lib/logger"
 import { wyczyscArchiwum } from "@/lib/zadania/czyszczenie-archiwum"
 import { przetworzCyklLicencji } from "@/lib/zadania/cykl-licencji"
+import { uzgodnijLicencje } from "@/lib/zadania/uzgodnienie-licencji"
 
 /**
  * Harmonogram zadan w samym produkcie.
@@ -37,6 +38,11 @@ const ZADANIA: Zadanie[] = [
     nazwa: "cykl-licencji",
     coIleMinut: 60,
     wykonaj: async () => ({ ...(await przetworzCyklLicencji()) }),
+  },
+  {
+    nazwa: "uzgodnienie-licencji",
+    coIleMinut: 24 * 60,
+    wykonaj: async () => ({ ...(await uzgodnijLicencje()) }),
   },
 ]
 

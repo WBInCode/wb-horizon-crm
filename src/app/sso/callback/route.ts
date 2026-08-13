@@ -11,8 +11,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { createHash, randomBytes } from "node:crypto"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
-import { redeemHandoffToken, rememberInstance, hubConfigured, isAllowedTenant } from "@/lib/hub"
+import { redeemHandoffToken, rememberInstance, hubConfigured, isAllowedTenant, fetchInstanceConfig } from "@/lib/hub"
 import { firmaDlaOrganizacjiHuba, zapomnijFirme } from "@/lib/company"
+import { zsynchronizujLicencje } from "@/lib/licencja-huba"
 import { auditLog } from "@/lib/audit"
 import { logger } from "@/lib/logger"
 
@@ -104,6 +105,17 @@ export async function GET(request: NextRequest) {
       const companyId = await firmaDlaOrganizacjiHuba(claims.org.id, claims.instance.id)
       user = await prisma.user.update({ where: { id: user.id }, data: { companyId } })
       zapomnijFirme(user.id)
+    }
+
+    // Stan licencji i nazwa organizacji przychodza z Huba. Nieudane pobranie nie moze
+    // zablokowac logowania — to informacja uzupelniajaca, a nie warunek wejscia.
+    if (user.companyId) {
+      try {
+        const konfiguracja = await fetchInstanceConfig(claims.instance.id)
+        await zsynchronizujLicencje(user.companyId, konfiguracja)
+      } catch (blad) {
+        logger.warn("SSO: nie udalo sie pobrac stanu licencji z Huba", { blad })
+      }
     }
 
     // Jednorazowy ticket (60 s) — konsumowany przez provider "hub-sso"

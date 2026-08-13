@@ -71,8 +71,10 @@ export async function redeemHandoffToken(token: string): Promise<HubRedeemResult
   return res.json()
 }
 
-/** Entitlements API — lista włączonych modułów instancji. */
-export async function fetchInstanceConfig(instanceId: string): Promise<{ modules: string[] }> {
+/** Entitlements API — konfiguracja instancji: moduly, stan licencji, nazwa organizacji. */
+export async function fetchInstanceConfig(
+  instanceId: string,
+): Promise<{ modules: string[]; status?: string; orgName?: string; plan?: string }> {
   const res = await fetch(`${HUB_URL}/api/v1/instances/${instanceId}/config`, {
     headers: {
       "x-sso-client-id": CLIENT_ID,
