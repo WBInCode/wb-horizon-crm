@@ -40,3 +40,41 @@ export async function wymagajFirmy(userId: string): Promise<string> {
   if (!companyId) throw new BrakFirmyError()
   return companyId
 }
+
+/**
+ * Firma odpowiadajaca organizacji z Huba — zakladana przy pierwszym wejsciu.
+ *
+ * Zakladamy leniwie, przy logowaniu, a nie na zdarzenie webhookowe z Huba:
+ * webhook da sie przegapic, gdy dostarczenie padnie, a logowania nie da sie
+ * przegapic z definicji. Nazwa jest zastepcza, bo bilet SSO nie niesie nazwy
+ * organizacji — administrator nadaje wlasciwa w konfiguratorze startowym.
+ */
+export async function firmaDlaOrganizacjiHuba(orgId: string, instanceId: string): Promise<string> {
+  const znaleziona = await prisma.company.findUnique({
+    where: { hubOrgId: orgId },
+    select: { id: true },
+  })
+  if (znaleziona) return znaleziona.id
+
+  try {
+    const nowa = await prisma.company.create({
+      data: {
+        name: `Firma ${orgId.slice(0, 8)}`,
+        hubOrgId: orgId,
+        hubInstanceId: instanceId,
+      },
+      select: { id: true },
+    })
+    return nowa.id
+  } catch (blad: unknown) {
+    // Dwa rownolegle logowania z tej samej organizacji: kolizja znaczy, ze ktos byl szybszy.
+    if ((blad as { code?: string }).code === "P2002") {
+      const cudza = await prisma.company.findUnique({
+        where: { hubOrgId: orgId },
+        select: { id: true },
+      })
+      if (cudza) return cudza.id
+    }
+    throw blad
+  }
+}

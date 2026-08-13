@@ -12,6 +12,7 @@ import { createHash, randomBytes } from "node:crypto"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 import { redeemHandoffToken, rememberInstance, hubConfigured, isAllowedTenant } from "@/lib/hub"
+import { firmaDlaOrganizacjiHuba, zapomnijFirme } from "@/lib/company"
 import { auditLog } from "@/lib/audit"
 import { logger } from "@/lib/logger"
 
@@ -92,6 +93,15 @@ export async function GET(request: NextRequest) {
     if (user.status !== "ACTIVE") {
       loginUrl.searchParams.set("sso_error", "inactive")
       return NextResponse.redirect(loginUrl)
+    }
+
+    // Firma organizacji zaklada sie przy pierwszym wejsciu. Konto bez firmy nie
+    // widzi w CRM niczego, wiec bez tego kroku nowa organizacja dostawalaby
+    // dzialajace logowanie i puste okno.
+    if (!user.companyId) {
+      const companyId = await firmaDlaOrganizacjiHuba(claims.org.id, claims.instance.id)
+      user = await prisma.user.update({ where: { id: user.id }, data: { companyId } })
+      zapomnijFirme(user.id)
     }
 
     // Jednorazowy ticket (60 s) — konsumowany przez provider "hub-sso"
