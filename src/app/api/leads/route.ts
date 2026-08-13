@@ -7,6 +7,7 @@ import { getVisibleUserIds } from "@/lib/structure"
 import { checkRateLimit, LIMITS } from "@/lib/rate-limit"
 import { firmaUzytkownika } from "@/lib/company"
 import { prismaFirmy } from "@/lib/prisma-firma"
+import { dataZFormularza } from "@/lib/daty"
 import type { Role, LeadStatus } from "@prisma/client"
 import { logger } from "@/lib/logger"
 
@@ -28,11 +29,11 @@ const createLeadSchema = z.object({
   position: z.string().max(100).optional().nullable(),
   email: z.string().email().optional().nullable().or(z.literal("")),
   isDecisionMaker: z.boolean().optional(),
-  meetingDate: z.string().datetime().optional().nullable(),
+  meetingDate: dataZFormularza.optional().nullable(),
   notes: z.string().max(5000).optional().nullable(),
   needs: z.string().max(2000).optional().nullable(),
   nextStep: z.string().max(500).optional().nullable(),
-  nextStepDate: z.string().datetime().optional().nullable(),
+  nextStepDate: dataZFormularza.optional().nullable(),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).optional().nullable(),
   // Dowolny tekst przechodzil walidacje i wywalal sie dopiero na bazie jako 500.
   status: z.enum([

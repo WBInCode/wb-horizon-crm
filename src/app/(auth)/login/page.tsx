@@ -1,9 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Building2, ArrowRight, Eye, EyeOff } from "lucide-react"
+
+const POWODY_SSO: Record<string, string> = {
+  org: "To konto jest przypisane do innej organizacji niż ta, z której nastąpiło logowanie. Skontaktuj się z administratorem.",
+  tenant: "Ta instalacja nie obsługuje organizacji, z której nastąpiło logowanie.",
+  inactive: "Konto jest nieaktywne.",
+}
 
 export default function ClientLoginPage() {
   const router = useRouter()
@@ -12,6 +18,15 @@ export default function ClientLoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+
+  // Odczyt z window, nie z useSearchParams: ten drugi wciaga strone w prerender
+  // i wymaga granicy Suspense.
+  useEffect(() => {
+    const powod = new URLSearchParams(window.location.search).get("sso_error")
+    if (powod) {
+      setError(POWODY_SSO[powod] ?? "Logowanie przez Platformę nie powiodło się.")
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

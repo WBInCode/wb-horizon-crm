@@ -98,6 +98,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(loginUrl)
     }
 
+    // Konto nalezy do jednej firmy. Dopasowanie po e-mailu wyzej nie sprawdza, z ktorej
+    // organizacji przyszedl bilet, wiec bez tego kroku osoba z organizacji B wchodzi do
+    // firmy organizacji A, gdy tylko adres sie zgadza.
+    if (user.companyId) {
+      const firma = await prisma.company.findUnique({
+        where: { id: user.companyId },
+        select: { hubOrgId: true },
+      })
+      if (firma?.hubOrgId && firma.hubOrgId !== claims.org.id) {
+        logger.warn("SSO: konto nalezy do firmy innej organizacji", {
+          userId: user.id,
+          firmaOrgId: firma.hubOrgId,
+          biletOrgId: claims.org.id,
+        })
+        await auditLog({
+          action: "LOGIN_REFUSED",
+          entityType: "USER",
+          entityId: user.id,
+          entityLabel: user.name,
+          userId: user.id,
+          metadata: { event: "sso_obca_organizacja", firmaOrgId: firma.hubOrgId, biletOrgId: claims.org.id },
+        })
+        loginUrl.searchParams.set("sso_error", "org")
+        return NextResponse.redirect(loginUrl)
+      }
+    }
+
     // Firma organizacji zaklada sie przy pierwszym wejsciu. Konto bez firmy nie
     // widzi w CRM niczego, wiec bez tego kroku nowa organizacja dostawalaby
     // dzialajace logowanie i puste okno.

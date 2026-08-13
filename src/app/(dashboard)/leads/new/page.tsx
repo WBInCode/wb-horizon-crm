@@ -22,17 +22,6 @@ const statusLabels: Record<string, string> = {
   CLOSED: "Zamknięty",
 }
 
-const sourceOptions = [
-  "Cold call",
-  "Strona www",
-  "Polecenie",
-  "Social media",
-  "Targi/Konferencja",
-  "Email marketing",
-  "Reklama",
-  "Inne",
-]
-
 const priorityLabels: Record<string, string> = {
   LOW: "Niski",
   MEDIUM: "Średni",
@@ -44,13 +33,14 @@ export default function NewLeadPage() {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [users, setUsers] = useState<any[]>([])
+  const [sources, setSources] = useState<{ id: string; name: string }[]>([])
 
   const [form, setForm] = useState({
     companyName: "",
     nip: "",
     industry: "",
     website: "",
-    source: "",
+    sourceId: "",
     contactPerson: "",
     position: "",
     phone: "",
@@ -71,6 +61,10 @@ export default function NewLeadPage() {
       .then((r) => r.ok ? r.json() : [])
       .then((data) => setUsers(Array.isArray(data) ? data : []))
       .catch(() => {})
+    fetch("/api/lead-sources")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setSources(Array.isArray(data) ? data : []))
+      .catch(() => {})
   }, [])
 
   const salespersons = users.filter((u) => ["SALESPERSON", "ADMIN"].includes(u.role))
@@ -89,6 +83,7 @@ export default function NewLeadPage() {
         body: JSON.stringify({
           ...form,
           assignedSalesId: form.assignedSalesId || undefined,
+          sourceId: form.sourceId || undefined,
           meetingDate: form.meetingDate || undefined,
           nextStepDate: form.nextStepDate || undefined,
           priority: form.priority || undefined,
@@ -149,13 +144,15 @@ export default function NewLeadPage() {
             </div>
             <div>
               <label className="text-sm font-medium">Źródło</label>
-              <Select value={form.source} onValueChange={(v) => upd("source", v)}>
+              <Select value={form.sourceId} onValueChange={(v) => upd("sourceId", v)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Wybierz źródło">{form.source || undefined}</SelectValue>
+                  <SelectValue placeholder="Wybierz źródło">
+                    {sources.find((s) => s.id === form.sourceId)?.name || undefined}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {sourceOptions.map((s) => (
-                    <SelectItem key={s} value={s} label={s}>{s}</SelectItem>
+                  {sources.map((s) => (
+                    <SelectItem key={s.id} value={s.id} label={s.name}>{s.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

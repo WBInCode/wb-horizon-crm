@@ -12,6 +12,7 @@ export type AuditAction =
   | "REASSIGN"
   | "ASSIGN_CARETAKER"
   | "LOGIN"
+  | "LOGIN_REFUSED"
   | "UPLOAD"
   | "APPROVE"
   | "REJECT"

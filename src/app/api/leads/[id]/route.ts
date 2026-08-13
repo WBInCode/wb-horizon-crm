@@ -3,6 +3,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { canAccessLead, getCurrentUser } from "@/lib/auth"
 import { auditLog, diffChanges } from "@/lib/audit"
+import { dataZFormularza } from "@/lib/daty"
 import { logger } from "@/lib/logger"
 
 /** Role, ktore w ogole prowadza leady - zgodnie z POST /api/leads. */
@@ -19,7 +20,7 @@ const updateLeadSchema = z.object({
   position: z.string().max(100).nullable().optional(),
   email: z.string().max(200).nullable().optional(),
   isDecisionMaker: z.boolean().optional(),
-  meetingDate: z.string().datetime().nullable().optional(),
+  meetingDate: dataZFormularza.nullable().optional(),
   status: z.enum([
     "NEW", "TO_CONTACT", "IN_CONTACT", "MEETING_SCHEDULED", "AFTER_MEETING",
     "QUALIFIED", "NOT_QUALIFIED", "TRANSFERRED", "CLOSED",
@@ -29,7 +30,7 @@ const updateLeadSchema = z.object({
   assignedSalesId: z.string().nullable().optional(),
   convertedToClientId: z.string().nullable().optional(),
   nextStep: z.string().max(500).nullable().optional(),
-  nextStepDate: z.string().datetime().nullable().optional(),
+  nextStepDate: dataZFormularza.nullable().optional(),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).nullable().optional(),
 })
 
