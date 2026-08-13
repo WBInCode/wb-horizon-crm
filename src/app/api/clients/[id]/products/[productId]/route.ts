@@ -21,7 +21,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
     const hasAccess = await canAccessClient(user.id, user.role, id)
     if (!hasAccess) {
-      return NextResponse.json({ error: "Brak dostępu do kontrahenta" }, { status: 403 })
+      return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
     }
 
     // Sprawdź czy produkt należy do tego kontrahenta
@@ -77,7 +77,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
     const hasAccess = await canAccessClient(user.id, user.role, id)
     if (!hasAccess) {
-      return NextResponse.json({ error: "Brak dostępu do kontrahenta" }, { status: 403 })
+      return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
     }
 
     // Sprawdź czy produkt należy do tego kontrahenta

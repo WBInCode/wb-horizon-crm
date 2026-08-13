@@ -40,7 +40,7 @@ export async function GET(
 
     const { id } = await params
     if (!(await canAccessClient(user.id, user.role, id))) {
-      return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
+      return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
     }
 
     const cases = await prisma.case.findMany({

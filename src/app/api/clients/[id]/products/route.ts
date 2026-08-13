@@ -53,7 +53,7 @@ export async function POST(
 
     const hasAccess = await canAccessClient(user.id, user.role, id)
     if (!hasAccess) {
-      return NextResponse.json({ error: "Brak dostępu do kontrahenta" }, { status: 403 })
+      return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
     }
 
     const body = await request.json()

@@ -23,7 +23,7 @@ export async function GET(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const access = await canAccessClient(user.id, user.role, id)
-  if (!access) return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
+  if (!access) return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
 
   const client = await prisma.client.findUnique({
     where: { id },
@@ -54,7 +54,7 @@ export async function PUT(
     return NextResponse.json({ error: "Brak uprawnień" }, { status: 403 })
   }
   const access = await canAccessClient(user.id, user.role, id)
-  if (!access) return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
+  if (!access) return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
 
   const body = await req.json().catch(() => ({}))
 

@@ -55,9 +55,11 @@ export async function GET(
     }
 
     // Sprawdź dostęp do klienta
+    // 404, nie 403: rozroznienie miedzy "nie ma" a "jest, ale nie dla ciebie" mowi
+    // klientowi, ze prowadzi go jeszcze inna firma, ktora sie przed nim nie ujawnila.
     const hasAccess = await canAccessClient(user.id, user.role, id)
     if (!hasAccess) {
-      return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
+      return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
     }
 
     return NextResponse.json(client)
@@ -82,7 +84,10 @@ export async function PUT(
     // Sprawdź dostęp — role z uprawnieniem clients.edit; CARETAKER nadal musi
     // przejść canAccessClient (tylko przypisani klienci).
     const hasAccess = await canAccessClient(user.id, user.role, id)
-    if (!hasAccess || !["SALESPERSON", "CARETAKER", "ADMIN", "DIRECTOR"].includes(user.role)) {
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
+    }
+    if (!["SALESPERSON", "CARETAKER", "ADMIN", "DIRECTOR"].includes(user.role)) {
       return NextResponse.json({ error: "Brak uprawnień do edycji" }, { status: 403 })
     }
 
