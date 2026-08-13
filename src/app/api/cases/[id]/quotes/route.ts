@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
+import { klientWidzi } from "@/lib/zakres-klienta"
 import { auditLog } from "@/lib/audit"
 import { logger } from "@/lib/logger"
 
@@ -22,12 +23,15 @@ export async function GET(
       return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
     }
 
+    if (!(await klientWidzi(user.role, id, "wyceny"))) {
+      return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
+    }
+
     const quotes = await prisma.quote.findMany({
       where: { caseId: id },
       include: { lineItems: { orderBy: { sortOrder: "asc" } } },
       orderBy: { updatedAt: "desc" }
     })
-
     return NextResponse.json(quotes)
   } catch (error) {
     logger.error("GET failed", error)

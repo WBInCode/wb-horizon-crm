@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
+import { klientWidzi } from "@/lib/zakres-klienta"
 import { notifyProcessParticipants } from "@/lib/notifications"
 import { logger } from "@/lib/logger"
 
@@ -24,6 +25,10 @@ export async function GET(
 
     const { searchParams } = new URL(request.url)
     const type = searchParams.get("type")
+
+    if (!(await klientWidzi(user.role, id, "czat"))) {
+      return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
+    }
 
     const where: Record<string, unknown> = { caseId: id }
     if (type) where.type = type
@@ -67,6 +72,11 @@ export async function POST(
     }
 
     const body = await request.json()
+
+    // Czat zamkniety dla klienta znaczy tez, ze klient do niego nie pisze.
+    if (!(await klientWidzi(user.role, id, "czat"))) {
+      return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
+    }
 
     // Wymuszaj typ wiadomości wg roli
     let messageType = body.type || "CHAT"

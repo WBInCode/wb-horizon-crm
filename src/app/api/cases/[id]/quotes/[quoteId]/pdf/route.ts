@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
+import { klientWidzi } from "@/lib/zakres-klienta"
 import { auditLog } from "@/lib/audit"
 import { generateQuotePdf } from "@/lib/quote-pdf"
 import { logger } from "@/lib/logger"
@@ -40,8 +41,9 @@ export async function GET(
     const { id, quoteId } = await params
     if (!(await canAccessCase(user.id, user.role, id))) {
       return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
+    }    if (!(await klientWidzi(user.role, id, "wyceny"))) {
+      return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
     }
-
     // caseId w WHERE jest krytyczny: quoteId nie może pochodzić z innej sprawy.
     const quote = await prisma.quote.findFirst({
       where: { id: quoteId, caseId: id },

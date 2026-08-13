@@ -30,7 +30,8 @@ export async function PATCH(
       return NextResponse.json({ error: "Brak uprawnień do akceptacji plików" }, { status: 403 })
     }
 
-    const file = await prisma.caseFile.findUnique({ where: { id: fileId } })
+    const file = await prisma.caseFile.findFirst({ where: { id: fileId, caseId: id } })
+    if (!file) return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
 
     const updated = await prisma.caseFile.update({
       where: { id: fileId },
@@ -104,11 +105,14 @@ export async function DELETE(
     }
 
     // Tylko uploader, CARETAKER, DIRECTOR, ADMIN mogą usuwać pliki
-    const file = await prisma.caseFile.findUnique({ where: { id: fileId } })
-    if (file && file.uploadedById !== user.id && !["CARETAKER", "DIRECTOR", "ADMIN"].includes(user.role)) {
-      return NextResponse.json({ error: "Brak uprawnień do usunięcia pliku" }, { status: 403 })
+    // Plik musi nalezec do TEJ sprawy — dostep sprawdzamy dla sprawy z adresu,
+    // wiec bez tego sam identyfikator pliku siegalby do cudzej sprawy.
+    const file = await prisma.caseFile.findFirst({ where: { id: fileId, caseId: id } })
+    if (!file) return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
+    if (file.uploadedById !== user.id && !["CARETAKER", "DIRECTOR", "ADMIN"].includes(user.role)) {
+      return NextResponse.json({ error: "Brak uprawnie\u0144 do usuni\u0119cia pliku" }, { status: 403 })
     }
-    if (file?.deletedAt) {
+    if (file.deletedAt) {
       return NextResponse.json({ error: "Plik już został usunięty" }, { status: 410 })
     }
 

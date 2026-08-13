@@ -12,7 +12,11 @@ export async function GET(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { id } = await params
-
+  // Dziennik zdarzen to wewnetrzna praca firmy: kto co zmienil i o ktorej godzinie,
+  // z imieniem i rola. Klient nie widzi go nigdy, niezaleznie od ustawien firmy.
+  if (user.role === "CLIENT") {
+    return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
+  }
   const access = await canAccessCase(user.id, user.role, id)
   if (!access) return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
 

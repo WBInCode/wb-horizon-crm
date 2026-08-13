@@ -206,6 +206,14 @@ model Company {
   /// Kiedy firma przeszla w stan zarchiwizowany — od tego liczy sie termin usuniecia danych.
   archivedAt DateTime?
 
+  /// Co klient widzi w sprawie. Sprawa moze to nadpisac; `null` na sprawie znaczy
+  /// "jak w firmie". Dziennik zdarzen i sciezka akceptacji NIE sa tu ustawieniem —
+  /// to wewnetrzna praca firmy i klient nie widzi ich nigdy.
+  clientSeesQuotes    Boolean @default(true)
+  clientSeesFiles     Boolean @default(true)
+  clientSeesChecklist Boolean @default(false)
+  clientSeesChat      Boolean @default(true)
+
   @@index([status])
 }
 
@@ -636,6 +644,12 @@ model Case {
   detailedStatus SaleDetailedStatus @default(WAITING_SURVEY)
   commercialData Json?
   archivedAt     DateTime?
+
+  /// Nadpisanie zakresu widocznego klientowi. `null` znaczy \"jak w ustawieniu firmy\".
+  clientSeesQuotes    Boolean?
+  clientSeesFiles     Boolean?
+  clientSeesChecklist Boolean?
+  clientSeesChat      Boolean?
 
   // Dane ankiety (uproszczone MVP)
   surveyNeeds       String?   @db.Text

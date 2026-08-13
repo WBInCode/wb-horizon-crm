@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
+import { klientWidzi } from "@/lib/zakres-klienta"
 
 // GET /api/cases/[id]/quotes/[quoteId]/line-items
 export async function GET(
@@ -11,10 +12,14 @@ export async function GET(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id, quoteId } = await params
   if (!(await canAccessCase(user.id, user.role, id)))
-    return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
+    return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
+  if (!(await klientWidzi(user.role, id, "wyceny")))
+    return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
 
+  // Wycena musi nalezec do TEJ sprawy — inaczej sam jej identyfikator wystarczy,
+  // zeby odczytac pozycje z cudzej sprawy.
   const items = await prisma.quoteLineItem.findMany({
-    where: { quoteId },
+    where: { quoteId, quote: { caseId: id } },
     orderBy: { sortOrder: "asc" },
   })
   return NextResponse.json(items)

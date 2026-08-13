@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
+import { klientWidzi } from "@/lib/zakres-klienta"
 import { put } from "@vercel/blob"
 import { auditLog } from "@/lib/audit"
 import { assertSafeUpload } from "@/lib/file-safety"
@@ -24,6 +25,10 @@ export async function GET(
     const hasAccess = await canAccessCase(user.id, user.role, id)
     if (!hasAccess) {
       return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
+    }
+
+    if (!(await klientWidzi(user.role, id, "pliki"))) {
+      return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
     }
 
     const files = await prisma.caseFile.findMany({

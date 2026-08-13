@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
+import { klientWidzi } from "@/lib/zakres-klienta"
 import { auditLog } from "@/lib/audit"
 import { logger } from "@/lib/logger"
 
@@ -20,6 +21,10 @@ export async function GET(
     const hasAccess = await canAccessCase(user.id, user.role, id)
     if (!hasAccess) {
       return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
+    }
+
+    if (!(await klientWidzi(user.role, id, "wyceny"))) {
+      return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
     }
 
     const quote = await prisma.quote.findFirst({

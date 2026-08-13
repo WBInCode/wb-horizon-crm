@@ -21,7 +21,13 @@ export async function PATCH(
     if (!hasAccess) {
       return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
     }
-
+    // Element musi nalezec do TEJ sprawy — dostep sprawdzamy dla sprawy z adresu,
+    // wiec bez tego sam identyfikator elementu siegalby do cudzej sprawy.
+    const naliscie = await prisma.caseChecklistItem.findFirst({
+      where: { id: itemId, caseId: id },
+      select: { id: true },
+    })
+    if (!naliscie) return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
     const body = await request.json()
 
     const item = await prisma.caseChecklistItem.update({
@@ -78,7 +84,11 @@ export async function DELETE(
     if (!hasAccess || !["ADMIN", "DIRECTOR", "CARETAKER"].includes(user.role)) {
       return NextResponse.json({ error: "Brak uprawnień" }, { status: 403 })
     }
-
+    const naliscie = await prisma.caseChecklistItem.findFirst({
+      where: { id: itemId, caseId: id },
+      select: { id: true },
+    })
+    if (!naliscie) return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
     await prisma.caseChecklistItem.delete({
       where: { id: itemId }
     })

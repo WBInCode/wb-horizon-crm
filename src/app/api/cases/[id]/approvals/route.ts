@@ -91,6 +91,12 @@ export async function GET(
 
     const { id } = await params
 
+    // Sciezka akceptacji to wewnetrzna praca firmy — kto zatwierdzil i kiedy.
+    // Klient nie widzi jej nigdy, niezaleznie od ustawien firmy.
+    if (user.role === "CLIENT") {
+      return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
+    }
+
     const hasAccess = await canAccessCase(user.id, user.role, id)
     if (!hasAccess) {
       return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })

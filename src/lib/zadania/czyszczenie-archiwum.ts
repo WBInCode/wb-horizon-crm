@@ -19,6 +19,30 @@ export function dniPrzechowywania(): number {
   return Number.isFinite(wartosc) && wartosc > 0 ? wartosc : 30
 }
 
+/**
+ * Kasuje tozsamosci, przy ktorych nie zostala zadna teczka.
+ *
+ * Miedzy sprawdzeniem "brak teczek" a usunieciem ktos moze zalozyc teczke dla tej
+ * tozsamosci i wtedy baza odrzuca usuniecie. Bez obslugi tego przypadku pojedynczy
+ * zbieg okolicznosci przerywal cale czyszczenie, czyli retencja po cichu przestawala
+ * dzialac — dokladnie ta awaria, ktora ten harmonogram mial usunac.
+ *
+ * Dodatkowo pomijamy tozsamosci ruszane w ostatniej godzinie: swiezo zalozona
+ * tozsamosc czeka na swoja teczke i nie jest zadna sierota.
+ */
+export async function usunOsieroconeTozsamosci(): Promise<number> {
+  const godzineTemu = new Date(Date.now() - 60 * 60 * 1000)
+  try {
+    const wynik = await prisma.clientIdentity.deleteMany({
+      where: { files: { none: {} }, updatedAt: { lt: godzineTemu } },
+    })
+    return wynik.count
+  } catch (blad: unknown) {
+    if ((blad as { code?: string }).code === "P2003") return 0
+    throw blad
+  }
+}
+
 export async function wyczyscArchiwum(options?: { retencjaDni?: number }): Promise<WynikCzyszczenia> {
   const retencjaDni = options?.retencjaDni ?? dniPrzechowywania()
   const granica = new Date()
@@ -28,11 +52,9 @@ export async function wyczyscArchiwum(options?: { retencjaDni?: number }): Promi
 
   const sprawy = await prisma.case.deleteMany({ where: warunek })
   const teczki = await prisma.client.deleteMany({ where: warunek })
+  const osierocone = await usunOsieroconeTozsamosci()
 
-  // Tozsamosc znika dopiero, gdy nie obsluguje jej juz zadna firma.
-  const tozsamosci = await prisma.clientIdentity.deleteMany({ where: { files: { none: {} } } })
-
-  if (sprawy.count > 0 || teczki.count > 0 || tozsamosci.count > 0) {
+  if (sprawy.count > 0 || teczki.count > 0 || osierocone > 0) {
     await auditLog({
       action: "DELETE",
       entityType: "CASE",
@@ -44,7 +66,7 @@ export async function wyczyscArchiwum(options?: { retencjaDni?: number }): Promi
         retentionDays: retencjaDni,
         deletedCasesCount: sprawy.count,
         deletedClientsCount: teczki.count,
-        deletedIdentitiesCount: tozsamosci.count,
+        deletedIdentitiesCount: osierocone,
       },
     })
   }
@@ -52,7 +74,7 @@ export async function wyczyscArchiwum(options?: { retencjaDni?: number }): Promi
   return {
     sprawy: sprawy.count,
     teczki: teczki.count,
-    tozsamosci: tozsamosci.count,
+    tozsamosci: osierocone,
     retencjaDni,
   }
 }

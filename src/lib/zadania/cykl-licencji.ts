@@ -96,9 +96,22 @@ export async function przetworzCyklLicencji(): Promise<WynikCykluLicencji> {
     select: { id: true, name: true },
   })
   for (const firma of doUsuniecia) {
+    // Zapamietujemy tozsamosci PRZED usunieciem teczek — potem nie da sie ich juz odszukac.
+    const teczkiFirmy = await prisma.client.findMany({
+      where: { companyId: firma.id },
+      select: { identityId: true },
+    })
+    const tozsamosciFirmy = [...new Set(teczkiFirmy.map((t) => t.identityId))]
+
     const leady = await prisma.lead.deleteMany({ where: { companyId: firma.id } })
     const teczki = await prisma.client.deleteMany({ where: { companyId: firma.id } })
-    await prisma.clientIdentity.deleteMany({ where: { files: { none: {} } } })
+
+    // Tozsamosc znika tylko wtedy, gdy nie obsluguje jej juz zadna inna firma.
+    if (tozsamosciFirmy.length > 0) {
+      await prisma.clientIdentity.deleteMany({
+        where: { id: { in: tozsamosciFirmy }, files: { none: {} } },
+      })
+    }
 
     await auditLog({
       action: "DELETE",
