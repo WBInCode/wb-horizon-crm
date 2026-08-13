@@ -66,7 +66,9 @@ export async function GET(request: NextRequest) {
         })
       } else {
         const role = mapRole(claims.instance.role)
-        const roleTemplate = await prisma.roleTemplate.findUnique({ where: { name: role } })
+        const roleTemplate = await prisma.roleTemplate.findFirst({
+          where: { name: role, companyId: null },
+        })
         user = await prisma.user.create({
           data: {
             email: claims.user.email,

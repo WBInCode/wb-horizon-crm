@@ -22,7 +22,7 @@ const PASSWORD = "admin123"
 async function ensureUser(email: string, name: string, role: "ADMIN" | "DIRECTOR" | "MANAGER" | "CARETAKER" | "SALESPERSON" | "CALL_CENTER" | "CLIENT" | "KONTRAHENT", roleTemplateName?: string, companyId?: string) {
   const password = await bcrypt.hash(PASSWORD, 10)
   const roleTemplate = roleTemplateName
-    ? await prisma.roleTemplate.findUnique({ where: { name: roleTemplateName } })
+    ? await prisma.roleTemplate.findFirst({ where: { name: roleTemplateName, companyId: null } })
     : null
   // Konto klienta celowo bez firmy — klient bywa obslugiwany przez kilka naraz.
   const firma = role === "CLIENT" ? null : (companyId ?? null)
@@ -49,11 +49,15 @@ async function main() {
     { name: "MANAGER", label: "Manager", description: "Zarządzanie pod-strukturą", color: "#0ea5e9" },
     { name: "KONTRAHENT", label: "Kontrahent (vendor)", description: "Panel vendora i kreator produktu", color: "#f97316" },
   ]) {
-    await prisma.roleTemplate.upsert({
-      where: { name: cfg.name },
-      update: {},
-      create: { ...cfg, isSystem: true, isDefault: false },
+    // Rola systemowa nie nalezy do zadnej firmy — companyId zostaje puste.
+    const istnieje = await prisma.roleTemplate.findFirst({
+      where: { name: cfg.name, companyId: null },
     })
+    if (!istnieje) {
+      await prisma.roleTemplate.create({
+        data: { ...cfg, isSystem: true, isDefault: false },
+      })
+    }
   }
 
   // ── Firma, do ktorej naleza dane pokazowe ──

@@ -168,11 +168,22 @@ async function main() {
   const roleTemplateMap: Record<string, string> = {}
 
   for (const config of roleTemplateConfigs) {
-    const rt = await prisma.roleTemplate.upsert({
-      where: { name: config.name },
-      update: { label: config.label, description: config.description, color: config.color, isDefault: config.isDefault },
-      create: { ...config, isSystem: true },
+    // Role systemowe nie naleza do zadnej firmy, wiec szukamy po parze (brak firmy, nazwa).
+    const istniejaca = await prisma.roleTemplate.findFirst({
+      where: { name: config.name, companyId: null },
+      select: { id: true },
     })
+    const rt = istniejaca
+      ? await prisma.roleTemplate.update({
+          where: { id: istniejaca.id },
+          data: {
+            label: config.label,
+            description: config.description,
+            color: config.color,
+            isDefault: config.isDefault,
+          },
+        })
+      : await prisma.roleTemplate.create({ data: { ...config, isSystem: true } })
     roleTemplateMap[config.name] = rt.id
   }
   console.log(`  ✓ ${roleTemplateConfigs.length} role templates`)

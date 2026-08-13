@@ -1,6 +1,22 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requirePermission } from "@/lib/auth"
+import { firmaUzytkownika } from "@/lib/company"
+
+/**
+ * Rola do zmiany musi byc wlasna rola firmy.
+ *
+ * Rola systemowa jest wspolna dla calej platformy, wiec jej zmiana przez jedna firme
+ * zmienialaby uprawnienia u wszystkich pozostalych. Wczesniej nic tego nie blokowalo.
+ */
+async function wlasnaRolaFirmy(id: string, userId: string) {
+  const companyId = await firmaUzytkownika(userId)
+  if (!companyId) return null
+  return prisma.roleTemplate.findFirst({
+    where: { id, companyId, isSystem: false },
+    include: { _count: { select: { users: true } } },
+  })
+}
 
 // PUT /api/admin/roles/[id] - update role template and its permissions
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -11,8 +27,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const body = await req.json()
   const { label, description, color, permissionIds } = body
 
-  const existing = await prisma.roleTemplate.findUnique({ where: { id } })
-  if (!existing) return NextResponse.json({ error: "Rola nie istnieje" }, { status: 404 })
+  const existing = await wlasnaRolaFirmy(id, user.id)
+  if (!existing) return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
 
   // Update role template fields
   const updated = await prisma.roleTemplate.update({
@@ -48,16 +64,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   const { id } = await params
 
-  const existing = await prisma.roleTemplate.findUnique({
-    where: { id },
-    include: { _count: { select: { users: true } } },
-  })
+  const existing = await wlasnaRolaFirmy(id, user.id)
 
-  if (!existing) return NextResponse.json({ error: "Rola nie istnieje" }, { status: 404 })
-
-  if (existing.isSystem) {
-    return NextResponse.json({ error: "Nie można usunąć roli systemowej" }, { status: 403 })
-  }
+  if (!existing) return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
 
   if (existing._count.users > 0) {
     return NextResponse.json({ error: "Nie można usunąć roli przypisanej do użytkowników" }, { status: 409 })
