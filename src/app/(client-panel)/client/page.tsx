@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { teczkiKlienta } from "@/lib/zakres-klienta"
+import { teczkiKlienta, sprawyKlientaZZakresem } from "@/lib/zakres-klienta"
 import { redirect } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -57,36 +57,42 @@ export default async function ClientDashboardPage() {
     )
   }
 
+  const zakresy = await sprawyKlientaZZakresem(teczki.map((t) => t.id))
+
   const cases = await prisma.case.findMany({
     where: { clientId: { in: teczki.map((t) => t.id) } },
     include: {
-      _count: { select: { files: true, checklist: true, messages: true } },
+      _count: {
+        select: {
+          // Licznik ma pokazywac to, co klient moze otworzyc — inaczej zdradza,
+          // ile wewnetrznej roboty odbylo sie w sprawie.
+          files: { where: { deletedAt: null } },
+          checklist: true,
+          messages: { where: { visibilityScope: { in: ["ALL", "CLIENT"] } } },
+        },
+      },
     },
     orderBy: { updatedAt: "desc" },
   })
 
-  // Firmy (Struktury), ktore obsluguja tego Kontrahenta — jeden Kontrahent moze nalezec do kilku
-  const przypisaniaFirm = await prisma.structureClient.findMany({
-    where: { clientId: { in: teczki.map((t) => t.id) } },
-    select: {
-      createdAt: true,
-      structure: {
-        select: {
-          id: true,
-          name: true,
-          director: { select: { name: true, email: true, phone: true } },
-        },
-      },
-    },
-    orderBy: { createdAt: "asc" },
+  // Firmy prowadzace klienta — te, ktore same sie przed nim odslonily.
+  const firmy = teczki.map((t) => t.companyId).filter((x): x is string => !!x)
+  const przypisaniaFirm = await prisma.company.findMany({
+    where: { id: { in: firmy } },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
   })
 
   const totalCases = cases.length
   const activeCases = cases.filter(
     (c) => !["CLOSED", "CANCELLED"].includes(c.status)
   ).length
-  const totalFiles = cases.reduce((sum, c) => sum + c._count.files, 0)
-  const totalMessages = cases.reduce((sum, c) => sum + c._count.messages, 0)
+  const totalFiles = cases
+    .filter((c) => zakresy.get(c.id)?.pliki)
+    .reduce((sum, c) => sum + c._count.files, 0)
+  const totalMessages = cases
+    .filter((c) => zakresy.get(c.id)?.czat)
+    .reduce((sum, c) => sum + c._count.messages, 0)
 
   const kpis = [
     { label: "Wszystkie sprzedaże", value: totalCases, icon: Briefcase, color: "var(--content-muted)" },
@@ -147,23 +153,16 @@ export default async function ClientDashboardPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {przypisaniaFirm.map(({ structure }) => (
+              {przypisaniaFirm.map((firma) => (
                 <div
-                  key={structure.id}
+                  key={firma.id}
                   className="flex items-start gap-3 rounded-lg p-4"
                   style={{ background: "var(--surface-2)" }}
                 >
                   <Building2 className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "var(--brand)" }} strokeWidth={1.5} />
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate" style={{ color: "var(--content-strong)" }}>
-                      {structure.name}
-                    </p>
-                    <p className="text-xs mt-1" style={{ color: "var(--content-muted)" }}>
-                      Opiekun: {structure.director.name}
-                    </p>
-                    <p className="text-xs truncate" style={{ color: "var(--content-muted)" }}>
-                      {structure.director.email}
-                      {structure.director.phone ? ` · ${structure.director.phone}` : ""}
+                      {firma.name}
                     </p>
                   </div>
                 </div>

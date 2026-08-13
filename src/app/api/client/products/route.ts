@@ -16,7 +16,7 @@ export async function GET() {
     }
 
     const client = await prisma.client.findFirst({
-      where: { identity: { portalUserId: user.id } },
+      where: { identity: { portalUserId: user.id }, visibleToClient: true },
     })
 
     if (!client) {
@@ -48,8 +48,10 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
+    // Bez `visibleToClient` produkt trafialby do teczki firmy, ktora sie przed
+    // klientem nie odslonila.
     const client = await prisma.client.findFirst({
-      where: { identity: { portalUserId: user.id } },
+      where: { identity: { portalUserId: user.id }, visibleToClient: true },
     })
 
     if (!client) {
