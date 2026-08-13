@@ -171,6 +171,53 @@ export async function sprawdzKod(kod: string): Promise<StanZaproszenia> {
   }
 }
 
+/** Klient transakcyjny Prismy — potrzebny, bo rejestracja i przyjecie musza pojsc razem. */
+type Transakcja = Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
+
+async function przyjmijWTransakcji(
+  tx: Transakcja,
+  zaproszenieId: string,
+  userId: string,
+): Promise<{ ok: true; clientId: string } | { ok: false; powod: PowodOdmowy }> {
+  const zaproszenie = await tx.clientInvitation.findUnique({
+    where: { id: zaproszenieId },
+    select: { id: true, clientId: true, identityId: true, status: true, expiresAt: true },
+  })
+  if (!zaproszenie) return { ok: false, powod: "brak" as const }
+
+  const powod = czyWazne(zaproszenie)
+  if (powod) return { ok: false, powod }
+
+  const tozsamosc = await tx.clientIdentity.findUnique({
+    where: { id: zaproszenie.identityId },
+    select: { portalUserId: true },
+  })
+  if (tozsamosc?.portalUserId && tozsamosc.portalUserId !== userId) {
+    return { ok: false, powod: "konto-zajete-przez-kogo-innego" as const }
+  }
+
+  if (!tozsamosc?.portalUserId) {
+    await tx.clientIdentity.update({
+      where: { id: zaproszenie.identityId },
+      data: { portalUserId: userId },
+    })
+  }
+
+  // Odslania sie WYLACZNIE teczka zapraszajacej firmy. Teczki pozostalych firm
+  // zostaja zamkniete, dopoki same nie zaprosza.
+  await tx.client.update({
+    where: { id: zaproszenie.clientId },
+    data: { visibleToClient: true },
+  })
+
+  await tx.clientInvitation.update({
+    where: { id: zaproszenie.id },
+    data: { status: "ACCEPTED", acceptedAt: new Date(), acceptedById: userId },
+  })
+
+  return { ok: true as const, clientId: zaproszenie.clientId }
+}
+
 /**
  * Przyjecie zaproszenia przez zalogowanego klienta.
  *
@@ -182,43 +229,57 @@ export async function przyjmijZaproszenie(
   zaproszenieId: string,
   userId: string,
 ): Promise<{ ok: true; clientId: string } | { ok: false; powod: PowodOdmowy }> {
+  return prisma.$transaction((tx) => przyjmijWTransakcji(tx, zaproszenieId, userId))
+}
+
+export type PowodOdmowyRejestracji = PowodOdmowy | "konto-juz-istnieje"
+
+/**
+ * Zalozenie konta klienta z zaproszenia.
+ *
+ * Adres bierzemy Z ZAPROSZENIA, nie od rejestrujacego sie. Dzieki temu nie da sie
+ * zalozyc konta na cudzy adres ani podmienic adresu po drodze — konto powstaje
+ * dokladnie na ten, ktory wskazala firma.
+ *
+ * Konto i przyjecie zaproszenia ida w jednej transakcji. Inaczej nieudane przyjecie
+ * (np. tozsamosc zajeta przez kogos innego) zostawialoby konto-sierote.
+ */
+export async function zarejestrujZZaproszenia(params: {
+  zaproszenieId: string
+  email: string
+  name: string
+  passwordHash: string
+}): Promise<{ ok: true; userId: string; clientId: string } | { ok: false; powod: PowodOdmowyRejestracji }> {
   return prisma.$transaction(async (tx) => {
-    const zaproszenie = await tx.clientInvitation.findUnique({
-      where: { id: zaproszenieId },
-      select: { id: true, clientId: true, identityId: true, status: true, expiresAt: true },
-    })
-    if (!zaproszenie) return { ok: false, powod: "brak" as const }
+    const email = params.email.trim().toLowerCase()
 
-    const powod = czyWazne(zaproszenie)
-    if (powod) return { ok: false, powod }
+    const istniejace = await tx.user.findUnique({ where: { email }, select: { id: true } })
+    if (istniejace) return { ok: false as const, powod: "konto-juz-istnieje" as const }
 
-    const tozsamosc = await tx.clientIdentity.findUnique({
-      where: { id: zaproszenie.identityId },
-      select: { portalUserId: true },
-    })
-    if (tozsamosc?.portalUserId && tozsamosc.portalUserId !== userId) {
-      return { ok: false, powod: "konto-zajete-przez-kogo-innego" as const }
-    }
-
-    if (!tozsamosc?.portalUserId) {
-      await tx.clientIdentity.update({
-        where: { id: zaproszenie.identityId },
-        data: { portalUserId: userId },
-      })
-    }
-
-    // Odslania sie WYLACZNIE teczka zapraszajacej firmy. Teczki pozostalych firm
-    // zostaja zamkniete, dopoki same nie zaprosza.
-    await tx.client.update({
-      where: { id: zaproszenie.clientId },
-      data: { visibleToClient: true },
+    const konto = await tx.user.create({
+      data: {
+        email,
+        name: params.name,
+        password: params.passwordHash,
+        role: "CLIENT",
+        status: "ACTIVE",
+      },
+      select: { id: true },
     })
 
-    await tx.clientInvitation.update({
-      where: { id: zaproszenie.id },
-      data: { status: "ACCEPTED", acceptedAt: new Date(), acceptedById: userId },
-    })
+    const wynik = await przyjmijWTransakcji(tx, params.zaproszenieId, konto.id)
+    if (!wynik.ok) throw new OdmowaPrzyjecia(wynik.powod)
 
-    return { ok: true as const, clientId: zaproszenie.clientId }
+    return { ok: true as const, userId: konto.id, clientId: wynik.clientId }
+  }).catch((blad: unknown) => {
+    // Transakcja wycofuje konto; powod odmowy przenosimy na zewnatrz wyjatkiem.
+    if (blad instanceof OdmowaPrzyjecia) return { ok: false as const, powod: blad.powod }
+    throw blad
   })
+}
+
+class OdmowaPrzyjecia extends Error {
+  constructor(readonly powod: PowodOdmowy) {
+    super(powod)
+  }
 }

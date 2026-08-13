@@ -9,6 +9,7 @@ import {
   sprawdzToken,
   sprawdzKod,
   przyjmijZaproszenie,
+  zarejestrujZZaproszenia,
   znormalizujKod,
   nowyKod,
   skrot,
@@ -254,5 +255,90 @@ describe("przelacznik widocznosci naprawde blokuje", () => {
       data: { visibleToClient: true },
     })
     expect(await canAccessClient(dane.klient, "CLIENT", dane.teczkaB)).toBe(true)
+  })
+})
+
+describe("rejestracja z zaproszenia", () => {
+  const HASLO_HASH = "$2a$04$nieistotnydlategotestuhashXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+
+  it("zaklada konto na adres z zaproszenia i od razu je przyjmuje", async () => {
+    const tozsamosc = await prisma.clientIdentity.create({
+      data: { companyName: "[ZAPRO] Nowy podmiot", nip: "8888888888" },
+    })
+    const teczka = await prisma.client.create({
+      data: {
+        companyName: "[ZAPRO] Nowy podmiot",
+        company: { connect: { id: dane.firmaA } },
+        identity: { connect: { id: tozsamosc.id } },
+      },
+    })
+    const zaproszenie = await utworzZaproszenie({
+      clientId: teczka.id,
+      companyId: dane.firmaA,
+      identityId: tozsamosc.id,
+      email: "nowy@zapro.test",
+      invitedById: dane.handlowiecA,
+    })
+
+    const wynik = await zarejestrujZZaproszenia({
+      zaproszenieId: zaproszenie.id,
+      email: "nowy@zapro.test",
+      name: "Nowy Klient",
+      passwordHash: HASLO_HASH,
+    })
+    expect(wynik.ok).toBe(true)
+    if (!wynik.ok) return
+
+    const konto = await prisma.user.findUnique({ where: { id: wynik.userId } })
+    expect(konto?.email).toBe("nowy@zapro.test")
+    expect(konto?.role).toBe("CLIENT")
+    expect(konto?.status).toBe("ACTIVE")
+
+    const poZmianie = await prisma.clientIdentity.findUnique({ where: { id: tozsamosc.id } })
+    expect(poZmianie?.portalUserId).toBe(wynik.userId)
+    expect((await prisma.client.findUnique({ where: { id: teczka.id } }))?.visibleToClient).toBe(true)
+  })
+
+  it("nie zaklada drugiego konta na zajety adres", async () => {
+    const zaproszenie = await zapros(dane.teczkaA, dane.firmaA)
+    const wynik = await zarejestrujZZaproszenia({
+      zaproszenieId: zaproszenie.id,
+      email: "klient@zapro.test",
+      name: "Podszywacz",
+      passwordHash: HASLO_HASH,
+    })
+    expect(wynik).toEqual({ ok: false, powod: "konto-juz-istnieje" })
+  })
+
+  it("nieudane przyjecie nie zostawia konta-sieroty", async () => {
+    // Tozsamosc ma juz konto dane.klient, wiec przyjecie musi odmowic.
+    const zaproszenie = await zapros(dane.teczkaA, dane.firmaA)
+    const wynik = await zarejestrujZZaproszenia({
+      zaproszenieId: zaproszenie.id,
+      email: "sierota@zapro.test",
+      name: "Sierota",
+      passwordHash: HASLO_HASH,
+    })
+    expect(wynik).toEqual({ ok: false, powod: "konto-zajete-przez-kogo-innego" })
+
+    const konto = await prisma.user.findUnique({ where: { email: "sierota@zapro.test" } })
+    expect(konto).toBeNull()
+  })
+
+  it("wygasle zaproszenie nie zaklada konta", async () => {
+    const zaproszenie = await zapros(dane.teczkaA, dane.firmaA)
+    await prisma.clientInvitation.update({
+      where: { id: zaproszenie.id },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    })
+
+    const wynik = await zarejestrujZZaproszenia({
+      zaproszenieId: zaproszenie.id,
+      email: "spozniony@zapro.test",
+      name: "Spozniony",
+      passwordHash: HASLO_HASH,
+    })
+    expect(wynik).toEqual({ ok: false, powod: "wygaslo" })
+    expect(await prisma.user.findUnique({ where: { email: "spozniony@zapro.test" } })).toBeNull()
   })
 })
