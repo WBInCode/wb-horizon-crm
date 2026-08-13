@@ -1,5 +1,6 @@
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { zakresKlientaDlaSprawy, POLA_WEWNETRZNE_ANKIETY } from "@/lib/zakres-klienta"
 import { redirect, notFound } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -93,9 +94,15 @@ export default async function ClientCaseDetailPage({
 
   if (!caseData) notFound()
 
+  const zakres = await zakresKlientaDlaSprawy(id)
+
   const survey = caseData.surveys[0]
-  const surveySchema = survey?.schemaJson as any[] | null
-  const surveyAnswers = survey?.answersJson as Record<string, any> | null
+  const schemat = survey?.schemaJson as { questions?: { id: string; label?: string; type?: string }[] } | null
+  const surveyAnswers = survey?.answersJson as Record<string, unknown> | null
+  // Pytania z etykietami; pola robocze firmy nie wychodza do klienta.
+  const pytania = (schemat?.questions ?? []).filter(
+    (q) => q.type !== "heading" && !POLA_WEWNETRZNE_ANKIETY.includes(q.id),
+  )
 
   return (
     <div className="p-6 space-y-6">
@@ -169,6 +176,7 @@ export default async function ClientCaseDetailPage({
       </Card>
 
       {/* Files */}
+      {zakres.pliki && (
       <Card className="reveal reveal-delay-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-[0.9375rem]">
@@ -204,8 +212,10 @@ export default async function ClientCaseDetailPage({
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Checklist */}
+      {zakres.listaKontrolna && (
       <Card className="reveal reveal-delay-3">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-[0.9375rem]">
@@ -250,8 +260,10 @@ export default async function ClientCaseDetailPage({
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Messages */}
+      {zakres.czat && (
       <Card className="reveal reveal-delay-4">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-[0.9375rem]">
@@ -287,56 +299,36 @@ export default async function ClientCaseDetailPage({
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Survey */}
-      {survey && (
+      {survey && pytania.length > 0 && (
         <Card className="reveal reveal-delay-5">
           <CardHeader>
             <CardTitle className="text-[0.9375rem]">Ankieta</CardTitle>
           </CardHeader>
           <CardContent>
-            {surveySchema && surveySchema.length > 0 ? (
-              <div className="space-y-3">
-                {surveySchema.map((q: any, idx: number) => {
-                  const answer = surveyAnswers
-                    ? surveyAnswers[q.question] || surveyAnswers[`q${idx}`] || null
-                    : null
-                  return (
-                    <div key={idx} className="space-y-1">
-                      <p className="text-sm font-medium" style={{ color: "var(--content-strong)" }}>
-                        {q.question || q.label || `Pytanie ${idx + 1}`}
-                      </p>
-                      {answer ? (
-                        <p className="text-sm" style={{ color: "var(--content-default)" }}>
-                          {String(answer)}
-                        </p>
-                      ) : (
-                        <p className="text-sm italic" style={{ color: "var(--content-subtle)" }}>
-                          Brak odpowiedzi
-                        </p>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            ) : surveyAnswers ? (
-              <div className="space-y-3">
-                {Object.entries(surveyAnswers).map(([key, val]) => (
-                  <div key={key} className="space-y-1">
+            <div className="space-y-3">
+              {pytania.map((q) => {
+                const odpowiedz = surveyAnswers ? surveyAnswers[q.id] : null
+                return (
+                  <div key={q.id} className="space-y-1">
                     <p className="text-sm font-medium" style={{ color: "var(--content-strong)" }}>
-                      {key}
+                      {q.label || q.id}
                     </p>
-                    <p className="text-sm" style={{ color: "var(--content-default)" }}>
-                      {String(val)}
-                    </p>
+                    {odpowiedz !== null && odpowiedz !== undefined && String(odpowiedz) !== "" ? (
+                      <p className="text-sm" style={{ color: "var(--content-default)" }}>
+                        {String(odpowiedz)}
+                      </p>
+                    ) : (
+                      <p className="text-sm italic" style={{ color: "var(--content-subtle)" }}>
+                        Brak odpowiedzi
+                      </p>
+                    )}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm" style={{ color: "var(--content-subtle)" }}>
-                Brak odpowiedzi
-              </p>
-            )}
+                )
+              })}
+            </div>
           </CardContent>
         </Card>
       )}

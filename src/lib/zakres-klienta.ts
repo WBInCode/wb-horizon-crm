@@ -24,6 +24,12 @@ export const ZAKRES_ZAMKNIETY: ZakresKlienta = {
   czat: false,
 }
 
+/**
+ * Pola ankiety, ktore sa robocza notatka firmy, a nie odpowiedzia klienta.
+ * Domyslny formularz sprawy ma „Uwagi handlowca" tuz obok „Uwag klienta".
+ */
+export const POLA_WEWNETRZNE_ANKIETY = ["salesNotes"]
+
 export async function zakresKlientaDlaSprawy(caseId: string): Promise<ZakresKlienta> {
   const sprawa = await prisma.case.findUnique({
     where: { id: caseId },
