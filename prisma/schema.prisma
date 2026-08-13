@@ -494,6 +494,14 @@ model ClientIdentity {
   industry    String?
   website     String?
 
+  /// Kanoniczne dane kontaktowe podmiotu. Firma ich nie zmienia — moze je nadpisac
+  /// u siebie na teczce. Puste nadpisanie znaczy "jak tutaj".
+  phone                 String?
+  email                 String?
+  contactPerson         String?
+  position              String?
+  correspondenceAddress String?
+
   /// Konto klienta w portalu — jedno na tozsamosc, wspolne dla wszystkich firm.
   /// Wczesniej ta role pelnilo `Client.ownerId`, ktore znaczylo naraz "wlasciciel
   /// handlowy teczki" i "konto klienta". Przy dwoch firmach powiazanie z portalem
@@ -537,6 +545,14 @@ model Client {
 
   /// Wlasna nazwa nadana przez firme. Nazwy kanonicznej z tozsamosci nie zmienia.
   alias String?
+
+  /// Nadpisania kontaktowe tej firmy. Puste pole znaczy "jak w tozsamosci".
+  /// NIP, nazwa i adres rejestrowy nadpisaniu NIE podlegaja — od tego jest `alias`.
+  phoneOverride                 String?
+  emailOverride                 String?
+  contactPersonOverride         String?
+  positionOverride              String?
+  correspondenceAddressOverride String?
 
   /// Czy klient widzi te teczke w portalu. Zamkniete domyslnie: konto klienta jest
   /// wspolne dla platformy, wiec bez tego przelacznika przyjecie zaproszenia od

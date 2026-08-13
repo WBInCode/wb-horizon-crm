@@ -9,6 +9,7 @@ type NotificationType =
   | "CARETAKER_CHANGED"
   | "MEETING_CREATED"
   | "STAGE_CHANGED"
+  | "CLIENT_CONTACT_CHANGED"
 
 export async function createNotification(
   userId: string,
