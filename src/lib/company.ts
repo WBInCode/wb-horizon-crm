@@ -90,6 +90,10 @@ export async function firmaDlaOrganizacjiHuba(orgId: string, instanceId: string)
       },
       select: { id: true },
     })
+    // Nowa firma zaczyna od pustych slownikow, wiec nie da sie nawet oznaczyc
+    // zrodla pozysku. Podstawowy zestaw daje dzialajacy punkt wyjscia.
+    const { zalozDomyslneSlowniki } = await import("@/lib/slowniki")
+    await zalozDomyslneSlowniki(nowa.id)
     return nowa.id
   } catch (blad: unknown) {
     // Dwa rownolegle logowania z tej samej organizacji: kolizja znaczy, ze ktos byl szybszy.

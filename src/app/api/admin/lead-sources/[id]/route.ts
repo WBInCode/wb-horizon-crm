@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requirePermission } from "@/lib/auth"
+import { firmaUzytkownika } from "@/lib/company"
+
+/** Zrodlo musi nalezec do firmy wywolujacego — sam identyfikator nie wystarcza. */
+async function zrodloWFirmie(id: string, userId: string) {
+  const companyId = await firmaUzytkownika(userId)
+  if (!companyId) return null
+  return prisma.leadSource.findFirst({ where: { id, companyId }, select: { id: true } })
+}
 
 // PDF A.4.2 — edycja / usunięcie / dezaktywacja źródła pozysku
 
@@ -10,6 +18,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params
   const body = await req.json()
+
+  if (!(await zrodloWFirmie(id, user.id))) {
+    return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
+  }
 
   const data: Record<string, unknown> = {}
   if (typeof body.name === "string" && body.name.trim()) data.name = body.name.trim()
@@ -34,6 +46,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!user) return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
 
   const { id } = await params
+
+  if (!(await zrodloWFirmie(id, user.id))) {
+    return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
+  }
 
   // Sprawdź czy nie jest używane — jeśli tak, zablokuj usunięcie i zaproponuj dezaktywację
   const [leadCount, clientCount, caseCount] = await Promise.all([

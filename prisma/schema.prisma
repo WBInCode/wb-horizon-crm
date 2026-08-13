@@ -202,6 +202,10 @@ model Company {
   leads      Lead[]
   clients    Client[]
   invitations ClientInvitation[]
+  leadSources        LeadSource[]
+  surveyTemplates    SurveyTemplate[]
+  checklistTemplates ChecklistTemplate[]
+  cooperationTerms   CooperationTerms[]
 
   /// Kiedy firma przeszla w stan zarchiwizowany — od tego liczy sie termin usuniecia danych.
   archivedAt DateTime?
@@ -928,7 +932,13 @@ model SurveyTemplate {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  /// Szablon ankiety to sposob pracy firmy — konkurencja nie ma go widziec.
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   globalProducts GlobalProduct[] @relation("SurveyTemplateProducts")
+
+  @@index([companyId])
 }
 
 model ChecklistTemplate {
@@ -940,7 +950,12 @@ model ChecklistTemplate {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   globalProducts GlobalProduct[] @relation("ChecklistTemplateProducts")
+
+  @@index([companyId])
 }
 
 model GlobalProduct {
@@ -965,6 +980,11 @@ model CooperationTerms {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
 }
 
 // ==================== DYNAMIC PERMISSIONS ====================
@@ -1013,15 +1033,22 @@ model RolePermission {
 // PDF A.4.2 — Sposoby pozysku zarządzane przez admina
 model LeadSource {
   id        String   @id @default(cuid())
-  name      String   @unique
+  name      String
   isActive  Boolean  @default(true)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// Zrodla pozysku sa wlasnoscia firmy — to informacja handlowa, nie slownik platformy.
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   leads   Lead[]   @relation("LeadSourceRef")
   clients Client[] @relation("ClientSource")
   cases   Case[]   @relation("CaseSource")
+
+  @@unique([companyId, name])
+  @@index([companyId])
 }
 
 // PDF B.6.4 / C.6 — Spotkania

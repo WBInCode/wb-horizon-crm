@@ -79,9 +79,9 @@ async function main() {
   const sources: Record<string, { id: string }> = {}
   for (let i = 0; i < sourceNames.length; i++) {
     sources[sourceNames[i]] = await prisma.leadSource.upsert({
-      where: { name: sourceNames[i] },
+      where: { companyId_name: { companyId: firma.id, name: sourceNames[i] } },
       update: {},
-      create: { name: sourceNames[i], sortOrder: i },
+      create: { companyId: firma.id, name: sourceNames[i], sortOrder: i },
     })
   }
   console.log("  ✓ źródła leadów")
