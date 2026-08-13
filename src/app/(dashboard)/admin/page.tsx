@@ -19,6 +19,7 @@ import CooperationTermsTab from "@/components/admin/CooperationTermsTab"
 import ArchiveManagementTab from "@/components/admin/ArchiveManagementTab"
 import RolesPermissionsTab from "@/components/admin/RolesPermissionsTab"
 import LeadSourcesTab from "@/components/admin/LeadSourcesTab"
+import WidokKlientaTab from "@/components/admin/WidokKlientaTab"
 import StructuresTab from "@/components/admin/StructuresTab"
 import ApiKeysTab from "@/components/admin/ApiKeysTab"
 import CsvImportTab from "@/components/admin/CsvImportTab"
@@ -259,6 +260,7 @@ export default function AdminPage() {
           <TabsTrigger value="products">Produkty/Usługi</TabsTrigger>
           <TabsTrigger value="terms">Warunki współpracy</TabsTrigger>
           <TabsTrigger value="sources">Sposoby pozysku</TabsTrigger>
+          <TabsTrigger value="widok-klienta">Widok klienta</TabsTrigger>
           <TabsTrigger value="structures">Struktury</TabsTrigger>
           <TabsTrigger value="archive">Archiwum</TabsTrigger>
           <TabsTrigger value="api-keys">Klucze API</TabsTrigger>
@@ -592,6 +594,10 @@ export default function AdminPage() {
 
         <TabsContent value="sources">
           <LeadSourcesTab />
+        </TabsContent>
+
+        <TabsContent value="widok-klienta">
+          <WidokKlientaTab />
         </TabsContent>
 
         <TabsContent value="structures">
