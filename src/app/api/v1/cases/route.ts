@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { firmaUzytkownika } from "@/lib/company"
 import { withApiAuth, parsePagination } from "@/lib/api-auth"
 
 export const runtime = "nodejs"
@@ -30,7 +31,7 @@ const CASE_SELECT = {
   archivedAt: true,
 } as const
 
-export const GET = withApiAuth("cases:read", async (req: NextRequest) => {
+export const GET = withApiAuth("cases:read", async (req: NextRequest, ctx) => {
   const url = new URL(req.url)
   const { limit, cursor } = parsePagination(url)
   const stage = url.searchParams.get("stage")
@@ -38,7 +39,14 @@ export const GET = withApiAuth("cases:read", async (req: NextRequest) => {
   const clientId = url.searchParams.get("clientId")
   const archived = url.searchParams.get("archived") === "true"
 
+  // Klucz API nalezy do osoby, a ta do firmy — tak samo jak w /v1/leads i /v1/clients.
+  const companyId = await firmaUzytkownika(ctx.ownerId)
+  if (!companyId) {
+    return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
+  }
+
   const where = {
+    client: { companyId },
     ...(stage ? { processStage: stage as never } : {}),
     ...(status ? { status: status as never } : {}),
     ...(clientId ? { clientId } : {}),

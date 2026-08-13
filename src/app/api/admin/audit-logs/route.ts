@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requirePermission } from "@/lib/auth"
+import { firmaUzytkownika } from "@/lib/company"
 
 function buildEntityUrl(entityType: string, entityId: string | null): string | null {
   if (!entityId) return null
@@ -98,6 +99,15 @@ export async function GET(req: NextRequest) {
     where.AND.push({ OR: where.OR })
     delete where.OR
   }
+
+  // Wpis dziennika nie ma wlasnej firmy — wiaze go z nia osoba, ktora wykonala akcje.
+  // Bez tego administrator widzial prace wszystkich firm w instalacji. Skutek uboczny:
+  // wpisy systemowe (bez uzytkownika) nie pojawiaja sie na tej liscie.
+  const companyId = await firmaUzytkownika(currentUser.id)
+  if (!companyId) {
+    return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
+  }
+  where.user = { companyId }
 
   const [logs, total] = await Promise.all([
     prisma.auditLog.findMany({

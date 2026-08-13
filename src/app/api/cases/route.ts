@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
+import { firmaUzytkownika } from "@/lib/company"
+import { prismaFirmy } from "@/lib/prisma-firma"
 import { notifyCaseAssigned } from "@/lib/notifications"
 import { auditLog } from "@/lib/audit"
 import { getVisibleUserIds, getVisibleClientIds } from "@/lib/structure"
 import type { Role } from "@prisma/client"
 import { logger } from "@/lib/logger"
 
-async function findCaretakerWithLeastCases() {
+async function findCaretakerWithLeastCases(companyId: string) {
   const caretakers = await prisma.user.findMany({
-    where: { 
+    where: {
       role: "CARETAKER",
-      status: "ACTIVE"
+      status: "ACTIVE",
+      // Opiekun z innej firmy nie moze trafic na sprawe — dostalby dostep do cudzych danych.
+      companyId,
     },
     include: {
       casesAsCaretaker: {
@@ -42,6 +46,12 @@ export async function GET(request: NextRequest) {
     const user = await getCurrentUser()
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Konto klienta nie nalezy do firmy — jego zakres wyznacza tozsamosc.
+    const companyId = user.role === "CLIENT" ? null : await firmaUzytkownika(user.id)
+    if (user.role !== "CLIENT" && !companyId) {
+      return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
     }
 
     const { searchParams } = new URL(request.url)
@@ -111,7 +121,12 @@ export async function GET(request: NextRequest) {
     } else if (user.role === "KONTRAHENT") {
       where.product = { vendorId: user.id }
     }
-    // ADMIN — bez ograniczeń
+
+    // Sprawa nie ma wlasnego companyId — nalezy do firmy przez teczke kontrahenta.
+    // Rola ADMIN nie miala tu zadnego ograniczenia, wiec widziala sprzedaze calej instalacji.
+    if (companyId) {
+      where.client = { ...(where.client as Record<string, unknown> | undefined), companyId }
+    }
 
     const cases = await prisma.case.findMany({
       where,
@@ -176,10 +191,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Brak uprawnień" }, { status: 403 })
     }
 
+    const companyId = await firmaUzytkownika(user.id)
+    if (!companyId) {
+      return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
+    }
+
     const body = await request.json()
 
     // Walidacja: kontrahent musi być min. w etapie QUOTATION
-    const client = await prisma.client.findUnique({
+    const client = await prismaFirmy(companyId).client.findUnique({
       where: { id: body.clientId },
       select: { stage: true, companyName: true, sourceId: true },
     })
@@ -196,7 +216,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const caretakerId = await findCaretakerWithLeastCases()
+    const caretakerId = await findCaretakerWithLeastCases(companyId)
 
     const newCase = await prisma.case.create({
       data: {

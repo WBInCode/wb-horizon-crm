@@ -9,6 +9,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
+import { firmaUzytkownika } from "@/lib/company"
+import { prismaFirmy } from "@/lib/prisma-firma"
 import { auditLog } from "@/lib/audit"
 import { logger } from "@/lib/logger"
 
@@ -34,7 +36,12 @@ export async function POST(
     }
 
     const { id } = await params
-    const client = await prisma.client.findUnique({
+    const companyId = await firmaUzytkownika(user.id)
+    if (!companyId) {
+      return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
+    }
+    // Operacja nieodwracalna — teczka musi nalezec do firmy wolajacego.
+    const client = await prismaFirmy(companyId).client.findUnique({
       where: { id },
       select: { id: true, companyName: true, archivedAt: true, identityId: true },
     })

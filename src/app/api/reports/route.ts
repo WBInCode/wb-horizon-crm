@@ -9,6 +9,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
+import { firmaUzytkownika } from "@/lib/company"
 import { getVisibleUserIds } from "@/lib/structure"
 import { PROCESS_STAGE_LABELS } from "@/lib/dictionaries"
 import { logger } from "@/lib/logger"
@@ -37,11 +38,20 @@ export async function GET() {
     const visible = await getVisibleUserIds(user.id, user.role as Role)
     const userScope = visible === "ALL" ? undefined : visible
 
-    // Filtry scope per encja
-    const leadWhere = userScope ? { assignedSalesId: { in: userScope } } : {}
+    const companyId = await firmaUzytkownika(user.id)
+    if (!companyId) {
+      return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
+    }
+
+    // Filtry scope per encja. Sam zakres struktury nie wystarcza: dla ADMIN-a
+    // `getVisibleUserIds` zwraca "ALL", wiec bez granicy firmy raport liczyl
+    // dane calej instalacji.
+    const leadWhere = userScope
+      ? { companyId, assignedSalesId: { in: userScope } }
+      : { companyId }
     const caseWhere = userScope
-      ? { OR: [{ salesId: { in: userScope } }, { caretakerId: { in: userScope } }] }
-      : {}
+      ? { client: { companyId }, OR: [{ salesId: { in: userScope } }, { caretakerId: { in: userScope } }] }
+      : { client: { companyId } }
 
     const [
       leadsByStatus,

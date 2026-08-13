@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
+import { firmaUzytkownika } from "@/lib/company"
+import { prismaFirmy } from "@/lib/prisma-firma"
 import { logger } from "@/lib/logger"
 
 export async function GET(request: NextRequest) {
@@ -10,10 +12,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    // Konto klienta nie nalezy do zadnej firmy — jego zakres wyznacza tozsamosc.
+    const companyId = user.role === "CLIENT" ? null : await firmaUzytkownika(user.id)
+    if (user.role !== "CLIENT" && !companyId) {
+      return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
+    }
+    const db = companyId ? prismaFirmy(companyId) : prisma
+
+    // Sprawa nie ma wlasnego companyId — nalezy do firmy przez teczke kontrahenta.
+    // Bez tego pulpit administratora pokazywal sprzedaze wszystkich firm instalacji.
+    const teczkaFirmy = companyId ? { companyId } : {}
+
     const isPriv = ["CARETAKER", "DIRECTOR", "ADMIN"].includes(user.role)
 
     // Buduj filtr sprzedaży wg roli
-    const caseFilter: Record<string, unknown> = {}
+    const caseFilter: Record<string, unknown> = { client: teczkaFirmy }
     if (user.role === "SALESPERSON") {
       caseFilter.salesId = user.id
     } else if (user.role === "CARETAKER") {
@@ -39,18 +52,18 @@ export async function GET(request: NextRequest) {
     }
 
     // Filtr aktywności
-    const activityFilter: Record<string, unknown> = { type: "SYSTEM_LOG" }
-    if (user.role === "SALESPERSON") activityFilter.case = { salesId: user.id }
-    else if (user.role === "CARETAKER") activityFilter.case = { caretakerId: user.id }
+    const activityFilter: Record<string, unknown> = { type: "SYSTEM_LOG", case: { client: teczkaFirmy } }
+    if (user.role === "SALESPERSON") activityFilter.case = { salesId: user.id, client: teczkaFirmy }
+    else if (user.role === "CARETAKER") activityFilter.case = { caretakerId: user.id, client: teczkaFirmy }
     else if (user.role === "CLIENT") activityFilter.case = { client: { identity: { portalUserId: user.id }, visibleToClient: true } }
 
     // Moje akceptacje
-    const myApprovalFilter: Record<string, unknown> = {}
+    const myApprovalFilter: Record<string, unknown> = { client: teczkaFirmy }
     if (user.role === "CARETAKER") { myApprovalFilter.detailedStatus = "CARETAKER_APPROVAL"; myApprovalFilter.caretakerId = user.id }
     else if (user.role === "DIRECTOR") { myApprovalFilter.detailedStatus = "DIRECTOR_APPROVAL"; myApprovalFilter.directorId = user.id }
     else if (user.role === "ADMIN") { myApprovalFilter.detailedStatus = { in: ["CARETAKER_APPROVAL", "DIRECTOR_APPROVAL"] } }
 
-    const mySalesFilter: Record<string, unknown> = { status: { notIn: ["CLOSED", "CANCELLED"] } }
+    const mySalesFilter: Record<string, unknown> = { status: { notIn: ["CLOSED", "CANCELLED"] }, client: teczkaFirmy }
     if (user.role === "SALESPERSON") mySalesFilter.salesId = user.id
     else if (user.role === "CARETAKER") mySalesFilter.caretakerId = user.id
     else if (user.role === "CLIENT") mySalesFilter.client = { identity: { portalUserId: user.id }, visibleToClient: true }
@@ -74,7 +87,7 @@ export async function GET(request: NextRequest) {
       toFix,
     ] = await Promise.all([
       user.role !== "CLIENT"
-        ? prisma.lead.count({ where: leadFilter })
+        ? db.lead.count({ where: leadFilter })
         : Promise.resolve(0),
       prisma.case.findMany({
         where: { ...caseFilter, status: { in: ["IN_PREPARATION", "TO_FIX", "WAITING_CLIENT_DATA"] } },
@@ -152,14 +165,14 @@ export async function GET(request: NextRequest) {
       prisma.case.count({ where: { ...caseFilter, status: { notIn: ["CLOSED", "CANCELLED"] } } }),
       prisma.case.count({ where: { ...caseFilter, processStage: "EXECUTION" } }),
       prisma.caseChecklistItem.findMany({
-        where: { assignedToId: user.id, status: "PENDING" },
+        where: { assignedToId: user.id, status: "PENDING", case: { client: teczkaFirmy } },
         include: {
           case: { select: { id: true, title: true, client: { select: { companyName: true } } } },
         },
         orderBy: { createdAt: "asc" },
         take: 10,
       }),
-      prisma.client.findMany({
+      db.client.findMany({
         where: { ownerId: user.id, stage: { notIn: ["INACTIVE"] } },
         select: {
           id: true,

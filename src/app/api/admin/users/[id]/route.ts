@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requirePermission } from "@/lib/auth"
+import { firmaUzytkownika } from "@/lib/company"
 
 // GET /api/admin/users/[id] — pełna karta użytkownika z metrykami
 
@@ -8,11 +9,17 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  await requirePermission("admin.users")
+  const currentUser = await requirePermission("admin.users")
+  if (!currentUser) return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
   const { id } = await params
 
-  const user = await prisma.user.findUnique({
-    where: { id },
+  const companyId = await firmaUzytkownika(currentUser.id)
+  if (!companyId) {
+    return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
+  }
+
+  const user = await prisma.user.findFirst({
+    where: { id, companyId },
     select: {
       id: true,
       email: true,

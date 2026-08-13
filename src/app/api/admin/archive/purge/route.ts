@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
+import { firmaUzytkownika } from "@/lib/company"
 import { auditLog } from "@/lib/audit"
 import { logger } from "@/lib/logger"
 
@@ -19,16 +20,24 @@ export async function POST(request: NextRequest) {
     const force = searchParams.get("force") === "true"
     const retentionDays = parseInt(process.env.ARCHIVE_RETENTION_DAYS || "30", 10)
 
+    const companyId = await firmaUzytkownika(user.id)
+    if (!companyId) {
+      return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
+    }
+
     const cutoffDate = new Date()
     cutoffDate.setDate(cutoffDate.getDate() - retentionDays)
 
-    const whereCondition = force
+    const wiek = force
       ? { archivedAt: { not: null } }
       : { archivedAt: { not: null, lt: cutoffDate } }
+    // Administrator jednej firmy kasowal archiwum calej instalacji.
+    const whereCondition = { ...wiek, companyId }
+    const whereCase = { ...wiek, client: { companyId } }
 
     // Get items to be purged for audit logging
     const casesToPurge = await prisma.case.findMany({
-      where: whereCondition as any,
+      where: whereCase as any,
       select: { id: true, title: true },
     })
     const clientsToPurge = await prisma.client.findMany({
@@ -38,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     // Delete cases first (due to foreign key relations)
     const deletedCases = await prisma.case.deleteMany({
-      where: whereCondition as any,
+      where: whereCase as any,
     })
 
     // Delete clients (Cascade will handle related contacts, notes, etc.)

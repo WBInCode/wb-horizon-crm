@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
+import { firmaUzytkownika } from "@/lib/company"
 import { logger } from "@/lib/logger"
 
 export async function GET() {
@@ -14,9 +15,14 @@ export async function GET() {
       return NextResponse.json({ error: "Brak uprawnień" }, { status: 403 })
     }
 
+    const companyId = await firmaUzytkownika(user.id)
+    if (!companyId) {
+      return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
+    }
+
     const [archivedCases, archivedClients] = await Promise.all([
       prisma.case.findMany({
-        where: { archivedAt: { not: null } },
+        where: { archivedAt: { not: null }, client: { companyId } },
         select: {
           id: true,
           title: true,
@@ -29,7 +35,7 @@ export async function GET() {
         orderBy: { archivedAt: "desc" },
       }),
       prisma.client.findMany({
-        where: { archivedAt: { not: null } },
+        where: { archivedAt: { not: null }, companyId },
         select: {
           id: true,
           companyName: true,

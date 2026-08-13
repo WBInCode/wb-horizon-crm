@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requirePermission, invalidatePermissionCache } from "@/lib/auth"
+import { firmaUzytkownika } from "@/lib/company"
 import bcrypt from "bcryptjs"
 import { auditLog } from "@/lib/audit"
 import { validatePassword } from "@/lib/password-policy"
@@ -12,7 +13,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
   }
 
+  const companyId = await firmaUzytkownika(currentUser.id)
+  if (!companyId) {
+    return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
+  }
+
   const users = await prisma.user.findMany({
+    where: { companyId },
     select: {
       id: true,
       name: true,
@@ -44,6 +51,17 @@ export async function PUT(req: NextRequest) {
 
   if (!userId) {
     return NextResponse.json({ error: "Brak userId" }, { status: 400 })
+  }
+
+  // Bez tego administrator jednej firmy mogl zmienic role, zablokowac albo przestawic
+  // haslo administratorowi innej firmy w tej samej instalacji.
+  const companyId = await firmaUzytkownika(currentUser.id)
+  if (!companyId) {
+    return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
+  }
+  const wFirmie = await prisma.user.findFirst({ where: { id: userId, companyId }, select: { id: true } })
+  if (!wFirmie) {
+    return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
   }
 
   // Prevent self-deactivation/deletion
@@ -120,6 +138,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Wymagane pola: name, email, password" }, { status: 400 })
   }
 
+  const companyId = await firmaUzytkownika(currentUser.id)
+  if (!companyId) {
+    return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
+  }
+
   const policy = validatePassword(password, { email, name })
   if (!policy.ok) {
     return NextResponse.json({ error: policy.errors.join(" ") }, { status: 400 })
@@ -140,6 +163,7 @@ export async function POST(req: NextRequest) {
       password: hashedPassword,
       role: role || "SALESPERSON",
       status: "ACTIVE",
+      companyId,
     },
     select: { id: true, name: true, email: true, role: true, status: true },
   })
@@ -168,6 +192,15 @@ export async function DELETE(req: NextRequest) {
 
   if (userId === currentUser.id) {
     return NextResponse.json({ error: "Nie można usunąć własnego konta" }, { status: 400 })
+  }
+
+  const companyId = await firmaUzytkownika(currentUser.id)
+  if (!companyId) {
+    return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
+  }
+  const doUsuniecia = await prisma.user.findFirst({ where: { id: userId, companyId }, select: { id: true } })
+  if (!doUsuniecia) {
+    return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
   }
 
   // Check for active assignments
