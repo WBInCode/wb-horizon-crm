@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { teczkiKlienta } from "@/lib/zakres-klienta"
 import { redirect } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -38,9 +39,8 @@ export default async function ClientDashboardPage() {
   const user = await getCurrentUser()
   if (!user || user.role !== "CLIENT") redirect("/login")
 
-  const client = await prisma.client.findFirst({
-    where: { ownerId: user.id },
-  })
+  const teczki = await teczkiKlienta(user.id)
+  const client = teczki[0]
 
   if (!client) {
     return (
@@ -58,7 +58,7 @@ export default async function ClientDashboardPage() {
   }
 
   const cases = await prisma.case.findMany({
-    where: { clientId: client.id },
+    where: { clientId: { in: teczki.map((t) => t.id) } },
     include: {
       _count: { select: { files: true, checklist: true, messages: true } },
     },
@@ -67,7 +67,7 @@ export default async function ClientDashboardPage() {
 
   // Firmy (Struktury), ktore obsluguja tego Kontrahenta — jeden Kontrahent moze nalezec do kilku
   const przypisaniaFirm = await prisma.structureClient.findMany({
-    where: { clientId: client.id },
+    where: { clientId: { in: teczki.map((t) => t.id) } },
     select: {
       createdAt: true,
       structure: {

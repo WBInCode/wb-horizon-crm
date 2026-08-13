@@ -72,3 +72,56 @@ export async function klientWidzi(
   const zakres = await zakresKlientaDlaSprawy(caseId)
   return zakres[fragment]
 }
+
+/**
+ * Teczki odsloniete kontu klienta. Konto siedzi przy tozsamosci, nie przy teczce,
+ * i moze byc prowadzone przez kilka firm naraz — dlatego lista, nie pojedynczy rekord.
+ */
+export async function teczkiKlienta(userId: string) {
+  return prisma.client.findMany({
+    where: { identity: { portalUserId: userId }, visibleToClient: true },
+    orderBy: { createdAt: "asc" },
+  })
+}
+
+/** Sprawy tych teczek wraz z zakresem, ktory firma odslonila klientowi. */
+export async function sprawyKlientaZZakresem(teczkaIds: string[]) {
+  const sprawy = await prisma.case.findMany({
+    where: { clientId: { in: teczkaIds } },
+    select: {
+      id: true,
+      clientSeesQuotes: true,
+      clientSeesFiles: true,
+      clientSeesChecklist: true,
+      clientSeesChat: true,
+      client: {
+        select: {
+          company: {
+            select: {
+              clientSeesQuotes: true,
+              clientSeesFiles: true,
+              clientSeesChecklist: true,
+              clientSeesChat: true,
+            },
+          },
+        },
+      },
+    },
+  })
+
+  return new Map<string, ZakresKlienta>(
+    sprawy.map((s) => {
+      const f = s.client?.company
+      if (!f) return [s.id, ZAKRES_ZAMKNIETY]
+      return [
+        s.id,
+        {
+          wyceny: s.clientSeesQuotes ?? f.clientSeesQuotes,
+          pliki: s.clientSeesFiles ?? f.clientSeesFiles,
+          listaKontrolna: s.clientSeesChecklist ?? f.clientSeesChecklist,
+          czat: s.clientSeesChat ?? f.clientSeesChat,
+        },
+      ]
+    }),
+  )
+}

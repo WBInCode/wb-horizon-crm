@@ -52,6 +52,7 @@ export async function GET(
         client: {
           include: { contacts: true }
         },
+        product: { select: { id: true, name: true, category: true } },
         salesperson: { select: { id: true, name: true, email: true } },
         caretaker: { select: { id: true, name: true, email: true } },
         director: { select: { id: true, name: true, email: true } },

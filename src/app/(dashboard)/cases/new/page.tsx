@@ -414,10 +414,14 @@ export default function NewCasePage() {
               />
             )}
 
-            {!form.productId && products.length > 0 && (
+            {!form.productId && (
               <div className="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded-lg text-sm text-orange-700">
                 <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>Wybierz produkt aby przejść dalej</span>
+                <span>
+                  {products.length > 0
+                    ? "Wybierz produkt aby przejść dalej"
+                    : "Dodaj produkt lub usługę — bez tego nie da się przejść dalej"}
+                </span>
               </div>
             )}
 

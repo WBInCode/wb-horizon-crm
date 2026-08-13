@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { teczkiKlienta, sprawyKlientaZZakresem } from "@/lib/zakres-klienta"
 import { redirect } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -9,9 +10,8 @@ export default async function ClientChecklistPage() {
   const user = await getCurrentUser()
   if (!user || user.role !== "CLIENT") redirect("/login")
 
-  const client = await prisma.client.findFirst({
-    where: { ownerId: user.id },
-  })
+  const teczki = await teczkiKlienta(user.id)
+  const client = teczki[0]
 
   if (!client) {
     return (
@@ -27,8 +27,9 @@ export default async function ClientChecklistPage() {
     )
   }
 
-  const cases = await prisma.case.findMany({
-    where: { clientId: client.id },
+  const zakresy = await sprawyKlientaZZakresem(teczki.map((t) => t.id))
+  const wszystkie = await prisma.case.findMany({
+    where: { clientId: { in: teczki.map((t) => t.id) } },
     include: {
       checklist: {
         orderBy: { createdAt: "asc" },
@@ -39,6 +40,9 @@ export default async function ClientChecklistPage() {
     },
     orderBy: { updatedAt: "desc" },
   })
+  // Lista kontrolna bywa zamknieta dla klienta — strona czyta baze wprost, wiec
+  // ustawienie firmy trzeba tu wymusic tak samo jak w trasach.
+  const cases = wszystkie.filter((c) => zakresy.get(c.id)?.listaKontrolna)
 
   return (
     <div className="p-6 space-y-6">

@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { teczkiKlienta } from "@/lib/zakres-klienta"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
@@ -38,9 +39,8 @@ export default async function ClientCasesPage() {
   const user = await getCurrentUser()
   if (!user || user.role !== "CLIENT") redirect("/login")
 
-  const client = await prisma.client.findFirst({
-    where: { ownerId: user.id },
-  })
+  const teczki = await teczkiKlienta(user.id)
+  const client = teczki[0]
 
   if (!client) {
     return (
@@ -57,7 +57,7 @@ export default async function ClientCasesPage() {
   }
 
   const cases = await prisma.case.findMany({
-    where: { clientId: client.id },
+    where: { clientId: { in: teczki.map((t) => t.id) } },
     include: {
       salesperson: { select: { name: true } },
       caretaker: { select: { name: true } },
