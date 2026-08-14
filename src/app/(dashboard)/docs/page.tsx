@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react"
 import {
   BookOpen, Search, Shield, Users, Phone, Building2, ShoppingCart, Briefcase, Package,
   Rocket, KeyRound, Workflow, MessagesSquare, FileCheck2, Bell, Layers, GitBranch,
-  CheckCircle2, ArrowRight, Lightbulb, AlertTriangle, Sparkles,
+  CheckCircle2, ArrowRight, Lightbulb, AlertTriangle, Sparkles, UserCheck, Landmark,
 } from "lucide-react"
 
 type RoleKey = "ADMIN" | "DIRECTOR" | "MANAGER" | "CARETAKER" | "SALESPERSON" | "CALL_CENTER" | "KONTRAHENT" | "ALL"
@@ -21,6 +21,7 @@ type Section = {
 const SECTIONS: Section[] = [
   // Start
   { id: "start", title: "Pierwsze kroki", icon: Rocket, roles: ["ALL"], category: "start" },
+  { id: "firma", title: "Twoja firma i licencja", icon: Landmark, roles: ["ALL"], category: "start" },
   { id: "logowanie", title: "Logowanie i bezpieczeństwo", icon: KeyRound, roles: ["ALL"], category: "start" },
   { id: "interfejs", title: "Interfejs i nawigacja", icon: Layers, roles: ["ALL"], category: "start" },
   // Role
@@ -38,6 +39,7 @@ const SECTIONS: Section[] = [
   { id: "akceptacje", title: "Akceptacje i przepływ", icon: CheckCircle2, roles: ["ALL"], category: "proces" },
   { id: "komunikacja", title: "Komunikacja i powiadomienia", icon: MessagesSquare, roles: ["ALL"], category: "proces" },
   { id: "spotkania", title: "Spotkania", icon: Bell, roles: ["ALL"], category: "proces" },
+  { id: "portal", title: "Portal klienta", icon: UserCheck, roles: ["ALL"], category: "proces" },
 ]
 
 const ROLE_LABELS: Record<RoleKey, string> = {
@@ -249,6 +251,7 @@ function Flow({ steps }: { steps: { label: string; color?: string }[] }) {
 function Content({ section }: { section: string }) {
   switch (section) {
     case "start": return <SectionStart />
+    case "firma": return <SectionFirma />
     case "logowanie": return <SectionLogin />
     case "interfejs": return <SectionInterface />
     case "admin": return <SectionAdmin />
@@ -264,6 +267,7 @@ function Content({ section }: { section: string }) {
     case "akceptacje": return <SectionApprovals />
     case "komunikacja": return <SectionComms />
     case "spotkania": return <SectionMeetings />
+    case "portal": return <SectionPortal />
     default: return <SectionStart />
   }
 }
@@ -399,8 +403,11 @@ function SectionAdmin() {
         <FeatureCard icon={Package} title="Produkty i ankiety" desc="Globalna biblioteka produktów + szablony ankiet i checklist" />
         <FeatureCard icon={Workflow} title="Sposoby pozysku" desc="Lista źródeł leadów: Call Center, Polecenia, Oferteo, …" />
         <FeatureCard icon={FileCheck2} title="Warunki współpracy" desc="Globalne i klient-specyficzne warunki" />
+        <FeatureCard icon={UserCheck} title="Widok klienta" desc="Co klient widzi ze sprawy: wyceny, pliki, lista kontrolna, czat" />
         <FeatureCard icon={BookOpen} title="Audit Log" desc="Pełna historia zmian w systemie z filtrowaniem po userze" />
       </div>
+
+      <Tip type="warn">Wszystkie akcje administratora działają wyłącznie w granicach Waszej firmy. Kont z innych firm korzystających z tej samej instalacji nie widzicie i nie możecie ich zmienić.</Tip>
 
       <H2 icon={Users}>Tworzenie nowego użytkownika</H2>
       <Step n={1} title="Przejdź do Admin → Użytkownicy">Kliknij "Admin" w sidebarze, następnie zakładkę "Użytkownicy".</Step>
@@ -741,6 +748,75 @@ function SectionMeetings() {
       <Step n={4} title="Po spotkaniu zmień status">PLANNED → HELD (odbyło się) lub NOT_HELD (nie odbyło). Akcja zostanie zapisana w audit log.</Step>
 
       <Tip>Każda zmiana statusu spotkania wysyła powiadomienie do wszystkich uczestników sprzedaży.</Tip>
+    </>
+  )
+}
+
+function SectionFirma() {
+  return (
+    <>
+      <H1>Twoja firma i licencja</H1>
+      <Lead>System obsługuje wiele firm naraz. Każda pracuje we własnym, zamkniętym zbiorze danych.</Lead>
+
+      <H2 icon={Landmark}>Granica firmy</H2>
+      <P>Wszystko, co widzisz — leady, kontrahenci, sprzedaże, pracownicy, słowniki, dziennik zdarzeń — należy do <b>Twojej firmy</b>. Inne firmy korzystające z tej samej instalacji nie widzą Waszych danych i Wy nie widzicie ich. Nie ma przełącznika, który to zmienia.</P>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 my-4">
+        <FeatureCard icon={Shield} title="Dane" desc="Leady, kontrahenci i sprzedaże są przypisane do firmy na stałe" />
+        <FeatureCard icon={Users} title="Ludzie" desc="Konto pracownika należy do jednej firmy. Przypisać sprawę można tylko osobie z Waszego zespołu" />
+        <FeatureCard icon={Workflow} title="Słowniki" desc="Źródła pozysku, ankiety, listy kontrolne i warunki są Wasze — inna firma ma swoje" />
+        <FeatureCard icon={BookOpen} title="Dziennik zdarzeń" desc="Widzicie wyłącznie działania własnego zespołu" />
+      </div>
+
+      <H2 icon={Rocket}>Konfigurator startowy</H2>
+      <P>Firma zakładana automatycznie po zakupie licencji dostaje nazwę zastępczą i pusty zestaw słowników. Konfigurator prowadzi przez pięć kroków: nazwa, źródła pozysku, ankieta, lista kontrolna, warunki współpracy.</P>
+      <Step n={1} title="Wejdź w Administracja">Na górze zobaczysz zaczepkę „Firma nie przeszła jeszcze konfiguracji".</Step>
+      <Step n={2} title="Przejdź pięć kroków">Każdy możesz pominąć i wrócić do niego później przez zakładki panelu.</Step>
+      <Step n={3} title="Zakończ konfigurację">Zaczepka znika. Ustawienia zmienisz w każdej chwili w Administracji.</Step>
+      <Tip>Podstawowe źródła pozysku zakładają się same razem z firmą, żeby formularz leada nie startował z pustą listą.</Tip>
+
+      <H2 icon={KeyRound}>Licencja</H2>
+      <P>Stan licencji przychodzi z Platformy. System sprawdza go przy logowaniu, na zdarzenie z Platformy i raz na dobę zadaniem cyklicznym — nie trzeba niczego robić ręcznie.</P>
+      <Flow steps={[
+        { label: "Opłacona — pełna praca" },
+        { label: "Wygasła — 7 dni bez zmian", color: "var(--warning)" },
+        { label: "Archiwum — 30 dni", color: "var(--warning)" },
+        { label: "Usunięcie danych", color: "var(--danger)" },
+      ]} />
+      <Tip type="warn">Opłacenie licencji w oknie 37 dni przywraca pełny dostęp razem z danymi. Po tym czasie dane firmy są kasowane bezpowrotnie.</Tip>
+      <Tip>Ostrzeżenie o wygasającej licencji widzi wyłącznie Wasz zespół. Klienci w portalu nie dowiadują się o tym niczego.</Tip>
+    </>
+  )
+}
+
+function SectionPortal() {
+  return (
+    <>
+      <H1>Portal klienta</H1>
+      <Lead>Klient dostaje własne konto i widzi w nim dokładnie tyle, ile mu udostępnicie.</Lead>
+
+      <H2 icon={UserCheck}>Konto klienta a teczka</H2>
+      <P>To dwie różne rzeczy i warto je rozróżniać:</P>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 my-4">
+        <FeatureCard icon={UserCheck} title="Konto klienta w portalu" desc="Logowanie osoby po stronie klienta. Jedno konto, nawet jeśli obsługuje go kilka firm" />
+        <FeatureCard icon={Briefcase} title="Właściciel teczki" desc="Wasz pracownik prowadzący tego kontrahenta. Sprawa wewnętrzna firmy" />
+      </div>
+      <Tip type="warn">Jeden klient może być prowadzony przez kilka firm w tej samej instalacji. Każda widzi wyłącznie swoją teczkę i nie dowiaduje się o pozostałych.</Tip>
+
+      <H2 icon={Shield}>Co klient widzi ze sprawy</H2>
+      <P>Zakres ustawiacie w <b>Administracja → Widok klienta</b>. Ustawienie obowiązuje całą firmę, a pojedyncza sprawa może je nadpisać. Zmiana działa natychmiast, także na sprawach już prowadzonych.</P>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 my-4">
+        <FeatureCard icon={ShoppingCart} title="Wyceny" desc="Wysłane wyceny wraz z cenami" />
+        <FeatureCard icon={FileCheck2} title="Pliki" desc="Dokumenty sprawy; klient może dodawać własne" />
+        <FeatureCard icon={CheckCircle2} title="Lista kontrolna" desc="Kroki procesu. Domyślnie wyłączona — to wewnętrzna robota firmy" />
+        <FeatureCard icon={MessagesSquare} title="Czat" desc="Wiadomości w sprawie w obie strony" />
+      </div>
+      <Tip type="warn">Dziennik zdarzeń sprawy i ścieżka akceptacji nie mają przełącznika. Klient nie widzi ich nigdy — to zapis pracy Waszego zespołu.</Tip>
+
+      <H2 icon={Users}>Zaproszenie klienta</H2>
+      <Step n={1} title="Wystawcie zaproszenie">Powstaje jednorazowy odnośnik oraz krótki kod. Oba tracą ważność po 14 dniach.</Step>
+      <Step n={2} title="Klient zakłada konto albo przyjmuje zaproszenie">Gdy ma już konto z innej firmy, wystarczy że je potwierdzi — nie zakłada drugiego.</Step>
+      <Step n={3} title="Teczka staje się widoczna">Dopiero od tego momentu klient widzi Waszą sprawę w swoim portalu.</Step>
+      <Tip>Klient może sam odpiąć się od firmy. Wtedy przestaje widzieć Waszą teczkę, ale dokumentacja zostaje u Was — to Wasza dokumentacja handlowa.</Tip>
     </>
   )
 }
