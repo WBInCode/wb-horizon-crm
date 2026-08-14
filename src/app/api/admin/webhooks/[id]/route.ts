@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
+import { firmaUzytkownika } from "@/lib/company"
 import { prisma } from "@/lib/prisma"
 import { auditLog } from "@/lib/audit"
 
@@ -18,6 +19,17 @@ async function requireAdmin(): Promise<{ userId: string } | NextResponse> {
   return { userId: user.id }
 }
 
+/** Webhook firmy wolajacego; `false` konczy zadanie odpowiedzia 404. */
+async function wFirmie(userId: string, webhookId: string): Promise<boolean> {
+  const companyId = await firmaUzytkownika(userId)
+  if (!companyId) return false
+  const hook = await prisma.webhook.findFirst({
+    where: { id: webhookId, owner: { companyId } },
+    select: { id: true },
+  })
+  return !!hook
+}
+
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const guard = await requireAdmin()
   if (guard instanceof NextResponse) return guard
@@ -29,6 +41,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (Array.isArray(body.events)) data.events = body.events.slice(0, 50).map(String)
   if (typeof body.url === "string") data.url = body.url.slice(0, 500)
   if (typeof body.name === "string") data.name = body.name.slice(0, 120)
+
+  if (!(await wFirmie(guard.userId, id))) {
+    return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
+  }
 
   const updated = await prisma.webhook.update({ where: { id }, data })
   await auditLog({
@@ -45,6 +61,9 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
   const guard = await requireAdmin()
   if (guard instanceof NextResponse) return guard
   const { id } = await ctx.params
+  if (!(await wFirmie(guard.userId, id))) {
+    return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
+  }
   await prisma.webhook.delete({ where: { id } })
   await auditLog({
     userId: guard.userId,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requirePermission } from "@/lib/auth"
+import { firmaUzytkownika } from "@/lib/company"
 import { notifyCaseAssigned, notifyCaretakerChanged } from "@/lib/notifications"
 import { auditLog } from "@/lib/audit"
 
@@ -17,18 +18,28 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Brak wymaganych danych" }, { status: 400 })
   }
 
+  const companyId = await firmaUzytkownika(currentUser.id)
+  if (!companyId) {
+    return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
+  }
+
+  // Opiekun i sprawa musza byc z tej samej firmy: inaczej dalo sie przypisac
+  // cudza sprzedaz albo wpuscic na nia osobe spoza firmy.
   const caretaker = await prisma.user.findFirst({
-    where: { id: newCaretakerId, role: "CARETAKER", status: "ACTIVE" },
+    where: { id: newCaretakerId, role: "CARETAKER", status: "ACTIVE", companyId },
   })
 
   if (!caretaker) {
     return NextResponse.json({ error: "Nieprawidłowy opiekun" }, { status: 400 })
   }
 
-  const oldCase = await prisma.case.findUnique({ 
-    where: { id: caseId },
+  const oldCase = await prisma.case.findFirst({
+    where: { id: caseId, client: { companyId } },
     select: { caretakerId: true, salesId: true, title: true }
   })
+  if (!oldCase) {
+    return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
+  }
 
   const updated = await prisma.case.update({
     where: { id: caseId },

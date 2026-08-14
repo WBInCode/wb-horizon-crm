@@ -60,13 +60,17 @@ function eventMatches(subscribedEvents: string[], event: string): boolean {
 /**
  * Queue a webhook event for delivery to all matching active subscriptions.
  * Returns number of delivery records created.
+ *
+ * `companyId` jest obowiazkowe: subskrypcja nalezy do osoby, a ta do firmy.
+ * Bez tego zdarzenie jednej firmy trafialoby pod adresy wszystkich pozostalych.
  */
 export async function enqueueWebhook(
   event: WebhookEvent | string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  companyId: string
 ): Promise<number> {
   const hooks = await prisma.webhook.findMany({
-    where: { isActive: true },
+    where: { isActive: true, owner: { companyId } },
     select: { id: true, events: true },
   })
   const matching = hooks.filter((h) => eventMatches(h.events, event))

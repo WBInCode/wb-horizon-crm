@@ -17,7 +17,9 @@ export async function GET() {
       permissions: {
         select: { permission: { select: { id: true, code: true } } }
       },
-      _count: { select: { users: true } },
+      // Rola systemowa jest wspolna, ale liczyc mozna tylko wlasnych ludzi — inaczej
+      // karta roli zdradza, ilu pracownikow maja pozostale firmy w instalacji.
+      _count: { select: { users: { where: companyId ? { companyId } : { id: "" } } } },
     },
     orderBy: { createdAt: "asc" },
   })
@@ -72,7 +74,7 @@ export async function POST(req: NextRequest) {
     },
     include: {
       permissions: { select: { permission: { select: { id: true, code: true } } } },
-      _count: { select: { users: true } },
+      _count: { select: { users: { where: { companyId } } } },
     },
   })
 

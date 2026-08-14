@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requirePermission } from "@/lib/auth"
+import { firmaUzytkownika } from "@/lib/company"
+import { prismaFirmy } from "@/lib/prisma-firma"
 
 // PDF A.2.1 — dodawanie/usuwanie członków struktury (Manager/Sales/CallCenter)
 // Manager może mieć pod sobą Manager/Sales/CallCenter (nie Director)
@@ -8,11 +10,26 @@ import { requirePermission } from "@/lib/auth"
 const ALLOWED_ROLES = ["MANAGER", "SALESPERSON", "CALL_CENTER"] as const
 type AllowedRole = typeof ALLOWED_ROLES[number]
 
+/** Struktura widziana przez firme wolajacego; `null` konczy zadanie odpowiedzia 404. */
+async function strukturaFirmy(userId: string, structureId: string) {
+  const companyId = await firmaUzytkownika(userId)
+  if (!companyId) return null
+  const struktura = await prismaFirmy(companyId).structure.findUnique({
+    where: { id: structureId },
+    select: { id: true },
+  })
+  return struktura ? { companyId } : null
+}
+
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await requirePermission("admin.users")
   if (!user) return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
 
   const { id } = await params
+  if (!(await strukturaFirmy(user.id, id))) {
+    return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
+  }
+
   const members = await prisma.structureMember.findMany({
     where: { structureId: id },
     include: { user: { select: { id: true, name: true, email: true, role: true } } },
@@ -32,10 +49,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (!userId) return NextResponse.json({ error: "userId jest wymagany" }, { status: 400 })
 
-  const structure = await prisma.structure.findUnique({ where: { id: structureId } })
-  if (!structure) return NextResponse.json({ error: "Struktura nie istnieje" }, { status: 404 })
+  const zakres = await strukturaFirmy(user.id, structureId)
+  if (!zakres) return NextResponse.json({ error: "Struktura nie istnieje" }, { status: 404 })
 
-  const member = await prisma.user.findUnique({ where: { id: userId } })
+  const member = await prisma.user.findFirst({ where: { id: userId, companyId: zakres.companyId } })
   if (!member) return NextResponse.json({ error: "Użytkownik nie istnieje" }, { status: 404 })
 
   if (!ALLOWED_ROLES.includes(member.role as AllowedRole)) {

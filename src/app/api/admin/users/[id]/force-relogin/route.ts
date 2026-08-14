@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requirePermission } from "@/lib/auth"
+import { firmaUzytkownika } from "@/lib/company"
 
 // PDF A.4.1 — Wymuszenie ponownego logowania (bump sessionVersion)
 
@@ -8,8 +9,13 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const admin = await requirePermission("admin.users")
   if (!admin) return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
 
+  const companyId = await firmaUzytkownika(admin.id)
+  if (!companyId) {
+    return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
+  }
+
   const { id } = await params
-  const target = await prisma.user.findUnique({ where: { id }, select: { id: true, sessionVersion: true } })
+  const target = await prisma.user.findFirst({ where: { id, companyId }, select: { id: true, sessionVersion: true } })
   if (!target) return NextResponse.json({ error: "Użytkownik nie istnieje" }, { status: 404 })
 
   const updated = await prisma.user.update({

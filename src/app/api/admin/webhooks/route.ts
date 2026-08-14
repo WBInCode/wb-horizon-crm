@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
+import { firmaUzytkownika } from "@/lib/company"
 import { prisma } from "@/lib/prisma"
 import { ALL_WEBHOOK_EVENTS, generateWebhookSecret } from "@/lib/webhooks"
 import { auditLog } from "@/lib/audit"
@@ -31,7 +32,14 @@ export async function GET() {
   const guard = await requirePermission()
   if (guard instanceof NextResponse) return guard
 
+  const companyId = await firmaUzytkownika(guard.userId)
+  if (!companyId) {
+    return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
+  }
+
+  // Webhook nalezy do osoby, a ta do firmy — lista pokazywala adresy wszystkich firm.
   const hooks = await prisma.webhook.findMany({
+    where: { owner: { companyId } },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,

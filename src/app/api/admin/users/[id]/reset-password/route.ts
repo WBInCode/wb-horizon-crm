@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs"
 import crypto from "crypto"
 import { prisma } from "@/lib/prisma"
 import { requirePermission } from "@/lib/auth"
+import { firmaUzytkownika } from "@/lib/company"
 
 // PDF A.4.1 — Reset hasła użytkownika przez admina.
 // Generuje tymczasowe hasło i bumpuje sessionVersion (wszystkie sesje wygaszone).
@@ -11,8 +12,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const admin = await requirePermission("admin.users")
   if (!admin) return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
 
+  const companyId = await firmaUzytkownika(admin.id)
+  if (!companyId) {
+    return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
+  }
+
   const { id } = await params
-  const target = await prisma.user.findUnique({ where: { id }, select: { id: true, email: true } })
+  // Konto z innej firmy nie istnieje z punktu widzenia tego administratora.
+  const target = await prisma.user.findFirst({ where: { id, companyId }, select: { id: true, email: true } })
   if (!target) return NextResponse.json({ error: "Użytkownik nie istnieje" }, { status: 404 })
 
   const body = await req.json().catch(() => ({} as { newPassword?: string }))
