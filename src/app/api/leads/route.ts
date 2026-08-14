@@ -8,6 +8,7 @@ import { checkRateLimit, LIMITS } from "@/lib/rate-limit"
 import { firmaUzytkownika } from "@/lib/company"
 import { prismaFirmy } from "@/lib/prisma-firma"
 import { dataZFormularza } from "@/lib/daty"
+import { adresWww, komunikatWalidacji } from "@/lib/walidacja"
 import type { Role, LeadStatus } from "@prisma/client"
 import { logger } from "@/lib/logger"
 
@@ -17,21 +18,42 @@ function getClientIp(req: NextRequest): string {
   return req.headers.get("x-real-ip") || "unknown"
 }
 
+const NAZWY_POL: Record<string, string> = {
+  companyName: "Nazwa firmy",
+  contactPerson: "Osoba kontaktowa",
+  phone: "Telefon",
+  nip: "NIP",
+  industry: "Branża",
+  website: "Strona WWW",
+  source: "Źródło",
+  sourceId: "Źródło",
+  position: "Stanowisko",
+  email: "E-mail",
+  meetingDate: "Termin spotkania",
+  notes: "Notatki",
+  needs: "Potrzeby",
+  nextStep: "Następny krok",
+  nextStepDate: "Data follow-up",
+  priority: "Priorytet",
+  status: "Status",
+  assignedSalesId: "Handlowiec",
+}
+
 const createLeadSchema = z.object({
-  companyName: z.string().min(1).max(200),
-  contactPerson: z.string().min(1).max(200),
-  phone: z.string().min(1).max(50),
+  companyName: z.string().min(1, "Wpisz nazwę firmy").max(200),
+  contactPerson: z.string().min(1, "Wpisz osobę kontaktową").max(200),
+  phone: z.string().min(1, "Wpisz telefon").max(50),
   nip: z.string().max(20).optional().nullable(),
-  industry: z.string().max(100).optional().nullable(),
-  website: z.string().max(500).url().optional().nullable().or(z.literal("")),
+  industry: z.string().max(100, "Branża może mieć najwyżej 100 znaków").optional().nullable(),
+  website: adresWww.optional().nullable(),
   source: z.string().max(100).optional().nullable(),
   sourceId: z.string().optional().nullable(),
   position: z.string().max(100).optional().nullable(),
-  email: z.string().email().optional().nullable().or(z.literal("")),
+  email: z.string().email("Podaj poprawny adres e-mail").optional().nullable().or(z.literal("")),
   isDecisionMaker: z.boolean().optional(),
   meetingDate: dataZFormularza.optional().nullable(),
-  notes: z.string().max(5000).optional().nullable(),
-  needs: z.string().max(2000).optional().nullable(),
+  notes: z.string().max(5000, "Notatki mogą mieć najwyżej 5000 znaków").optional().nullable(),
+  needs: z.string().max(2000, "Potrzeby mogą mieć najwyżej 2000 znaków").optional().nullable(),
   nextStep: z.string().max(500).optional().nullable(),
   nextStepDate: dataZFormularza.optional().nullable(),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).optional().nullable(),
@@ -144,7 +166,7 @@ export async function POST(request: NextRequest) {
     const parsed = createLeadSchema.safeParse(raw)
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Validation failed", details: parsed.error.flatten() },
+        { error: komunikatWalidacji(parsed.error, NAZWY_POL), details: parsed.error.flatten() },
         { status: 422 },
       )
     }

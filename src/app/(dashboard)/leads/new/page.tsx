@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -72,7 +73,7 @@ export default function NewLeadPage() {
 
   const handleSubmit = async () => {
     if (!form.companyName || !form.contactPerson || !form.phone) {
-      alert("Wypełnij wymagane pola: Nazwa firmy, Osoba kontaktowa, Telefon")
+      toast.error("Wypełnij wymagane pola: Nazwa firmy, Osoba kontaktowa, Telefon")
       return
     }
     setSaving(true)
@@ -95,11 +96,11 @@ export default function NewLeadPage() {
         router.push(`/leads/${lead.id}`)
       } else {
         const err = await res.json()
-        alert(err.error || "Błąd tworzenia leada")
+        toast.error(err.error || "Nie udało się utworzyć leada")
       }
     } catch (error) {
       console.error("Błąd:", error)
-      alert("Błąd połączenia z serwerem")
+      toast.error("Brak połączenia z serwerem")
     } finally {
       setSaving(false)
     }

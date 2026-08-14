@@ -4,10 +4,31 @@ import { prisma } from "@/lib/prisma"
 import { canAccessLead, getCurrentUser } from "@/lib/auth"
 import { auditLog, diffChanges } from "@/lib/audit"
 import { dataZFormularza } from "@/lib/daty"
+import { adresWww, komunikatWalidacji } from "@/lib/walidacja"
 import { logger } from "@/lib/logger"
 
 /** Role, ktore w ogole prowadza leady - zgodnie z POST /api/leads. */
 const ROLE_PROWADZACE = ["CALL_CENTER", "SALESPERSON", "ADMIN", "DIRECTOR", "MANAGER"]
+
+const NAZWY_POL: Record<string, string> = {
+  companyName: "Nazwa firmy",
+  contactPerson: "Osoba kontaktowa",
+  phone: "Telefon",
+  nip: "NIP",
+  industry: "Branża",
+  website: "Strona WWW",
+  source: "Źródło",
+  position: "Stanowisko",
+  email: "E-mail",
+  meetingDate: "Termin spotkania",
+  notes: "Notatki",
+  needs: "Potrzeby",
+  nextStep: "Następny krok",
+  nextStepDate: "Data follow-up",
+  priority: "Priorytet",
+  status: "Status",
+  assignedSalesId: "Handlowiec",
+}
 
 const updateLeadSchema = z.object({
   companyName: z.string().min(1).max(200).optional(),
@@ -15,7 +36,7 @@ const updateLeadSchema = z.object({
   phone: z.string().min(1).max(50).optional(),
   nip: z.string().max(20).nullable().optional(),
   industry: z.string().max(100).nullable().optional(),
-  website: z.string().max(500).nullable().optional(),
+  website: adresWww.nullable().optional(),
   source: z.string().max(100).nullable().optional(),
   position: z.string().max(100).nullable().optional(),
   email: z.string().max(200).nullable().optional(),
@@ -94,7 +115,7 @@ export async function PUT(
     const parsed = updateLeadSchema.safeParse(await request.json())
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Validation failed", details: parsed.error.flatten() },
+        { error: komunikatWalidacji(parsed.error, NAZWY_POL), details: parsed.error.flatten() },
         { status: 422 },
       )
     }
