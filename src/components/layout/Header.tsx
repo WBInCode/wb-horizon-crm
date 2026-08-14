@@ -56,6 +56,7 @@ export function Header() {
     // Audyt F4: SSE zamiast pollingu co 2 min; polling zostaje jako fallback
     let es: EventSource | null = null
     let fallback: ReturnType<typeof setInterval> | undefined
+    let ostatniaWiadomosc = Date.now()
 
     const startPollingFallback = () => {
       if (!fallback) fallback = setInterval(fetchNotifications, 120000)
@@ -64,6 +65,7 @@ export function Header() {
     if (typeof EventSource !== "undefined") {
       es = new EventSource("/api/notifications/stream")
       es.onmessage = (ev) => {
+        ostatniaWiadomosc = Date.now()
         try {
           const data = JSON.parse(ev.data)
           if (Array.isArray(data.notifications)) setNotifications(data.notifications)
@@ -71,8 +73,9 @@ export function Header() {
         } catch {}
       }
       es.onerror = () => {
-        // Po utracie połączenia przeglądarka sama wznawia; polling jako siatka bezpieczeństwa
-        startPollingFallback()
+        // Strumien konczy sie planowo co ~45 s (limit serwera wejsciowego), wiec samo
+        // wznowienie nie jest awaria. Polling wlacza sie dopiero, gdy dane naprawde nie ida.
+        if (Date.now() - ostatniaWiadomosc > 90000) startPollingFallback()
       }
     } else {
       startPollingFallback()
