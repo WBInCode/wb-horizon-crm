@@ -3,6 +3,8 @@ import { z } from "zod"
 import { CaseStatus, SaleProcessStage, SaleDetailedStatus } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
+import { firmaUzytkownika } from "@/lib/company"
+import { osobaZFirmy } from "@/lib/przypisania"
 import { notifyCaseAssigned, notifyCaseForApproval, notifyCaseReturned, notifyCaretakerChanged } from "@/lib/notifications"
 import { auditLog, diffChanges } from "@/lib/audit"
 import { logger } from "@/lib/logger"
@@ -138,6 +140,17 @@ export async function PUT(
       delete parsed.caretakerId
       delete parsed.directorId
       delete parsed.salesId
+    }
+
+    // Osoba spoza firmy nie otworzy tej sprawy, wiec przypisanie tylko psuloby dane.
+    if (parsed.caretakerId || parsed.directorId || parsed.salesId) {
+      const companyId = await firmaUzytkownika(user.id)
+      const wszyscyZFirmy = companyId
+        ? (await Promise.all([parsed.caretakerId, parsed.directorId, parsed.salesId].map((x) => osobaZFirmy(x, companyId)))).every(Boolean)
+        : false
+      if (!wszyscyZFirmy) {
+        return NextResponse.json({ error: "Przypisz osobę z Twojej firmy" }, { status: 422 })
+      }
     }
 
     // Tylko ADMIN/DIRECTOR/CARETAKER może zmieniać status

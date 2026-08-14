@@ -5,6 +5,8 @@ import { canAccessLead, getCurrentUser } from "@/lib/auth"
 import { auditLog, diffChanges } from "@/lib/audit"
 import { dataZFormularza } from "@/lib/daty"
 import { adresWww, komunikatWalidacji } from "@/lib/walidacja"
+import { osobaZFirmy } from "@/lib/przypisania"
+import { firmaUzytkownika } from "@/lib/company"
 import { logger } from "@/lib/logger"
 
 /** Role, ktore w ogole prowadza leady - zgodnie z POST /api/leads. */
@@ -120,6 +122,13 @@ export async function PUT(
       )
     }
     const body = parsed.data
+
+    if (body.assignedSalesId !== undefined) {
+      const companyId = await firmaUzytkownika(user.id)
+      if (!companyId || !(await osobaZFirmy(body.assignedSalesId, companyId))) {
+        return NextResponse.json({ error: "Handlowiec: wybierz osobę z Twojej firmy" }, { status: 422 })
+      }
+    }
 
     const oldLead = await prisma.lead.findUnique({ where: { id } })
 

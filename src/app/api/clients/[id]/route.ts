@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessClient } from "@/lib/auth"
+import { firmaUzytkownika } from "@/lib/company"
+import { osobaZFirmy } from "@/lib/przypisania"
 import { auditLog } from "@/lib/audit"
 import { logger } from "@/lib/logger"
 
@@ -116,6 +118,13 @@ export async function PUT(
           { error: `Niedozwolone przejście z etapu "${STAGE_LABELS[currentClient.stage]}" na "${STAGE_LABELS[body.stage]}"` },
           { status: 400 }
         )
+      }
+    }
+
+    if (body.ownerId !== undefined && body.ownerId) {
+      const companyId = await firmaUzytkownika(user.id)
+      if (!companyId || !(await osobaZFirmy(body.ownerId, companyId))) {
+        return NextResponse.json({ error: "Właściciel teczki: wybierz osobę z Twojej firmy" }, { status: 422 })
       }
     }
 

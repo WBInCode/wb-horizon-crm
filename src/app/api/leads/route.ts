@@ -9,6 +9,7 @@ import { firmaUzytkownika } from "@/lib/company"
 import { prismaFirmy } from "@/lib/prisma-firma"
 import { dataZFormularza } from "@/lib/daty"
 import { adresWww, komunikatWalidacji } from "@/lib/walidacja"
+import { osobaZFirmy } from "@/lib/przypisania"
 import type { Role, LeadStatus } from "@prisma/client"
 import { logger } from "@/lib/logger"
 
@@ -175,6 +176,10 @@ export async function POST(request: NextRequest) {
     const companyId = await firmaUzytkownika(user.id)
     if (!companyId) {
       return NextResponse.json({ error: "Konto nie jest przypisane do żadnej firmy" }, { status: 409 })
+    }
+
+    if (!(await osobaZFirmy(body.assignedSalesId, companyId))) {
+      return NextResponse.json({ error: "Handlowiec: wybierz osobę z Twojej firmy" }, { status: 422 })
     }
 
     const lead = await prismaFirmy(companyId).lead.create({
