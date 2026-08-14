@@ -8,7 +8,7 @@ import { beforeAll, afterEach, afterAll, describe, expect, it } from "vitest"
 import { prisma } from "@/lib/prisma"
 import { zsynchronizujLicencje } from "@/lib/licencja-huba"
 
-const P = "[LIC-HUB]"
+const P = "[HUBLIC]"
 
 async function sprzataj() {
   const firmy = await prisma.company.findMany({
