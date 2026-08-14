@@ -32,10 +32,18 @@ export default function AssignmentsSection({ client, cases }: Props) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
-        {/* Owner — konto klienta */}
+        {/* Konto portalu siedzi przy tozsamosci; `owner` to wlasciciel teczki po stronie firmy. */}
         <Row
           icon={<User className="w-3.5 h-3.5" />}
-          label="Konto klienta"
+          label="Konto klienta w portalu"
+          value={client.identity?.portalUser?.name}
+          sub={client.identity?.portalUser?.email}
+          brak={client.identity?.portalUser ? undefined : "Nie zaproszony"}
+        />
+
+        <Row
+          icon={<Briefcase className="w-3.5 h-3.5" />}
+          label="Właściciel teczki"
           value={client.owner?.name}
           sub={client.owner?.email}
         />
@@ -69,7 +77,7 @@ export default function AssignmentsSection({ client, cases }: Props) {
   )
 }
 
-function Row({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value?: string; sub?: string }) {
+function Row({ icon, label, value, sub, brak }: { icon: React.ReactNode; label: string; value?: string; sub?: string; brak?: string }) {
   return (
     <div className="flex items-center justify-between gap-2">
       <div className="flex items-center gap-2 text-gray-500">
@@ -83,7 +91,7 @@ function Row({ icon, label, value, sub }: { icon: React.ReactNode; label: string
             {sub && <span className="text-gray-400 text-xs ml-1">({sub})</span>}
           </>
         ) : (
-          <span className="text-gray-400">Nie przypisany</span>
+          <span className="text-gray-400">{brak ?? "Nie przypisany"}</span>
         )}
       </div>
     </div>

@@ -256,16 +256,16 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                   <Field label="WWW">
                     <Input value={editForm.website} onChange={(e) => setEditForm({ ...editForm, website: e.target.value })} />
                   </Field>
-                  <Field label="Konto klienta">
+                  <Field label="Właściciel teczki">
                     <Select
                       value={editForm.ownerId || "none"}
                       onValueChange={(val: string | null) => setEditForm({ ...editForm, ownerId: val === "none" ? "" : (val ?? "") })}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Brak przypisanego konta">
+                        <SelectValue placeholder="Brak przypisanego właściciela">
                           {editForm.ownerId
                             ? clientUsers.find((u) => u.id === editForm.ownerId)?.name || editForm.ownerId
-                            : "Brak przypisanego konta"}
+                            : "Brak przypisanego właściciela"}
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
@@ -303,7 +303,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                   <InlineEditField label="NIP" value={client.nip} fallback="-" canEdit={has("clients.edit") && !isInactive} onSave={(value) => saveInline("nip", value.replace(/\D/g, "").slice(0, 10))} />
                   <InlineEditField label="Branża" value={client.industry} fallback="-" canEdit={has("clients.edit") && !isInactive} onSave={(value) => saveInline("industry", value)} />
                   <InlineEditField label="WWW" value={client.website} fallback="-" type="url" canEdit={has("clients.edit") && !isInactive} onSave={(value) => saveInline("website", value)} />
-                  <DataRow label="Konto klienta" value={client.owner ? `${client.owner.name} (${client.owner.email})` : undefined} fallback="Nie przypisano" warn />
+                  <DataRow label="Konto klienta w portalu" value={client.identity?.portalUser ? `${client.identity.portalUser.name} (${client.identity.portalUser.email})` : undefined} fallback="Nie zaproszony" warn />
+                  <DataRow label="Właściciel teczki" value={client.owner ? `${client.owner.name} (${client.owner.email})` : undefined} fallback="Nie przypisano" />
                   {client.interestedProducts && <DataRow label="Produkty / usługi"  value={client.interestedProducts} pre />}
                   {client.keyFindings        && <DataRow label="Kluczowe ustalenia" value={client.keyFindings} pre />}
                   {client.description        && <DataRow label="Opis"               value={client.description} pre />}

@@ -40,6 +40,14 @@ export async function GET(
       include: {
         contacts: true,
         owner: { select: { id: true, name: true, email: true, role: true } },
+        // Konto klienta siedzi przy tozsamosci, nie przy teczce — bez tego karta
+        // pokazywala jako „konto klienta" wlasciciela handlowego.
+        identity: {
+          select: {
+            portalUserId: true,
+            portalUser: { select: { id: true, name: true, email: true } },
+          },
+        },
         cases: {
           include: {
             salesperson: { select: { name: true } },
