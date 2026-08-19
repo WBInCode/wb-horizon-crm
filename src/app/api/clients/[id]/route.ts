@@ -196,12 +196,23 @@ export async function DELETE(
       return NextResponse.json({ error: "Można trwale usuwać tylko zarchiwizowanych kontrahentów" }, { status: 400 })
     }
 
-    // Delete associated archived cases first
-    await prisma.case.deleteMany({
-      where: { clientId: id, archivedAt: { not: null } },
-    })
-
-    await prisma.client.delete({ where: { id } })
+    // Transakcja: bez niej blad przy delete klienta (np. inna, niezarchiwizowana
+    // sprawa nadal go trzyma przez FK RESTRICT) zostawialby juz skasowane sprawy
+    // bez skasowanego klienta i bez wpisu w audit logu — polowiczny, cichy stan.
+    try {
+      await prisma.$transaction([
+        prisma.case.deleteMany({ where: { clientId: id, archivedAt: { not: null } } }),
+        prisma.client.delete({ where: { id } }),
+      ])
+    } catch (blad: unknown) {
+      if ((blad as { code?: string }).code === "P2003") {
+        return NextResponse.json(
+          { error: "Kontrahent ma jeszcze powiązaną, nieusuniętą sprawę — nie można trwale usunąć" },
+          { status: 409 }
+        )
+      }
+      throw blad
+    }
 
     await auditLog({
       action: "DELETE",

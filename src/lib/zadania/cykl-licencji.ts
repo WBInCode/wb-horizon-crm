@@ -99,12 +99,26 @@ export async function przetworzCyklLicencji(): Promise<WynikCykluLicencji> {
     // Zapamietujemy tozsamosci PRZED usunieciem teczek — potem nie da sie ich juz odszukac.
     const teczkiFirmy = await prisma.client.findMany({
       where: { companyId: firma.id },
-      select: { identityId: true },
+      select: { id: true, identityId: true },
     })
     const tozsamosciFirmy = [...new Set(teczkiFirmy.map((t) => t.identityId))]
 
     const leady = await prisma.lead.deleteMany({ where: { companyId: firma.id } })
-    const teczki = await prisma.client.deleteMany({ where: { companyId: firma.id } })
+
+    // Klient z FK RESTRICT od Case nie da sie skasowac, dopoki ma choc jedna
+    // powiazana sprawe — krok 2 archiwizuje tylko Client, nie Case. Jeden taki
+    // klient w pojedynczym deleteMany wywalalby P2003 i przerywal usuwanie
+    // danych CALEJ firmy (a przez to i kolejnych firm w tym przebiegu), wiec
+    // usuwamy po jednym, tak samo jak w czyszczenie-archiwum.ts.
+    let usunietychTeczek = 0
+    for (const { id } of teczkiFirmy) {
+      try {
+        await prisma.client.delete({ where: { id } })
+        usunietychTeczek++
+      } catch (blad: unknown) {
+        if ((blad as { code?: string }).code !== "P2003") throw blad
+      }
+    }
 
     // Tozsamosc znika tylko wtedy, gdy nie obsluguje jej juz zadna inna firma.
     if (tozsamosciFirmy.length > 0) {
@@ -122,12 +136,12 @@ export async function przetworzCyklLicencji(): Promise<WynikCykluLicencji> {
       metadata: {
         event: "licencja_usuniecie_danych",
         usunieteLeady: leady.count,
-        usunieteTeczki: teczki.count,
+        usunieteTeczki: usunietychTeczek,
       },
     })
 
     wynik.usunieteLeady += leady.count
-    wynik.usunieteTeczki += teczki.count
+    wynik.usunieteTeczki += usunietychTeczek
     wynik.usunieteFirmy += 1
   }
 

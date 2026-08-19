@@ -50,10 +50,19 @@ export async function POST(request: NextRequest) {
       where: whereCase as any,
     })
 
-    // Delete clients (Cascade will handle related contacts, notes, etc.)
-    const deletedClients = await prisma.client.deleteMany({
-      where: whereCondition as any,
-    })
+    // Klient z FK RESTRICT od Case nie da sie skasowac, dopoki ma choc jedna
+    // sprawe spoza tego czyszczenia (aktywna albo poza wiekiem `wiek` powyzej).
+    // Jeden taki klient w pojedynczym deleteMany wywalalby P2003 dla calego
+    // batcha — usuwamy wiec po jednym, tak samo jak w czyszczenie-archiwum.ts.
+    let deletedClientsCount = 0
+    for (const { id } of clientsToPurge) {
+      try {
+        await prisma.client.delete({ where: { id } })
+        deletedClientsCount++
+      } catch (blad: unknown) {
+        if ((blad as { code?: string }).code !== "P2003") throw blad
+      }
+    }
 
     // Tozsamosc znika dopiero, gdy nie obsluguje jej juz zadna firma.
     const osierocone = await prisma.clientIdentity.deleteMany({
@@ -74,7 +83,7 @@ export async function POST(request: NextRequest) {
         force,
         retentionDays: force ? 0 : retentionDays,
         deletedCasesCount: deletedCases.count,
-        deletedClientsCount: deletedClients.count,
+        deletedClientsCount,
         deletedIdentitiesCount: osierocone.count,
         purgedCases: casesToPurge.map((c) => ({ id: c.id, title: c.title })),
         purgedClients: clientsToPurge.map((c) => ({ id: c.id, name: c.companyName })),
@@ -84,11 +93,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: force
-        ? `Wyczyszczono całe archiwum: ${deletedCases.count} sprzedaży, ${deletedClients.count} kontrahentów.`
-        : `Wyczyszczono archiwum (starsze niż ${retentionDays} dni): ${deletedCases.count} sprzedaży, ${deletedClients.count} kontrahentów.`,
+        ? `Wyczyszczono całe archiwum: ${deletedCases.count} sprzedaży, ${deletedClientsCount} kontrahentów.`
+        : `Wyczyszczono archiwum (starsze niż ${retentionDays} dni): ${deletedCases.count} sprzedaży, ${deletedClientsCount} kontrahentów.`,
       deleted: {
         cases: deletedCases.count,
-        clients: deletedClients.count,
+        clients: deletedClientsCount,
       },
     })
   } catch (error) {

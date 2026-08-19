@@ -51,10 +51,28 @@ export async function wyczyscArchiwum(options?: { retencjaDni?: number }): Promi
   const warunek = { archivedAt: { not: null, lt: granica } }
 
   const sprawy = await prisma.case.deleteMany({ where: warunek })
-  const teczki = await prisma.client.deleteMany({ where: warunek })
+
+  // Klient z FK RESTRICT od Case (sprawy.clientId) nie da sie skasowac, dopoki ma
+  // choc jedna powiazana sprawe spoza tej retencji (aktywna albo archiwizowana
+  // pozniej niz granica). Pojedynczy taki klient w jednym deleteMany wywalalby P2003
+  // dla calego batcha — usuwamy wiec po jednym, zeby jeden problematyczny rekord
+  // nie blokowal retencji reszcie. Dokladnie ta awaria, przed ktora chroni juz
+  // usunOsieroconeTozsamosci() obok.
+  const kandydaci = await prisma.client.findMany({ where: warunek, select: { id: true } })
+  let usunietychKlientow = 0
+  for (const { id } of kandydaci) {
+    try {
+      await prisma.client.delete({ where: { id } })
+      usunietychKlientow++
+    } catch (blad: unknown) {
+      if ((blad as { code?: string }).code !== "P2003") throw blad
+      // Zostaje do nastepnego przebiegu, kiedy blokujaca sprawa tez wpadnie w retencje.
+    }
+  }
+
   const osierocone = await usunOsieroconeTozsamosci()
 
-  if (sprawy.count > 0 || teczki.count > 0 || osierocone > 0) {
+  if (sprawy.count > 0 || usunietychKlientow > 0 || osierocone > 0) {
     await auditLog({
       action: "DELETE",
       entityType: "CASE",
@@ -65,7 +83,7 @@ export async function wyczyscArchiwum(options?: { retencjaDni?: number }): Promi
         action: "auto_cleanup",
         retentionDays: retencjaDni,
         deletedCasesCount: sprawy.count,
-        deletedClientsCount: teczki.count,
+        deletedClientsCount: usunietychKlientow,
         deletedIdentitiesCount: osierocone,
       },
     })
@@ -73,7 +91,7 @@ export async function wyczyscArchiwum(options?: { retencjaDni?: number }): Promi
 
   return {
     sprawy: sprawy.count,
-    teczki: teczki.count,
+    teczki: usunietychKlientow,
     tozsamosci: osierocone,
     retencjaDni,
   }

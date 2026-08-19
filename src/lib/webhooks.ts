@@ -159,6 +159,17 @@ export async function processPendingDeliveries(
       continue
     }
 
+    // Zajecie rekordu przed wyslaniem, nie po. Dwa nakladajace sie przebiegi
+    // (wolny poprzedni tick + kolejny z crona) moglyby obie zobaczyc te sama
+    // dostawe jako "do wyslania" w findMany powyzej i obie wyslac ja do
+    // subskrybenta — warunkowy zapis w `where` jest atomowy na poziomie bazy,
+    // wiec drugi rownoczesny worker dostanie count 0 i pominie ten rekord.
+    const zajete = await prisma.webhookDelivery.updateMany({
+      where: { id: delivery.id, status: delivery.status },
+      data: { status: "SENDING" },
+    })
+    if (zajete.count === 0) continue
+
     const body = JSON.stringify({
       event: delivery.event,
       deliveryId: delivery.id,

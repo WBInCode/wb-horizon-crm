@@ -188,19 +188,20 @@ async function przyjmijWTransakcji(
   const powod = czyWazne(zaproszenie)
   if (powod) return { ok: false, powod }
 
-  const tozsamosc = await tx.clientIdentity.findUnique({
-    where: { id: zaproszenie.identityId },
-    select: { portalUserId: true },
+  // Warunkowy zapis zamiast odczyt-potem-zapis: dwie rownoczesne akceptacje tego
+  // samego zaproszenia moglyby obie przejsc sprawdzenie "wolne" przed zapisem
+  // ktorejkolwiek, a druga cicho nadpisalaby przypisanie pierwszej. `updateMany`
+  // z warunkiem w `where` jest atomowy na poziomie bazy — drugi rownoczesny zapis
+  // zobaczy juz zaktualizowany wiersz i dostanie count 0.
+  const przypiecie = await tx.clientIdentity.updateMany({
+    where: {
+      id: zaproszenie.identityId,
+      OR: [{ portalUserId: null }, { portalUserId: userId }],
+    },
+    data: { portalUserId: userId },
   })
-  if (tozsamosc?.portalUserId && tozsamosc.portalUserId !== userId) {
+  if (przypiecie.count === 0) {
     return { ok: false, powod: "konto-zajete-przez-kogo-innego" as const }
-  }
-
-  if (!tozsamosc?.portalUserId) {
-    await tx.clientIdentity.update({
-      where: { id: zaproszenie.identityId },
-      data: { portalUserId: userId },
-    })
   }
 
   // Odslania sie WYLACZNIE teczka zapraszajacej firmy. Teczki pozostalych firm
@@ -253,19 +254,29 @@ export async function zarejestrujZZaproszenia(params: {
   return prisma.$transaction(async (tx) => {
     const email = params.email.trim().toLowerCase()
 
-    const istniejace = await tx.user.findUnique({ where: { email }, select: { id: true } })
-    if (istniejace) return { ok: false as const, powod: "konto-juz-istnieje" as const }
-
-    const konto = await tx.user.create({
-      data: {
-        email,
-        name: params.name,
-        password: params.passwordHash,
-        role: "CLIENT",
-        status: "ACTIVE",
-      },
-      select: { id: true },
-    })
+    // Zapis wprost zamiast sprawdzenia "czy istnieje" przed nim — dwie rownoczesne
+    // rejestracje tym samym mailem (z dwoch roznych zaproszen) moglyby obie przejsc
+    // sprawdzenie przed ktorakolwiek zapisala rekord. `email` ma unique constraint
+    // w bazie, wiec to ona rozstrzyga, a P2002 z drugiego zapisu zamieniamy na ten
+    // sam czytelny powod odmowy zamiast surowego 500.
+    let konto: { id: string }
+    try {
+      konto = await tx.user.create({
+        data: {
+          email,
+          name: params.name,
+          password: params.passwordHash,
+          role: "CLIENT",
+          status: "ACTIVE",
+        },
+        select: { id: true },
+      })
+    } catch (blad: unknown) {
+      if ((blad as { code?: string }).code === "P2002") {
+        throw new OdmowaPrzyjecia("konto-juz-istnieje")
+      }
+      throw blad
+    }
 
     const wynik = await przyjmijWTransakcji(tx, params.zaproszenieId, konto.id)
     if (!wynik.ok) throw new OdmowaPrzyjecia(wynik.powod)
@@ -279,7 +290,7 @@ export async function zarejestrujZZaproszenia(params: {
 }
 
 class OdmowaPrzyjecia extends Error {
-  constructor(readonly powod: PowodOdmowy) {
+  constructor(readonly powod: PowodOdmowyRejestracji) {
     super(powod)
   }
 }

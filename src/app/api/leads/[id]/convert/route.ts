@@ -59,36 +59,45 @@ export async function POST(
       )
     }
 
-    // Kontrahent powstaje w firmie, ktora prowadzila lead, a nie w firmie klikajacego.
-    const client = await prisma.client.create({
-      data: {
-        companyId: lead.companyId,
-        identityId,
-        companyName: lead.companyName,
-        nip: lead.nip,
-        industry: lead.industry,
-        website: lead.website,
-        fromLeadId: lead.id,
-        ownerId: user.id,
-        contacts: {
-          create: {
-            name: lead.contactPerson,
-            position: lead.position,
-            phone: lead.phone,
-            email: lead.email,
-            isMain: true
+    // Transakcja: bez niej awaria miedzy utworzeniem Kontrahenta a oznaczeniem
+    // leada zostawialaby osieroconego Kontrahenta (z fromLeadId) przy leadzie,
+    // ktory nadal wyglada na nieskonwertowany — ponowna proba trafialaby o
+    // sprawdzenie "juzMa" powyzej i blokowala sie 409 bez mozliwosci naprawy
+    // inaczej niz recznie w bazie.
+    const client = await prisma.$transaction(async (tx) => {
+      // Kontrahent powstaje w firmie, ktora prowadzila lead, a nie w firmie klikajacego.
+      const nowyKlient = await tx.client.create({
+        data: {
+          companyId: lead.companyId,
+          identityId,
+          companyName: lead.companyName,
+          nip: lead.nip,
+          industry: lead.industry,
+          website: lead.website,
+          fromLeadId: lead.id,
+          ownerId: user.id,
+          contacts: {
+            create: {
+              name: lead.contactPerson,
+              position: lead.position,
+              phone: lead.phone,
+              email: lead.email,
+              isMain: true
+            }
           }
         }
-      }
-    })
+      })
 
-    // Zmień status leada na TRANSFERRED
-    await prisma.lead.update({
-      where: { id },
-      data: { 
-        status: "TRANSFERRED",
-        convertedToClientId: client.id
-      }
+      // Zmień status leada na TRANSFERRED
+      await tx.lead.update({
+        where: { id },
+        data: {
+          status: "TRANSFERRED",
+          convertedToClientId: nowyKlient.id
+        }
+      })
+
+      return nowyKlient
     })
 
     await auditLog({
