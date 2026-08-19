@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { canAccessLead, getCurrentUser } from "@/lib/auth"
+import { canAccessLead, canAccessClient, getCurrentUser } from "@/lib/auth"
 import { auditLog, diffChanges } from "@/lib/audit"
 import { dataZFormularza } from "@/lib/daty"
 import { adresWww, komunikatWalidacji } from "@/lib/walidacja"
@@ -131,6 +131,26 @@ export async function PUT(
     }
 
     const oldLead = await prisma.lead.findUnique({ where: { id } })
+
+    // "Przekazany" bez Kontrahenta to martwy stan: canCreateContractor,
+    // canCreateSale i canCreateQuote licza sie po convertedToClientId, wiec lead
+    // TRANSFERRED bez niego nie ma juz zadnej dostepnej akcji w UI ani sposobu
+    // wrocic do poprzedniego stanu inaczej niz recznie w bazie. Jedyna droga do
+    // TRANSFERRED to POST /api/leads/[id]/convert, ktory tworzy Kontrahenta i
+    // ustawia oba pola w jednej transakcji.
+    if (body.status === "TRANSFERRED" && !oldLead?.convertedToClientId && !body.convertedToClientId) {
+      return NextResponse.json(
+        { error: "Lead można oznaczyć jako „Przekazany” tylko przez konwersję na kontrahenta" },
+        { status: 422 },
+      )
+    }
+    // convertedToClientId nie ma FK w bazie (patrz Client.fromLeadId) — bez tego
+    // dalo by sie tu podstawic dowolny string, w tym id kontrahenta innej firmy.
+    if (body.convertedToClientId !== undefined && body.convertedToClientId !== null) {
+      if (!(await canAccessClient(user.id, user.role, body.convertedToClientId))) {
+        return NextResponse.json({ error: "Nieprawidłowy kontrahent" }, { status: 422 })
+      }
+    }
 
     const data: Record<string, unknown> = {}
     if (body.companyName !== undefined) data.companyName = body.companyName

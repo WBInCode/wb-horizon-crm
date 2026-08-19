@@ -1,16 +1,9 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
-
-async function getStructureUserIds(userId: string, role: string): Promise<string[]> {
-  const structure = await prisma.structure.findFirst({
-    where: role === "DIRECTOR"
-      ? { directorId: userId }
-      : { members: { some: { userId } } },
-    select: { directorId: true, members: { select: { userId: true } } },
-  })
-  return structure ? [structure.directorId, ...structure.members.map((m) => m.userId)] : [userId]
-}
+import { firmaUzytkownika } from "@/lib/company"
+import { getVisibleUserIds } from "@/lib/structure"
+import type { Role } from "@prisma/client"
 
 export async function GET() {
   const user = await getCurrentUser()
@@ -18,10 +11,19 @@ export async function GET() {
   if (!["DIRECTOR", "MANAGER", "ADMIN"].includes(user.role))
     return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
 
-  const userIds = await getStructureUserIds(user.id, user.role)
+  // Byla tu lokalna kopia tej logiki (getStructureUserIds), ktora dla MANAGERA
+  // zwracala WSZYSTKICH w calej strukturze zamiast tylko jego wlasnej galezi
+  // BFS — patrz ten sam komentarz w management/clients/route.ts.
+  const companyId = await firmaUzytkownika(user.id)
+  if (!companyId) return NextResponse.json([])
+
+  const userIds = await getVisibleUserIds(user.id, user.role as Role)
 
   const cases = await prisma.case.findMany({
-    where: { salesId: { in: userIds } },
+    where: {
+      client: { companyId },
+      ...(userIds === "ALL" ? {} : { salesId: { in: userIds } }),
+    },
     include: {
       client: { select: { companyName: true } },
       product: { select: { name: true } },

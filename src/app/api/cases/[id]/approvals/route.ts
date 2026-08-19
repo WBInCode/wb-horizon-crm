@@ -35,11 +35,29 @@ export async function POST(
       return NextResponse.json({ error: "Nieprawidłowy typ" }, { status: 400 })
     }
 
+    // targetId nie bylo dotad sprawdzane wcale — opiekun/dyrektor sprawy A mogl
+    // zatwierdzic (utworzyc wpis Approval) plik/wycene/pozycje checklisty ze
+    // sprawy B, bo caseId w rekordzie i tak zapisuje sie poprawnie z adresu.
+    const targetId = body.targetId || id
+    let naliscie = true
+    if (body.targetType === "FILE") {
+      naliscie = !!(await prisma.caseFile.findFirst({ where: { id: targetId, caseId: id }, select: { id: true } }))
+    } else if (body.targetType === "QUOTE") {
+      naliscie = !!(await prisma.quote.findFirst({ where: { id: targetId, caseId: id }, select: { id: true } }))
+    } else if (body.targetType === "CHECKLIST_ITEM") {
+      naliscie = !!(await prisma.caseChecklistItem.findFirst({ where: { id: targetId, caseId: id }, select: { id: true } }))
+    } else if (targetId !== id) {
+      naliscie = false
+    }
+    if (!naliscie) {
+      return NextResponse.json({ error: "Cel akceptacji nie należy do tej sprawy" }, { status: 400 })
+    }
+
     const approval = await prisma.approval.create({
       data: {
         caseId: id,
         targetType: body.targetType,
-        targetId: body.targetId || id,
+        targetId,
         status: body.status || "APPROVED",
         comment: body.comment,
         approvedById: user.id,

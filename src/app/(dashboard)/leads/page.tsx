@@ -190,11 +190,18 @@ function LeadsContent() {
   // Audyt F4: zmiana statusu z kanbana — optymistycznie, rollback przy błędzie
   const statusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const res = await fetch(`/api/leads/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      })
+      // "Przekazany" nie jest zwyklym statusem — API blokuje jego ustawienie
+      // samym PUT (patrz komentarz w api/leads/[id]/route.ts), bo bez utworzenia
+      // Kontrahenta lead ladowal w martwym stanie bez zadnej dostepnej akcji.
+      // Przeciagniecie karty na te kolumne ma wiec faktycznie konwertowac lead.
+      const res =
+        status === "TRANSFERRED"
+          ? await fetch(`/api/leads/${id}/convert`, { method: "POST" })
+          : await fetch(`/api/leads/${id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status }),
+            })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         throw new Error(err.error || "Błąd zmiany statusu")

@@ -151,6 +151,26 @@ export default function LeadQuickActions({ lead, leadId, users, currentUserRole,
   }
 
   const handleStatusChange = async (newStatus: string) => {
+    // "Przekazany" tworzy Kontrahenta — API odrzuca samo ustawienie statusu
+    // (patrz komentarz w api/leads/[id]/route.ts), bo bez tego lead ladowal
+    // w martwym stanie: canCreateContractor=false, canCreateSale/Quote tez,
+    // bo convertedToClientId nigdy sie nie ustawilo.
+    if (newStatus === "TRANSFERRED") {
+      setSaving(true)
+      try {
+        const res = await fetch(`/api/leads/${leadId}/convert`, { method: "POST" })
+        if (res.ok) {
+          onUpdate()
+          toast.success(`Status zmieniony na "${STATUS_LABELS[newStatus]}"`)
+        } else {
+          const err = await res.json()
+          toast.error(err.error || "Błąd konwersji")
+        }
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
     const ok = await patchLead({ status: newStatus })
     if (ok) toast.success(`Status zmieniony na "${STATUS_LABELS[newStatus]}"`)
   }

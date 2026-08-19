@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
 import { firmaUzytkownika } from "@/lib/company"
 import { osobaZFirmy } from "@/lib/przypisania"
+import { canTransition } from "@/lib/dictionaries"
 import { notifyCaseAssigned, notifyCaseForApproval, notifyCaseReturned, notifyCaretakerChanged } from "@/lib/notifications"
 import { auditLog, diffChanges } from "@/lib/audit"
 import { logger } from "@/lib/logger"
@@ -164,6 +165,22 @@ export async function PUT(
         delete parsed.processStage
         delete parsed.detailedStatus
       } else {
+        // canTransition/STAGE_TRANSITIONS byly dotad sprawdzane wylacznie w UI
+        // (drag&drop w kanbanie) — ten endpoint przyjmowal dowolny processStage
+        // bez sprawdzenia, ze przejscie jest w ogole dozwolone (np. z NEW od razu
+        // do CLOSED, z pominieciem VERIFICATION/APPROVAL/EXECUTION).
+        if (
+          parsed.processStage &&
+          oldCase &&
+          parsed.processStage !== oldCase.processStage &&
+          !canTransition(oldCase.processStage, parsed.processStage)
+        ) {
+          return NextResponse.json(
+            { error: `Niedozwolone przejście z etapu "${oldCase.processStage}" na "${parsed.processStage}"` },
+            { status: 400 }
+          )
+        }
+
         const ALLOWED_STATUS_PER_STAGE: Record<string, string[]> = {
           NEW: ["WAITING_SURVEY", "WAITING_FILES"],
           DATA_COLLECTION: ["WAITING_SURVEY", "WAITING_FILES", "FORMAL_DEFICIENCIES"],
