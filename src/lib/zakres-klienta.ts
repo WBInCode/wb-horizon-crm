@@ -30,6 +30,62 @@ export const ZAKRES_ZAMKNIETY: ZakresKlienta = {
  */
 export const POLA_WEWNETRZNE_ANKIETY = ["salesNotes"]
 
+type SchemaAnkiety = { questions?: Array<{ id: string }> } | null | undefined
+type OdpowiedziAnkiety = Record<string, unknown> | null | undefined
+
+/**
+ * Usuwa pola wewnetrzne (pytania i odpowiedzi) z ankiety zanim trafi do klienta.
+ * Ukrycie zakladki w UI nie wystarcza — trasa API zwraca surowe dane kazdemu,
+ * kto ma dostep do sprawy, a klient portalu go ma.
+ */
+export function ukryjWewnetrzneAnkiety<T extends { schemaJson?: unknown; answersJson?: unknown } | null>(
+  survey: T,
+): T {
+  if (!survey) return survey
+  const schema = survey.schemaJson as SchemaAnkiety
+  const answers = survey.answersJson as OdpowiedziAnkiety
+  return {
+    ...survey,
+    schemaJson: schema?.questions
+      ? { ...schema, questions: schema.questions.filter((q) => !POLA_WEWNETRZNE_ANKIETY.includes(q.id)) }
+      : schema,
+    answersJson: answers
+      ? Object.fromEntries(Object.entries(answers).filter(([k]) => !POLA_WEWNETRZNE_ANKIETY.includes(k)))
+      : answers,
+  }
+}
+
+/**
+ * Klient nigdy nie widzi pol wewnetrznych (patrz `ukryjWewnetrzneAnkiety`), wiec jego
+ * zapis ankiety — pelne nadpisanie schemaJson/answersJson — nigdy ich nie zawiera.
+ * Bez tej funkcji zwykly zapis formularza przez klienta cicho kasowalby notatki
+ * handlowca, a podstawienie klucza w body pozwalaloby je sfalszowac.
+ */
+export function chronPolaWewnetrzneAnkiety(
+  noweDane: { schemaJson?: unknown; answersJson?: unknown },
+  istniejace: { schemaJson?: unknown; answersJson?: unknown } | null | undefined,
+): { schemaJson: unknown; answersJson: unknown } {
+  const istOdp = (istniejace?.answersJson as OdpowiedziAnkiety) ?? {}
+  const odpowiedzi: Record<string, unknown> = { ...((noweDane.answersJson as OdpowiedziAnkiety) ?? {}) }
+  for (const pole of POLA_WEWNETRZNE_ANKIETY) {
+    if (pole in istOdp) odpowiedzi[pole] = istOdp![pole]
+    else delete odpowiedzi[pole]
+  }
+
+  let schema = noweDane.schemaJson as SchemaAnkiety
+  const istSchema = istniejace?.schemaJson as SchemaAnkiety
+  if (istSchema?.questions?.length) {
+    const brakujace = istSchema.questions.filter(
+      (q) => POLA_WEWNETRZNE_ANKIETY.includes(q.id) && !schema?.questions?.some((nq) => nq.id === q.id),
+    )
+    if (brakujace.length > 0) {
+      schema = { ...(schema ?? {}), questions: [...(schema?.questions ?? []), ...brakujace] }
+    }
+  }
+
+  return { schemaJson: schema, answersJson: odpowiedzi }
+}
+
 export async function zakresKlientaDlaSprawy(caseId: string): Promise<ZakresKlienta> {
   const sprawa = await prisma.case.findUnique({
     where: { id: caseId },

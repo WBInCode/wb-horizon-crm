@@ -1,8 +1,15 @@
 ﻿import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
+import { klientWidzi } from "@/lib/zakres-klienta"
 import { auditLog } from "@/lib/audit"
 import { logger } from "@/lib/logger"
+
+const patchFileSchema = z.object({
+  status: z.enum(["PENDING", "APPROVED", "REJECTED", "MISSING"]).optional(),
+  comment: z.string().max(2000).nullable().optional(),
+})
 
 export async function PATCH(
   request: NextRequest,
@@ -21,8 +28,21 @@ export async function PATCH(
     if (!hasAccess) {
       return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
     }
+    // Ten sam przelacznik co GET/POST listy plikow — bez niego klient zmienialby
+    // status pliku nawet gdy firma wylaczyla mu ta zakladke.
+    if (!(await klientWidzi(user.role, id, "pliki"))) {
+      return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
+    }
 
-    const body = await request.json()
+    const json = await request.json()
+    const result = patchFileSchema.safeParse(json)
+    if (!result.success) {
+      return NextResponse.json(
+        { error: "Nieprawidłowe dane", details: result.error.flatten() },
+        { status: 400 }
+      )
+    }
+    const body = result.data
 
     // Tylko CARETAKER/DIRECTOR/ADMIN mogą akceptować/odrzucać pliki
     if ((body.status === "APPROVED" || body.status === "REJECTED") &&

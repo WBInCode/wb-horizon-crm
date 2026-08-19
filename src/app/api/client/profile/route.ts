@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 import { validatePassword } from "@/lib/password-policy"
+import { getCurrentUser } from "@/lib/auth"
 
 // GET — fetch current user profile
 export async function GET() {
-  const session = await getServerSession()
-  if (!session?.user?.email) {
+  // getCurrentUser() (nie golutkie getServerSession()) — przechodzi przez callback
+  // jwt z authOptions, ktory sprawdza status=ACTIVE i sessionVersion. Bez tego
+  // zawieszone/wylogowane-wymuszone konto klienta dalej mialoby tu dzialajaca sesje.
+  const currentUser = await getCurrentUser()
+  if (!currentUser) {
     return NextResponse.json({ error: "Brak autoryzacji" }, { status: 401 })
   }
 
   const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
+    where: { id: currentUser.id },
     select: {
       id: true,
       name: true,
@@ -35,8 +38,8 @@ export async function GET() {
 
 // PUT — update profile (name, phone, password)
 export async function PUT(request: Request) {
-  const session = await getServerSession()
-  if (!session?.user?.email) {
+  const currentUser = await getCurrentUser()
+  if (!currentUser) {
     return NextResponse.json({ error: "Brak autoryzacji" }, { status: 401 })
   }
 
@@ -44,7 +47,7 @@ export async function PUT(request: Request) {
   const { name, phone, currentPassword, newPassword } = body
 
   const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
+    where: { id: currentUser.id },
   })
 
   if (!user) {

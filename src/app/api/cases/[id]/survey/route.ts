@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
 import { logger } from "@/lib/logger"
+import { ukryjWewnetrzneAnkiety, chronPolaWewnetrzneAnkiety } from "@/lib/zakres-klienta"
 
 // GET /api/cases/[id]/survey - pobierz ankietę sprzedaży
 export async function GET(
@@ -30,7 +31,12 @@ export async function GET(
       orderBy: { updatedAt: "desc" }
     })
 
-    // Calculate progress if survey has schema
+    // Ukrycie zakladki w UI klienta nie chroni tej trasy — pola wewnetrzne
+    // (notatki handlowca) trzeba wyciac tu, po stronie serwera.
+    const visibleSurvey = user.role === "CLIENT" ? ukryjWewnetrzneAnkiety(survey) : survey
+
+    // Calculate progress if survey has schema (na pelnych, niefiltrowanych danych —
+    // procent ukonczenia liczy sie tak samo niezaleznie od tego, kto pyta)
     if (survey?.schemaJson && survey?.answersJson) {
       const schema = survey.schemaJson as any
       const answers = survey.answersJson as Record<string, any>
@@ -49,7 +55,7 @@ export async function GET(
         }).length
 
         return NextResponse.json({
-          ...survey,
+          ...visibleSurvey,
           progress: {
             total,
             answered,
@@ -62,7 +68,7 @@ export async function GET(
       }
     }
 
-    return NextResponse.json(survey)
+    return NextResponse.json(visibleSurvey)
   } catch (error) {
     logger.error("GET failed", error)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
@@ -100,13 +106,24 @@ export async function POST(
       orderBy: { updatedAt: "desc" }
     })
 
+    // Klient nigdy nie widzi pol wewnetrznych (GET je wycina), wiec jego zapis
+    // formularza nigdy ich nie zawiera — pelne nadpisanie schemaJson/answersJson
+    // cicho skasowaloby notatki handlowca. Odtwarzamy je z ostatniego zapisu i
+    // blokujemy podstawienie klucza wprost w body.
+    const daneDoZapisu = user.role === "CLIENT"
+      ? chronPolaWewnetrzneAnkiety(
+          { schemaJson: body.schemaJson ?? existing?.schemaJson, answersJson: body.answersJson ?? existing?.answersJson },
+          existing,
+        )
+      : { schemaJson: body.schemaJson ?? existing?.schemaJson, answersJson: body.answersJson ?? existing?.answersJson }
+
     let survey
     if (existing) {
       survey = await prisma.caseSurvey.update({
         where: { id: existing.id },
         data: {
-          schemaJson: body.schemaJson ?? existing.schemaJson,
-          answersJson: body.answersJson ?? existing.answersJson,
+          schemaJson: daneDoZapisu.schemaJson,
+          answersJson: daneDoZapisu.answersJson,
           updatedById: user.id,
         }
       })
@@ -114,8 +131,8 @@ export async function POST(
       survey = await prisma.caseSurvey.create({
         data: {
           caseId: id,
-          schemaJson: body.schemaJson,
-          answersJson: body.answersJson,
+          schemaJson: daneDoZapisu.schemaJson,
+          answersJson: daneDoZapisu.answersJson,
           updatedById: user.id,
         }
       })

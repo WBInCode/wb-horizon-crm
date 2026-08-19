@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser, canAccessCase } from "@/lib/auth"
+import { klientWidzi } from "@/lib/zakres-klienta"
 import { auditLog } from "@/lib/audit"
 import { logger } from "@/lib/logger"
 
@@ -21,6 +22,11 @@ export async function PATCH(
     if (!hasAccess) {
       return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
     }
+    // Ten sam przelacznik co GET listy — bez niego klient odhaczalby checkliste
+    // nawet gdy firma wylaczyla mu ta zakladke.
+    if (!(await klientWidzi(user.role, id, "listaKontrolna"))) {
+      return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
+    }
     // Element musi nalezec do TEJ sprawy — dostep sprawdzamy dla sprawy z adresu,
     // wiec bez tego sam identyfikator elementu siegalby do cudzej sprawy.
     const naliscie = await prisma.caseChecklistItem.findFirst({
@@ -30,11 +36,14 @@ export async function PATCH(
     if (!naliscie) return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
     const body = await request.json()
 
+    // Przypisanie osoby to decyzja firmy, nie klienta.
+    const assignedToId = user.role === "CLIENT" ? undefined : body.assignedToId
+
     const item = await prisma.caseChecklistItem.update({
       where: { id: itemId },
       data: {
         status: body.status,
-        assignedToId: body.assignedToId,
+        assignedToId,
         updatedById: user.id
       }
     })

@@ -1,18 +1,19 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
 import { prisma } from "@/lib/prisma"
 import { put, del } from "@vercel/blob"
 import { assertSafeUpload } from "@/lib/file-safety"
+import { getCurrentUser } from "@/lib/auth"
 
 // POST — upload avatar image
 export async function POST(request: Request) {
-  const session = await getServerSession()
-  if (!session?.user?.email) {
+  // getCurrentUser() (nie golutkie getServerSession()) — patrz komentarz w profile/route.ts.
+  const currentUser = await getCurrentUser()
+  if (!currentUser) {
     return NextResponse.json({ error: "Brak autoryzacji" }, { status: 401 })
   }
 
   const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
+    where: { id: currentUser.id },
     select: { id: true, avatarUrl: true },
   })
 
@@ -70,13 +71,13 @@ export async function POST(request: Request) {
 
 // DELETE — remove avatar
 export async function DELETE() {
-  const session = await getServerSession()
-  if (!session?.user?.email) {
+  const currentUser = await getCurrentUser()
+  if (!currentUser) {
     return NextResponse.json({ error: "Brak autoryzacji" }, { status: 401 })
   }
 
   const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
+    where: { id: currentUser.id },
     select: { id: true, avatarUrl: true },
   })
 

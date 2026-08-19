@@ -14,6 +14,13 @@ export async function GET(
   if (!(await canAccessCase(user.id, user.role, id)))
     return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
 
+  // Odpowiedzi na pytania z kreatora produktu to dane wewnetrzne (uzywa ich tylko
+  // panel dashboard) — ProductSurveyQuestion nie ma dzis pojecia "pytanie widoczne
+  // dla klienta", wiec zamiast filtrowac pojedyncze pola blokujemy cala trase.
+  if (user.role === "CLIENT") {
+    return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
+  }
+
   const answers = await prisma.caseSurveyAnswer.findMany({
     where: { caseId: id },
     orderBy: { createdAt: "asc" },
@@ -32,6 +39,10 @@ export async function PUT(
   const { id } = await params
   if (!(await canAccessCase(user.id, user.role, id)))
     return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
+
+  if (user.role === "CLIENT") {
+    return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
+  }
 
   const { answers } = await req.json() as { answers: Record<string, string> }
   if (!answers || typeof answers !== "object")
