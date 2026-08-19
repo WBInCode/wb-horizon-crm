@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getCurrentUser } from "@/lib/auth"
+import { getCurrentUser, canAccessLead } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
 import { logger } from "@/lib/logger"
 
@@ -29,6 +29,9 @@ export async function POST(request: NextRequest) {
       })
 
       if (!lead) continue
+
+      // Granica firmy: usuwanie masowe nie może sięgać poza własną firmę.
+      if (!(await canAccessLead(user.id, user.role, id))) continue
 
       // Don't delete leads that were converted to clients
       if (lead.convertedToClientId) continue

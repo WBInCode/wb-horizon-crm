@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requirePermission } from "@/lib/auth"
+import { requirePermission, canAccessClient } from "@/lib/auth"
+import { strukturaFirmy } from "@/lib/struktura-firmy"
 
 // PDF A.2.1 — przypisanie Kontrahenta (Client) do struktury Dyrektora.
 // Jeden Kontrahent może być w kilku strukturach.
@@ -10,6 +11,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!user) return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
 
   const { id } = await params
+  if (!(await strukturaFirmy(user.id, id))) {
+    return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
+  }
+
   const links = await prisma.structureClient.findMany({
     where: { structureId: id },
     include: { client: { select: { id: true, companyName: true, stage: true } } },
@@ -26,6 +31,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const body = await req.json()
   const clientId = body?.clientId
   if (!clientId) return NextResponse.json({ error: "clientId jest wymagany" }, { status: 400 })
+
+  if (!(await strukturaFirmy(user.id, structureId))) {
+    return NextResponse.json({ error: "Struktura nie istnieje" }, { status: 404 })
+  }
+  // Bez tego dowiazywalibysmy kontrahenta obcej firmy do wlasnej struktury.
+  if (!(await canAccessClient(user.id, user.role, clientId))) {
+    return NextResponse.json({ error: "Kontrahent nie istnieje" }, { status: 404 })
+  }
 
   const [structure, client] = await Promise.all([
     prisma.structure.findUnique({ where: { id: structureId } }),
@@ -57,6 +70,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const { searchParams } = new URL(req.url)
   const clientId = searchParams.get("clientId")
   if (!clientId) return NextResponse.json({ error: "clientId jest wymagany" }, { status: 400 })
+
+  if (!(await strukturaFirmy(user.id, structureId))) {
+    return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
+  }
 
   await prisma.structureClient.delete({
     where: { structureId_clientId: { structureId, clientId } },

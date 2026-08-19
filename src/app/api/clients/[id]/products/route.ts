@@ -16,6 +16,11 @@ export async function GET(
 
     const { id } = await params
 
+    const hasAccess = await canAccessClient(user.id, user.role, id)
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
+    }
+
     const products = await prisma.product.findMany({
       where: { clientId: id, isActive: true },
       include: {

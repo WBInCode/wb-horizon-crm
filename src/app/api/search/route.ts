@@ -83,11 +83,18 @@ export async function GET(request: NextRequest) {
   }
   const db = companyId ? prismaFirmy(companyId) : prisma
 
+  // Case nie jest objety prismaFirmy (nie ma bezposredniej kolumny companyId),
+  // wiec zakres firmy trzeba dolozyc recznie — tak jak w GET /api/cases i
+  // /api/v1/cases. Dla roli CLIENT companyId jest celowo null (konto klienta
+  // rozpoznaje sie po ownerId/portalUserId, nie po firmie).
+  const companyScope = companyId ? { client: { companyId } } : {}
+
   const [cases, clients, leads] = await Promise.all([
     prisma.case.findMany({
       where: {
         AND: [
           caseWhere,
+          companyScope,
           { OR: [
             { title: { contains: q, mode: "insensitive" } },
             { client: { companyName: { contains: q, mode: "insensitive" } } },

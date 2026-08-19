@@ -130,6 +130,11 @@ export async function DELETE(
 
     const { id, quoteId } = await params
 
+    const hasAccess = await canAccessCase(user.id, user.role, id)
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
+    }
+
     const quote = await prisma.quote.findFirst({ where: { id: quoteId, caseId: id }, select: { id: true } })
     if (!quote) return NextResponse.json({ error: "Not found" }, { status: 404 })
 

@@ -250,3 +250,26 @@ export async function canAccessClient(userId: string, role: string, clientId: st
 
   return false
 }
+
+/**
+ * Check if user has access to a Product. Product ma companyId pośrednio
+ * przez Client (Product -> Client -> Company), więc nie da się go objąć
+ * MODELE_FIRMOWE/prismaFirmy wprost — sprawdzamy łańcuch ręcznie, tak jak
+ * canAccessCase robi to dla Case (który ma tę samą pośrednią zależność).
+ */
+export async function canAccessProduct(userId: string, role: string, productId: string): Promise<boolean> {
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { clientId: true },
+  })
+  if (!product) return false
+
+  const companyId = await firmaUzytkownika(userId)
+  if (!companyId) return false
+
+  const wZakresie = await prismaFirmy(companyId).client.findUnique({
+    where: { id: product.clientId },
+    select: { id: true },
+  })
+  return Boolean(wZakresie)
+}

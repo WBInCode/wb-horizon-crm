@@ -177,6 +177,12 @@ export async function DELETE(
 
     const { id } = await params
 
+    // Granica firmy: ADMIN jest adminem tylko we własnej firmie.
+    const hasAccess = await canAccessClient(user.id, user.role, id)
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
+    }
+
     const client = await prisma.client.findUnique({
       where: { id },
       select: { id: true, companyName: true, archivedAt: true },

@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requirePermission } from "@/lib/auth"
+import { requirePermission, canAccessProduct } from "@/lib/auth"
 
 // PUT /api/products/[id]/file-groups/[groupId]
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; groupId: string }> },
 ) {
-  await requirePermission("admin.users")
+  const user = await requirePermission("admin.users")
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
   const { id, groupId } = await params
+
+  const hasAccess = await canAccessProduct(user.id, user.role, id)
+  if (!hasAccess) {
+    return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
+  }
+
   const body = await req.json()
 
   const existing = await prisma.productFileGroup.findFirst({
@@ -33,8 +42,16 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string; groupId: string }> },
 ) {
-  await requirePermission("admin.users")
+  const user = await requirePermission("admin.users")
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
   const { id, groupId } = await params
+
+  const hasAccess = await canAccessProduct(user.id, user.role, id)
+  if (!hasAccess) {
+    return NextResponse.json({ error: "Brak dostępu" }, { status: 403 })
+  }
 
   const existing = await prisma.productFileGroup.findFirst({
     where: { id: groupId, productId: id },

@@ -1,25 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requirePermission } from "@/lib/auth"
-import { firmaUzytkownika } from "@/lib/company"
-import { prismaFirmy } from "@/lib/prisma-firma"
+import { strukturaFirmy } from "@/lib/struktura-firmy"
 
 // PDF A.2.1 — dodawanie/usuwanie członków struktury (Manager/Sales/CallCenter)
 // Manager może mieć pod sobą Manager/Sales/CallCenter (nie Director)
 
 const ALLOWED_ROLES = ["MANAGER", "SALESPERSON", "CALL_CENTER"] as const
 type AllowedRole = typeof ALLOWED_ROLES[number]
-
-/** Struktura widziana przez firme wolajacego; `null` konczy zadanie odpowiedzia 404. */
-async function strukturaFirmy(userId: string, structureId: string) {
-  const companyId = await firmaUzytkownika(userId)
-  if (!companyId) return null
-  const struktura = await prismaFirmy(companyId).structure.findUnique({
-    where: { id: structureId },
-    select: { id: true },
-  })
-  return struktura ? { companyId } : null
-}
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await requirePermission("admin.users")
@@ -104,6 +92,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const { searchParams } = new URL(req.url)
   const memberId = searchParams.get("memberId")
   if (!memberId) return NextResponse.json({ error: "memberId jest wymagany" }, { status: 400 })
+
+  if (!(await strukturaFirmy(user.id, structureId))) {
+    return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 })
+  }
 
   const member = await prisma.structureMember.findUnique({ where: { id: memberId } })
   if (!member || member.structureId !== structureId) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
 import { firmaUzytkownika } from "@/lib/company"
+import { osobaZFirmy } from "@/lib/przypisania"
 import { prismaFirmy } from "@/lib/prisma-firma"
 import { notifyCaseAssigned } from "@/lib/notifications"
 import { auditLog } from "@/lib/audit"
@@ -214,6 +215,17 @@ export async function POST(request: NextRequest) {
         { error: `Kontrahent "${client.companyName}" musi być min. w etapie "Wycena" aby utworzyć sprzedaż. Aktualny etap: "${client.stage}"` },
         { status: 400 }
       )
+    }
+
+    // Osoba spoza firmy nie otworzy tej sprawy, wiec przypisanie tylko psuloby dane
+    // (ten sam check co w PUT tego zasobu).
+    if (body.salesId || body.directorId) {
+      const wszyscyZFirmy = (
+        await Promise.all([body.salesId, body.directorId].map((x) => osobaZFirmy(x, companyId)))
+      ).every(Boolean)
+      if (!wszyscyZFirmy) {
+        return NextResponse.json({ error: "Przypisz osobę z Twojej firmy" }, { status: 422 })
+      }
     }
 
     const caretakerId = await findCaretakerWithLeastCases(companyId)

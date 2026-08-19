@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getCurrentUser } from "@/lib/auth"
+import { getCurrentUser, canAccessCase } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
 import { logger } from "@/lib/logger"
 
@@ -30,6 +30,9 @@ export async function POST(request: NextRequest) {
       })
 
       if (!caseData || caseData.archivedAt) continue
+
+      // Granica firmy: archiwizacja masowa nie może sięgać poza własną firmę.
+      if (!(await canAccessCase(user.id, user.role, id))) continue
 
       const updateData: Record<string, unknown> = { archivedAt: now }
       if (!["CLOSED", "CANCELLED"].includes(caseData.status)) {

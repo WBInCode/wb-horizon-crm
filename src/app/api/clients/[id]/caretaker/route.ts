@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { canAccessClient, getCurrentUser } from "@/lib/auth"
+import { firmaUzytkownika } from "@/lib/company"
+import { osobaZFirmy } from "@/lib/przypisania"
 import { auditLog } from "@/lib/audit"
 import { createNotification } from "@/lib/notifications"
 
@@ -40,6 +42,14 @@ export async function PUT(
       return NextResponse.json(
         { error: "Opiekun jest nieaktywny" },
         { status: 400 },
+      )
+    }
+    // Bez tego dyrektor/manager moglby przypisac opiekuna spoza wlasnej firmy.
+    const companyId = await firmaUzytkownika(user.id)
+    if (!companyId || !(await osobaZFirmy(caretakerId, companyId))) {
+      return NextResponse.json(
+        { error: "Opiekun: wybierz osobę z Twojej firmy" },
+        { status: 422 },
       )
     }
   }

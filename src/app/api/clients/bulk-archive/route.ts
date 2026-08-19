@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getCurrentUser } from "@/lib/auth"
+import { getCurrentUser, canAccessClient } from "@/lib/auth"
 import { auditLog } from "@/lib/audit"
 import { logger } from "@/lib/logger"
 
@@ -31,6 +31,9 @@ export async function POST(request: NextRequest) {
       })
 
       if (!client || client.archivedAt) continue
+
+      // Granica firmy: ADMIN/DIRECTOR nie mieli tu żadnego sprawdzenia zakresu.
+      if (!(await canAccessClient(user.id, user.role, id))) continue
 
       if (user.role === "SALESPERSON" && client.ownerId !== user.id) continue
 
