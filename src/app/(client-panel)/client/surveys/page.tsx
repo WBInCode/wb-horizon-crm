@@ -234,14 +234,14 @@ export default function ClientSurveysPage() {
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center py-12">
+      <div className="p-4 md:p-6 flex items-center justify-center py-12">
         <div className="animate-spin w-6 h-6 border-2 border-t-transparent rounded-full" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
       </div>
     )
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       <div className="reveal">
         <h1 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--content-strong)", fontFamily: "var(--font-display)" }}>
           Ankiety

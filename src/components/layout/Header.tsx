@@ -189,7 +189,7 @@ export function Header() {
               </span>
             )}
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" sideOffset={8} className="w-[340px] p-0 overflow-hidden">
+          <DropdownMenuContent align="end" sideOffset={8} className="w-[340px] max-w-[calc(100vw-1rem)] p-0 overflow-hidden">
             <div
               className="flex items-center justify-between px-4 py-3"
               style={{ borderBottom: "1px solid var(--line-subtle)" }}
@@ -248,7 +248,7 @@ export function Header() {
 
         {/* User */}
         <div className="flex items-center gap-3">
-          <div className="text-right">
+          <div className="text-right hidden md:block">
             <p className="text-sm font-medium" style={{ color: "var(--content-strong)" }}>{user?.name}</p>
             <p
               className="mono-label"

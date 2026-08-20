@@ -17,11 +17,11 @@ export default function StructurePage() {
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <div className="p-6"><div className="h-48 rounded-xl animate-pulse" style={{ background: "var(--surface-1)" }} /></div>
+  if (loading) return <div className="p-4 md:p-6"><div className="h-48 rounded-xl animate-pulse" style={{ background: "var(--surface-1)" }} /></div>
 
   if (!data?.structure) {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
+      <div className="p-4 md:p-6 max-w-4xl mx-auto">
         <h1 className="text-lg font-semibold mb-4" style={{ color: "var(--content-strong)" }}>Moja struktura</h1>
         <Card><CardContent className="py-8 text-center text-sm" style={{ color: "var(--content-muted)" }}>Nie przypisano do żadnej struktury</CardContent></Card>
       </div>
@@ -29,7 +29,7 @@ export default function StructurePage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-4">
+    <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-4">
       <h1 className="text-lg font-semibold" style={{ color: "var(--content-strong)" }}>Moja struktura — {data.structure.name}</h1>
 
       <Card>

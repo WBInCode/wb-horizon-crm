@@ -192,14 +192,14 @@ export default function ClientProfilePage() {
 
   if (!profile) {
     return (
-      <div className="p-6 text-center" style={{ color: "var(--content-muted)" }}>
+      <div className="p-4 md:p-6 text-center" style={{ color: "var(--content-muted)" }}>
         Nie udało się załadować profilu
       </div>
     )
   }
 
   return (
-    <div className="p-6 max-w-2xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">
       {/* Page header */}
       <div>
         <h1 className="text-xl font-semibold" style={{ color: "var(--content-strong)", fontFamily: "var(--font-display)" }}>

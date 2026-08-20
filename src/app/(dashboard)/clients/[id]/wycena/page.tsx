@@ -141,7 +141,7 @@ export default function ClientWycenaPage() {
             {q.price != null && <p><strong>Kwota:</strong> {Number(q.price).toLocaleString("pl-PL")} PLN</p>}
             {q.notes && <p><strong>Notatki:</strong> {q.notes}</p>}
             {q.lineItems?.length > 0 && (
-              <div className="mt-2">
+              <div className="mt-2 overflow-x-auto">
                 <p className="font-medium mb-1">Pozycje:</p>
                 <table className="w-full text-xs">
                   <thead>

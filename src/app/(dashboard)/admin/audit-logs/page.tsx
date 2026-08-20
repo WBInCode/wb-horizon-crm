@@ -154,10 +154,10 @@ export default function AuditLogsPage() {
 
   const hasFilters = actionFilter || entityFilter || search || dateFrom || dateTo || userFilter || caseFilter || clientFilter
 
-  if (sessionStatus === "loading" || loading) return <div className="p-6">Ładowanie...</div>
+  if (sessionStatus === "loading" || loading) return <div className="p-4 md:p-6">Ładowanie...</div>
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-4 md:p-6 space-y-4">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Dziennik audytu</h1>
         <span className="text-sm text-gray-500">{pagination.total} wpisów</span>

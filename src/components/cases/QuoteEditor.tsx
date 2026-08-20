@@ -166,6 +166,7 @@ export default function QuoteEditor({ caseId, quote, onUpdate, userRole }: Quote
         {quote.kind === "FEATURE_LIST" && (
           <div>
             <p className="text-xs font-medium mb-2" style={{ color: "var(--content-muted)" }}>Pozycje wyceny</p>
+            <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b" style={{ borderColor: "var(--border)" }}>
@@ -206,6 +207,7 @@ export default function QuoteEditor({ caseId, quote, onUpdate, userRole }: Quote
                 </tfoot>
               )}
             </table>
+            </div>
 
             {isEditable && (
               <div className="flex gap-2 mt-2 items-end">

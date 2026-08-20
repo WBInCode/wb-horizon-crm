@@ -22,7 +22,7 @@ export default function CCDashboardPage() {
 
   if (loading) {
     return (
-      <div className="p-6 max-w-5xl mx-auto space-y-4">
+      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-4">
         {[1, 2, 3].map((i) => (
           <div key={i} className="h-24 rounded-xl animate-pulse" style={{ background: "var(--surface-1)" }} />
         ))}
@@ -31,7 +31,7 @@ export default function CCDashboardPage() {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold" style={{ color: "var(--content-strong)" }}>Panel Call Center</h1>
         <Button onClick={() => router.push("/clients/new")}>

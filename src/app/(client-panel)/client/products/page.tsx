@@ -116,7 +116,7 @@ export default function ClientProductsPage() {
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center h-64">
+      <div className="p-4 md:p-6 flex items-center justify-center h-64">
         <div className="flex flex-col items-center gap-2">
           <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "var(--brand)", borderTopColor: "transparent" }} />
           <p className="text-sm" style={{ color: "var(--content-muted)" }}>Ładowanie...</p>
@@ -126,7 +126,7 @@ export default function ClientProductsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       <div className="flex items-center justify-between reveal">
         <div>
           <h1

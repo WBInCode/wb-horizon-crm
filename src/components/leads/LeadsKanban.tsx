@@ -10,7 +10,8 @@ import { useRouter } from "next/navigation"
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useDraggable,
   useDroppable,
   useSensor,
@@ -181,8 +182,11 @@ export function LeadsKanban({ leads, columns, onStatusChange }: LeadsKanbanProps
   const router = useRouter()
   const [activeId, setActiveId] = useState<string | null>(null)
 
-  // Odróżniamy klik od przeciągnięcia — aktywacja dopiero po 6px ruchu
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
+  // Mysz: klik vs drag po 6px ruchu. Dotyk: przytrzymanie 200ms, żeby drag nie walczył z poziomym scrollem kolumn
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
+  )
 
   const byStatus = useMemo(() => {
     const map = new Map<string, KanbanLead[]>()

@@ -18,7 +18,7 @@ interface TwoFaStatus {
 
 export default function SecurityPage() {
   return (
-    <Suspense fallback={<div className="px-6 py-6 max-w-[720px] mx-auto"><div className="skeleton h-40 rounded-lg" /></div>}>
+    <Suspense fallback={<div className="px-4 md:px-6 py-6 max-w-[720px] mx-auto"><div className="skeleton h-40 rounded-lg" /></div>}>
       <SecurityContent />
     </Suspense>
   )
@@ -118,7 +118,7 @@ function SecurityContent() {
   }
 
   return (
-    <div className="px-6 py-6 max-w-[720px] mx-auto space-y-6">
+    <div className="px-4 md:px-6 py-6 max-w-[720px] mx-auto space-y-6">
       <div>
         <p className="mono-label" style={{ color: "var(--content-subtle)" }}>Konto</p>
         <h1

@@ -62,7 +62,7 @@ const EMPTY_LEADS: any[] = []
 
 export default function LeadsPage() {
   return (
-    <Suspense fallback={<div className="p-6"><div className="skeleton h-96 rounded-xl" /></div>}>
+    <Suspense fallback={<div className="p-4 md:p-6"><div className="skeleton h-96 rounded-xl" /></div>}>
       <LeadsContent />
     </Suspense>
   )
@@ -306,10 +306,10 @@ function LeadsContent() {
   ], [leads, selected])
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <div className="flex justify-between items-center mb-6 gap-3 flex-wrap">
         <h1 className="text-2xl font-bold">Leady</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Przełącznik widoku (audyt F4) */}
           <div
             className="flex items-center rounded-lg p-0.5"

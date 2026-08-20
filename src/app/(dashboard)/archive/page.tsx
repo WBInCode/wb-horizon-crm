@@ -107,10 +107,10 @@ export default function ArchivePage() {
 
   const isAdmin = currentUser?.role === "ADMIN"
 
-  if (loading) return <div className="p-6">Ładowanie...</div>
+  if (loading) return <div className="p-4 md:p-6">Ładowanie...</div>
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-3">
           <Archive className="w-6 h-6 text-gray-500" />

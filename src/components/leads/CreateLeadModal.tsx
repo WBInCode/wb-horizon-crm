@@ -90,7 +90,7 @@ export function CreateLeadModal({ open, onClose, onSuccess }: Props) {
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="companyName">Nazwa firmy *</Label>
               <Input
@@ -110,7 +110,7 @@ export function CreateLeadModal({ open, onClose, onSuccess }: Props) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="industry">Branża</Label>
               <Input
@@ -131,7 +131,7 @@ export function CreateLeadModal({ open, onClose, onSuccess }: Props) {
 
           <hr />
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="contactPerson">Osoba kontaktowa *</Label>
               <Input
@@ -151,7 +151,7 @@ export function CreateLeadModal({ open, onClose, onSuccess }: Props) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="phone">Telefon *</Label>
               <Input

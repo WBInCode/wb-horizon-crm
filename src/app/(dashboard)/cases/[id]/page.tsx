@@ -148,7 +148,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
 
   if (loading) {
     return (
-      <div className="p-6 space-y-4" role="status" aria-label="Ładowanie sprzedaży">
+      <div className="p-4 md:p-6 space-y-4" role="status" aria-label="Ładowanie sprzedaży">
         <div className="skeleton h-8 w-40 rounded-lg" />
         <div className="skeleton h-24 w-full rounded-xl" />
         <div className="flex gap-2">
@@ -160,13 +160,13 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
       </div>
     )
   }
-  if (!caseData) return <div className="p-6">Nie znaleziono sprzedaży</div>
+  if (!caseData) return <div className="p-4 md:p-6">Nie znaleziono sprzedaży</div>
 
   const currentStage = caseData.processStage || "NEW"
   const allowedStatuses = ALLOWED_STATUS_PER_STAGE[currentStage] || []
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       {/* Nawigacja */}
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" onClick={() => router.back()}>

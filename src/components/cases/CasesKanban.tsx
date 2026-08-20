@@ -11,7 +11,8 @@ import { useRouter } from "next/navigation"
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useDraggable,
   useDroppable,
   useSensor,
@@ -174,7 +175,11 @@ function Column({
 export function CasesKanban({ cases, columns, onStageChange, onInvalid }: CasesKanbanProps) {
   const router = useRouter()
   const [activeId, setActiveId] = useState<string | null>(null)
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
+  // Mysz: aktywacja po 6px. Dotyk: przytrzymanie 200ms, żeby drag nie walczył z poziomym scrollem kolumn
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
+  )
 
   const byStage = useMemo(() => {
     const map = new Map<string, KanbanCase[]>()

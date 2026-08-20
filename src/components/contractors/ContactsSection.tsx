@@ -147,7 +147,7 @@ export default function ContactsSection({ contacts, clientId, onRefresh, open, o
               <label className="text-sm font-medium">Stanowisko</label>
               <Input value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-sm font-medium">Telefon</label>
                 <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />

@@ -285,7 +285,7 @@ export default function RolesPermissionsTab() {
 
           <div className="space-y-4">
             {/* Basic info */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium">Nazwa systemowa *</label>
                 <Input

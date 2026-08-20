@@ -35,13 +35,13 @@ export default function CaretakerApprovalsPage() {
     }
   }
 
-  if (loading) return <div className="p-6 text-sm" style={{ color: "var(--content-muted)" }}>Ładowanie...</div>
+  if (loading) return <div className="p-4 md:p-6 text-sm" style={{ color: "var(--content-muted)" }}>Ładowanie...</div>
 
   const pending = approvals.filter((a) => a.status === "PENDING")
   const resolved = approvals.filter((a) => a.status !== "PENDING")
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-4">
+    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-4">
       <h1 className="text-lg font-semibold" style={{ color: "var(--content-strong)" }}>Do zatwierdzenia</h1>
 
       {pending.length === 0 ? (

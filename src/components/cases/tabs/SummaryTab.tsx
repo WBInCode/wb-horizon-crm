@@ -372,7 +372,7 @@ export function SummaryTab({ caseData, onUpdate }: Props) {
                 <label className="text-sm font-medium">Zakres wyceny *</label>
                 <Input value={quoteForm.scope} onChange={(e) => setQuoteForm({ ...quoteForm, scope: e.target.value })} placeholder="Zakres usługi..." />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium">Cena (PLN)</label>
                   <Input type="number" value={quoteForm.price} onChange={(e) => setQuoteForm({ ...quoteForm, price: e.target.value })} placeholder="0" />

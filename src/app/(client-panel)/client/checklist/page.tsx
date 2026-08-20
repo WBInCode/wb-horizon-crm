@@ -15,7 +15,7 @@ export default async function ClientChecklistPage() {
 
   if (!client) {
     return (
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <h1
           className="text-2xl font-semibold tracking-tight mb-4"
           style={{ color: "var(--content-strong)", fontFamily: "var(--font-display)" }}
@@ -45,7 +45,7 @@ export default async function ClientChecklistPage() {
   const cases = wszystkie.filter((c) => zakresy.get(c.id)?.listaKontrolna)
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       <div className="reveal">
         <h1
           className="text-2xl font-semibold tracking-tight"

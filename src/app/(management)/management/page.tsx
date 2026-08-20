@@ -17,10 +17,10 @@ export default function ManagementDashboardPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <div className="p-6"><div className="h-48 rounded-xl animate-pulse" style={{ background: "var(--surface-1)" }} /></div>
+  if (loading) return <div className="p-4 md:p-6"><div className="h-48 rounded-xl animate-pulse" style={{ background: "var(--surface-1)" }} /></div>
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
       <h1 className="text-xl font-semibold" style={{ color: "var(--content-strong)" }}>Dashboard Zarządzania</h1>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPI icon={Users} label="Użytkownicy w strukturze" value={data?.usersCount ?? 0} />

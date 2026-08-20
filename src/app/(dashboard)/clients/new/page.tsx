@@ -116,8 +116,8 @@ export default function NewClientPage() {
   const updContact = (field: string, value: any) => setContact({ ...contact, [field]: value })
 
   return (
-    <div className="p-6">
-      <div className="flex items-center gap-4 mb-6">
+    <div className="p-4 md:p-6">
+      <div className="flex items-center gap-2 sm:gap-4 mb-6 flex-wrap">
         <Button variant="ghost" onClick={() => router.back()}>
           <ArrowLeft className="w-4 h-4" />
         </Button>
@@ -138,7 +138,7 @@ export default function NewClientPage() {
         </Button>
       </div>
 
-      <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-6">
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Dane podstawowe */}
         <Card>
           <CardHeader><CardTitle>Dane podstawowe</CardTitle></CardHeader>
@@ -260,7 +260,7 @@ export default function NewClientPage() {
               <label className="text-sm font-medium">Opis</label>
               <Textarea value={form.description} onChange={(e) => upd("description", e.target.value)} placeholder="Krótki opis kontrahenta..." rows={3} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium">Priorytety</label>
                 <Textarea value={form.priorities} onChange={(e) => upd("priorities", e.target.value)} placeholder="Priorytety klienta..." rows={2} />

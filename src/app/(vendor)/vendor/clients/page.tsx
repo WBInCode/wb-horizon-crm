@@ -16,10 +16,10 @@ export default function VendorClientsPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <div className="p-6 text-sm" style={{ color: "var(--content-muted)" }}>Ładowanie...</div>
+  if (loading) return <div className="p-4 md:p-6 text-sm" style={{ color: "var(--content-muted)" }}>Ładowanie...</div>
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-4">
+    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-4">
       <h1 className="text-lg font-semibold" style={{ color: "var(--content-strong)" }}>Klienci moich produktów</h1>
       {clients.length === 0 ? (
         <Card><CardContent className="py-8 text-center text-sm" style={{ color: "var(--content-muted)" }}>Brak klientów</CardContent></Card>

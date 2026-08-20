@@ -62,7 +62,7 @@ export default function UserDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-6 max-w-4xl mx-auto space-y-4">
+      <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-4">
         {[1, 2, 3].map((i) => (
           <div key={i} className="h-40 rounded-xl animate-pulse" style={{ background: "var(--surface-1)" }} />
         ))}
@@ -72,7 +72,7 @@ export default function UserDetailPage() {
 
   if (!data) {
     return (
-      <div className="p-6 max-w-4xl mx-auto text-center py-24">
+      <div className="p-4 md:p-6 max-w-4xl mx-auto text-center py-24">
         <p style={{ color: "var(--content-muted)" }}>Użytkownik nie znaleziony</p>
         <Button variant="outline" className="mt-4" onClick={() => router.push("/admin")}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Powrót
@@ -82,7 +82,7 @@ export default function UserDetailPage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => router.push("/admin")}>

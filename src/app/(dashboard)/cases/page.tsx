@@ -36,7 +36,7 @@ const CASE_KANBAN_STAGES = ["NEW", "DATA_COLLECTION", "DOCUMENTS", "VERIFICATION
 
 export default function CasesPage() {
   return (
-    <Suspense fallback={<div className="p-6"><div className="skeleton h-96 rounded-xl" /></div>}>
+    <Suspense fallback={<div className="p-4 md:p-6"><div className="skeleton h-96 rounded-xl" /></div>}>
       <CasesContent />
     </Suspense>
   )
@@ -209,10 +209,10 @@ function CasesContent() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <div className="flex justify-between items-center mb-6 gap-3 flex-wrap">
         <h1 className="text-2xl font-bold">Sprzedaże</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <div
             className="flex items-center rounded-lg p-0.5"
             style={{ background: "var(--surface-2)", border: "1px solid var(--line-subtle)" }}
@@ -270,8 +270,8 @@ function CasesContent() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-3 mb-6">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 mb-6">
+        <div className="relative col-span-2 sm:flex-1 sm:min-w-[200px] sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
           <Input
             placeholder="Szukaj..."
@@ -281,7 +281,7 @@ function CasesContent() {
           />
         </div>
         <Select value={statusFilter} onValueChange={(v: string | null) => setStatusFilter(v ?? "")}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Status">{statusFilter ? statusLabels[statusFilter] : undefined}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -291,7 +291,7 @@ function CasesContent() {
           </SelectContent>
         </Select>
         <Select value={caretakerFilter} onValueChange={(v: string | null) => setCaretakerFilter(v ?? "")}>
-          <SelectTrigger className="w-[170px]">
+          <SelectTrigger className="w-full sm:w-[170px]">
             <SelectValue placeholder="Opiekun">{caretakers.find((u) => u.id === caretakerFilter)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -301,7 +301,7 @@ function CasesContent() {
           </SelectContent>
         </Select>
         <Select value={salesFilter} onValueChange={(v: string | null) => setSalesFilter(v ?? "")}>
-          <SelectTrigger className="w-[170px]">
+          <SelectTrigger className="w-full sm:w-[170px]">
             <SelectValue placeholder="Handlowiec">{salespersons.find((u) => u.id === salesFilter)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -311,7 +311,7 @@ function CasesContent() {
           </SelectContent>
         </Select>
         <Select value={directorFilter} onValueChange={(v: string | null) => setDirectorFilter(v ?? "")}>
-          <SelectTrigger className="w-[170px]">
+          <SelectTrigger className="w-full sm:w-[170px]">
             <SelectValue placeholder="Dyrektor">{directors.find((u) => u.id === directorFilter)?.name}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -321,7 +321,7 @@ function CasesContent() {
           </SelectContent>
         </Select>
         <Select value={stageFilter} onValueChange={(v: string | null) => setStageFilter(v ?? "")}>
-          <SelectTrigger className="w-[170px]">
+          <SelectTrigger className="w-full sm:w-[170px]">
             <SelectValue placeholder="Etap">{stageFilter ? STAGE_LABELS[stageFilter] : undefined}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -331,7 +331,7 @@ function CasesContent() {
           </SelectContent>
         </Select>
         <Select value={detailedStatusFilter} onValueChange={(v: string | null) => setDetailedStatusFilter(v ?? "")}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Status szczeg.">{detailedStatusFilter ? DETAILED_LABELS[detailedStatusFilter] : undefined}</SelectValue>
           </SelectTrigger>
           <SelectContent>

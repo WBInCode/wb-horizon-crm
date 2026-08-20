@@ -134,15 +134,15 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     }
   }
 
-  if (loading) return <div className="p-6">Ładowanie...</div>
-  if (!lead) return <div className="p-6">Nie znaleziono leada</div>
+  if (loading) return <div className="p-4 md:p-6">Ładowanie...</div>
+  if (!lead) return <div className="p-4 md:p-6">Nie znaleziono leada</div>
 
   const salespersons = users.filter((u) => ["SALESPERSON", "ADMIN"].includes(u.role))
   const upd = (field: string, value: any) => setEditForm({ ...editForm, [field]: value })
 
   return (
-    <div className="p-6">
-      <div className="flex items-center gap-4 mb-6">
+    <div className="p-4 md:p-6">
+      <div className="flex items-center gap-2 sm:gap-4 mb-6 flex-wrap">
         <Button variant="ghost" onClick={() => router.back()}>
           <ArrowLeft className="w-4 h-4" />
         </Button>
@@ -188,7 +188,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader><CardTitle>Dane firmy</CardTitle></CardHeader>
           <CardContent className="space-y-2">

@@ -199,7 +199,7 @@ export default function AdminPage() {
     }
   }
 
-  if (loading) return <div className="p-6">Ładowanie...</div>
+  if (loading) return <div className="p-4 md:p-6">Ładowanie...</div>
 
   const caretakers = users.filter((u) => u.role === "CARETAKER")
   const directors = users.filter((u) => u.role === "DIRECTOR")
@@ -244,7 +244,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Panel administracyjny</h1>
       </div>
@@ -505,7 +505,7 @@ export default function AdminPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Obciążenie opiekunów */}
         <Card>
           <CardHeader>

@@ -49,12 +49,12 @@ export default function ReportsPage() {
 
   if (isLoading) {
     return (
-      <div className="px-6 py-6 max-w-[1200px] mx-auto space-y-6" role="status" aria-label="Ładowanie raportów">
+      <div className="px-4 md:px-6 py-6 max-w-[1200px] mx-auto space-y-6" role="status" aria-label="Ładowanie raportów">
         <div className="skeleton h-8 w-40 rounded-lg" />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton h-24 rounded-xl" />)}
         </div>
-        <div className="grid lg:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 gap-6">
           {Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton h-64 rounded-xl" />)}
         </div>
       </div>
@@ -65,7 +65,7 @@ export default function ReportsPage() {
   const pipelineDonut: Datum[] = (data?.pipeline ?? []).map((p) => ({ label: p.label, value: p.value }))
 
   return (
-    <div className="px-6 py-6 max-w-[1200px] mx-auto space-y-6">
+    <div className="px-4 md:px-6 py-6 max-w-[1200px] mx-auto space-y-6">
       <div>
         <p className="mono-label" style={{ color: "var(--content-subtle)" }}>Analityka</p>
         <h1 className="text-2xl font-semibold tracking-tight mt-1" style={{ color: "var(--content-strong)", fontFamily: "var(--font-display)" }}>
@@ -74,7 +74,7 @@ export default function ReportsPage() {
       </div>
 
       {/* KPI */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiTile icon={Users} label="Leady" value={String(kpi?.totalLeads ?? 0)} sub={`${kpi?.convertedLeads ?? 0} skonwertowanych`} />
         <KpiTile icon={Target} label="Konwersja" value={`${kpi?.conversionRate ?? 0}%`} sub="lead → klient" />
         <KpiTile icon={ShoppingCart} label="Aktywne sprzedaże" value={String(kpi?.activeCases ?? 0)} sub={`${kpi?.closedCases ?? 0} zamkniętych`} />
@@ -82,7 +82,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Wykresy */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">

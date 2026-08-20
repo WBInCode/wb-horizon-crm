@@ -107,8 +107,8 @@ export default function NewLeadPage() {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center gap-4 mb-6">
+    <div className="p-4 md:p-6">
+      <div className="flex items-center gap-2 sm:gap-4 mb-6 flex-wrap">
         <Button variant="ghost" onClick={() => router.back()}>
           <ArrowLeft className="w-4 h-4" />
         </Button>
@@ -123,7 +123,7 @@ export default function NewLeadPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader><CardTitle>Dane firmy</CardTitle></CardHeader>
           <CardContent className="space-y-3">

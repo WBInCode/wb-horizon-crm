@@ -34,9 +34,9 @@ export default function DashboardPage() {
   const userId = data?.userId
 
   return (
-    <div className="px-6 py-6 max-w-[1400px] mx-auto space-y-6">
+    <div className="px-4 md:px-6 py-6 max-w-[1400px] mx-auto space-y-6">
       {/* Page header */}
-      <div className="flex justify-between items-end reveal">
+      <div className="flex flex-wrap justify-between items-end gap-3 reveal">
         <div>
           <p className="mono-label" style={{ color: "var(--content-subtle)" }}>
             Przegląd
@@ -48,7 +48,7 @@ export default function DashboardPage() {
             Dashboard
           </h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <QuickAction icon={Plus} label="Lead" onClick={() => router.push("/leads/new")} />
           <QuickAction icon={Plus} label="Kontrahent" onClick={() => router.push("/clients/new")} />
           <QuickAction icon={Plus} label="Sprzedaż" onClick={() => router.push("/cases/new")} accent />
@@ -56,7 +56,7 @@ export default function DashboardPage() {
       </div>
 
       {/* KPI Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <KpiCard
           icon={Users}
           value={data?.newLeads || 0}
@@ -134,7 +134,7 @@ export default function DashboardPage() {
       </DashboardCard>
 
       {/* Approvals + Missing */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <DashboardCard
           title="Moje akceptacje"
           icon={CheckCircle2}
@@ -200,7 +200,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Deadlines + Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <DashboardCard
           title="Najbliższe terminy"
           icon={Calendar}
@@ -509,7 +509,7 @@ function EmptyState({ icon: Icon, message, cta, onClick }: {
    ═══════════════════════════════════════════════════════ */
 function DashboardSkeleton() {
   return (
-    <div className="px-6 py-6 max-w-[1400px] mx-auto space-y-6">
+    <div className="px-4 md:px-6 py-6 max-w-[1400px] mx-auto space-y-6">
       {/* Header skeleton */}
       <div className="flex justify-between items-end">
         <div>
@@ -524,7 +524,7 @@ function DashboardSkeleton() {
       </div>
 
       {/* KPI skeleton */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {Array.from({ length: 5 }).map((_, i) => (
           <div
             key={i}

@@ -201,8 +201,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
-  if (loading) return <div className="p-6 text-gray-500">Ładowanie...</div>
-  if (!client) return <div className="p-6 text-gray-500">Nie znaleziono kontrahenta.</div>
+  if (loading) return <div className="p-4 md:p-6 text-gray-500">Ładowanie...</div>
+  if (!client) return <div className="p-4 md:p-6 text-gray-500">Nie znaleziono kontrahenta.</div>
 
   const stage = client.stage || "LEAD"
   const isInactive = stage === "INACTIVE"
